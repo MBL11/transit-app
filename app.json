@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Transit App",
+    "slug": "transit-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0066CC",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.transitapp"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0066CC"
+      },
+      "package": "com.transitapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
