@@ -25,6 +25,9 @@
   "license": "MIT",
   "dependencies": {
     "expo": "~52.0.0",
+    "expo-asset": "^12.0.12",
+    "expo-font": "^14.0.10",
+    "expo-splash-screen": "^31.0.13",
     "expo-status-bar": "^3.0.9",
     "nativewind": "^4.2.1",
     "react": "18.3.1",
