@@ -1,12 +1,24 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ScrollView } from 'react-native';
+import { useState } from 'react';
 import { Button } from './src/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './src/components/ui/card';
 import { Badge } from './src/components/ui/badge';
 import { Separator } from './src/components/ui/separator';
+import { Input } from './src/components/ui/input';
+import { Alert } from './src/components/ui/alert';
+import { Skeleton } from './src/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './src/components/ui/tabs';
+import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from './src/components/ui/sheet';
+import { LineCard } from './src/components/transit/LineCard';
+import { StopCard } from './src/components/transit/StopCard';
+import { SearchBar } from './src/components/transit/SearchBar';
 import './global.css';
 
 export default function App() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar style="auto" />
@@ -24,13 +36,156 @@ export default function App() {
 
           <Separator />
 
+          {/* Search Bar */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Search Bar</Text>
+            <SearchBar
+              placeholder="Rechercher un arrêt, une ligne..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+            />
+          </View>
+
+          <Separator />
+
+          {/* Transit Components */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Transit Components</Text>
+
+            <LineCard
+              lineNumber="1"
+              lineName="Ligne 1"
+              lineColor="#FFCD00"
+              direction="La Défense"
+              type="metro"
+              onPress={() => console.log('Line pressed')}
+            />
+
+            <LineCard
+              lineNumber="42"
+              lineName="Bus 42"
+              lineColor="#00AA55"
+              direction="Gare du Nord"
+              type="bus"
+            />
+
+            <StopCard
+              stopName="Châtelet"
+              stopCode="1234"
+              lines={[
+                { lineNumber: '1', lineColor: '#FFCD00', type: 'metro' },
+                { lineNumber: '4', lineColor: '#A0006E', type: 'metro' },
+                { lineNumber: '7', lineColor: '#FA9ABA', type: 'metro' },
+                { lineNumber: '11', lineColor: '#704B1C', type: 'metro' },
+                { lineNumber: '14', lineColor: '#62259D', type: 'metro' },
+              ]}
+              distance={150}
+              onPress={() => console.log('Stop pressed')}
+            />
+          </View>
+
+          <Separator />
+
           {/* Buttons */}
           <View className="gap-3">
             <Text className="text-xl font-semibold mb-2">Buttons</Text>
             <Button label="Primary Button" />
             <Button label="Secondary" variant="secondary" />
             <Button label="Outline" variant="outline" />
-            <Button label="Small Button" size="sm" />
+            <Button label="Open Sheet" onPress={() => setSheetOpen(true)} />
+          </View>
+
+          <Separator />
+
+          {/* Input */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Input</Text>
+            <Input
+              label="Nom de l'arrêt"
+              placeholder="Ex: Châtelet"
+            />
+            <Input
+              label="Code postal"
+              placeholder="75001"
+              error="Code postal invalide"
+            />
+          </View>
+
+          <Separator />
+
+          {/* Alerts */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Alerts</Text>
+            <Alert
+              variant="info"
+              title="Information"
+              description="Le trafic est normal sur toutes les lignes."
+            />
+            <Alert
+              variant="warning"
+              title="Perturbation"
+              description="Trafic ralenti sur la ligne 1 en raison de travaux."
+            />
+            <Alert
+              variant="destructive"
+              title="Alerte"
+              description="Trafic interrompu sur la ligne 13."
+            />
+          </View>
+
+          <Separator />
+
+          {/* Tabs */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Tabs</Text>
+            <Tabs defaultValue="metro">
+              <TabsList>
+                <TabsTrigger value="metro" label="Métro" />
+                <TabsTrigger value="bus" label="Bus" />
+                <TabsTrigger value="tram" label="Tram" />
+              </TabsList>
+              <TabsContent value="metro">
+                <Card>
+                  <CardContent className="p-4">
+                    <Text className="text-gray-900 dark:text-white">
+                      Contenu Métro
+                    </Text>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="bus">
+                <Card>
+                  <CardContent className="p-4">
+                    <Text className="text-gray-900 dark:text-white">
+                      Contenu Bus
+                    </Text>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="tram">
+                <Card>
+                  <CardContent className="p-4">
+                    <Text className="text-gray-900 dark:text-white">
+                      Contenu Tram
+                    </Text>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </View>
+
+          <Separator />
+
+          {/* Skeletons */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Skeletons (Loading)</Text>
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <View className="flex-row gap-2">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-10 flex-1" />
+            </View>
           </View>
 
           <Separator />
@@ -48,51 +203,6 @@ export default function App() {
           </View>
 
           <Separator />
-
-          {/* Cards avec couleurs transport */}
-          <View className="gap-3">
-            <Text className="text-xl font-semibold mb-2">Transport Cards</Text>
-
-            <Card className="border-l-4 border-l-transit-metro">
-              <CardHeader>
-                <CardTitle>Ligne Métro 1</CardTitle>
-                <CardDescription>La Défense → Château de Vincennes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Badge label="Métro" className="bg-transit-metro" />
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-transit-bus">
-              <CardHeader>
-                <CardTitle>Bus 42</CardTitle>
-                <CardDescription>Gare du Nord → Porte de Versailles</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Badge label="Bus" className="bg-transit-bus" />
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-transit-tram">
-              <CardHeader>
-                <CardTitle>Tram T3</CardTitle>
-                <CardDescription>Pont du Garigliano → Porte d'Ivry</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Badge label="Tramway" className="bg-transit-tram" />
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-transit-rer">
-              <CardHeader>
-                <CardTitle>RER A</CardTitle>
-                <CardDescription>Saint-Germain-en-Laye → Marne-la-Vallée</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Badge label="RER" className="bg-transit-rer" />
-              </CardContent>
-            </Card>
-          </View>
 
           {/* Palette de couleurs */}
           <View className="gap-3 mb-8">
@@ -120,6 +230,43 @@ export default function App() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Sheet Demo */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetHeader>
+          <SheetTitle>Détails de l'arrêt</SheetTitle>
+          <SheetDescription>
+            Informations sur l'arrêt Châtelet
+          </SheetDescription>
+        </SheetHeader>
+        <SheetContent>
+          <View className="gap-4">
+            <Text className="text-gray-900 dark:text-white">
+              Prochains passages :
+            </Text>
+            <Card>
+              <CardContent className="p-3">
+                <Text className="text-gray-900 dark:text-white font-semibold">
+                  Ligne 1 - La Défense
+                </Text>
+                <Text className="text-gray-600 dark:text-gray-400 text-sm">
+                  Dans 2 minutes
+                </Text>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3">
+                <Text className="text-gray-900 dark:text-white font-semibold">
+                  Ligne 4 - Porte de Clignancourt
+                </Text>
+                <Text className="text-gray-600 dark:text-gray-400 text-sm">
+                  Dans 5 minutes
+                </Text>
+              </CardContent>
+            </Card>
+          </View>
+        </SheetContent>
+      </Sheet>
     </View>
   );
 }
