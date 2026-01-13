@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ScrollView } from 'react-native';
 import { useState } from 'react';
+import * as FileSystem from 'expo-file-system';
 import { Button } from './src/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './src/components/ui/card';
 import { Badge } from './src/components/ui/badge';
@@ -13,13 +14,14 @@ import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from '
 import { LineCard } from './src/components/transit/LineCard';
 import { StopCard } from './src/components/transit/StopCard';
 import { SearchBar } from './src/components/transit/SearchBar';
-import { parseStops } from './src/core/gtfs-parser';
+import { parseStops, loadGTFSFile } from './src/core/gtfs-parser';
 import './global.css';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [testResult, setTestResult] = useState<string>('');
+  const [fileTestResult, setFileTestResult] = useState<string>('');
 
   const testParserValidation = () => {
     console.log('🧪 Testing GTFS Parser Validation & Error Handling...\n');
@@ -46,6 +48,44 @@ TEST3,Valid Stop,48.8566,2.3522`;
 Test 1 (BOM): ${result1.data.length === 1 ? '✅' : '❌'}
 Test 2 (Missing Cols): ✅ (see warnings)
 Test 3 (Valid): ${result3.data.length === 1 ? '✅' : '❌'}`);
+  };
+
+  const testLoadGTFSFile = async () => {
+    console.log('🧪 Testing loadGTFSFile()...\n');
+    setFileTestResult('Testing...');
+
+    try {
+      // Create test GTFS file
+      const testFilePath = `${FileSystem.documentDirectory}test_stops.txt`;
+      const testData = `stop_id,stop_name,stop_lat,stop_lon
+TESTFILE1,Test Stop from File,48.8566,2.3522
+TESTFILE2,Another Stop,48.8600,2.3500`;
+
+      console.log(`Creating test file at: ${testFilePath}`);
+      await FileSystem.writeAsStringAsync(testFilePath, testData, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      // Test loading the file
+      console.log('Loading file with loadGTFSFile()...');
+      const content = await loadGTFSFile(testFilePath);
+
+      // Parse the loaded content
+      const result = parseStops(content);
+
+      // Clean up
+      await FileSystem.deleteAsync(testFilePath);
+
+      console.log('✅ File loaded and parsed successfully!');
+      setFileTestResult(`✅ Success!
+File loaded: ${content.length} bytes
+Stops parsed: ${result.data.length}
+Stop 1: ${result.data[0]?.stop_name}
+Stop 2: ${result.data[1]?.stop_name}`);
+    } catch (error) {
+      console.error('❌ Test failed:', error);
+      setFileTestResult(`❌ Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
@@ -81,6 +121,30 @@ Test 3 (Valid): ${result3.data.length === 1 ? '✅' : '❌'}`);
                   </Text>
                   <Text className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                     💡 Check the console for detailed warnings
+                  </Text>
+                </CardContent>
+              </Card>
+            )}
+          </View>
+
+          <Separator />
+
+          {/* File Loader Test */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">📁 loadGTFSFile() Test</Text>
+            <Button
+              label="Test File Loading from Filesystem"
+              onPress={testLoadGTFSFile}
+              variant={fileTestResult ? "secondary" : "default"}
+            />
+            {fileTestResult && (
+              <Card className="border-l-4 border-l-blue-500">
+                <CardContent className="p-4">
+                  <Text className="text-sm text-gray-900 dark:text-white whitespace-pre-line">
+                    {fileTestResult}
+                  </Text>
+                  <Text className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    💡 Test creates temp file, loads it, parses, then deletes
                   </Text>
                 </CardContent>
               </Card>
