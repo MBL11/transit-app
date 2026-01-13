@@ -11,6 +11,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "expo": "~54.0.0",
+    "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.0",
     "lucide-react-native": "^0.562.0",
     "nativewind": "^4.2.1",
