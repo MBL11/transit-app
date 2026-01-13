@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, Pressable, TextInputProps } from 'react-native';
+import { View, Text, TextInput, Pressable, TextInputProps } from 'react-native';
 import { cn } from '@/utils';
 
 export interface SearchBarProps extends TextInputProps {
