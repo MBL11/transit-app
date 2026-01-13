@@ -1,29 +1,27 @@
 {
   "expo": {
-    "name": "Transit App",
+    "name": "transit-app",
     "slug": "transit-app",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#0066CC",
+      "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.transitapp"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0066CC"
-      },
-      "package": "com.transitapp"
+        "backgroundColor": "#ffffff"
+      }
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }
