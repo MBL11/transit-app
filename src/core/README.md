@@ -4,6 +4,19 @@ Parser for GTFS (General Transit Feed Specification) data files.
 
 ## Usage
 
+### Loading GTFS Files
+
+```typescript
+import { loadGTFSFile, parseStops } from '@/core';
+
+// Load GTFS file from filesystem
+const stopsContent = await loadGTFSFile('/path/to/stops.txt');
+const stopsResult = parseStops(stopsContent);
+console.log(stopsResult.data); // Array of Stop objects
+```
+
+### Parsing GTFS Data
+
 ```typescript
 import { parseGTFS, parseStops, parseRoutes } from '@/core';
 

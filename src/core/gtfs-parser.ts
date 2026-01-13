@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import * as FileSystem from 'expo-file-system';
 import type {
   Stop,
   Route,
@@ -27,6 +28,37 @@ export interface GTFSParserOptions {
 export interface ParseResult<T> {
   data: T[];
   errors: Papa.ParseError[];
+}
+
+/**
+ * Load GTFS file from filesystem
+ * @param filepath - Absolute path to the GTFS file
+ * @returns Promise with file content as string
+ * @throws Error if file doesn't exist or cannot be read
+ */
+export async function loadGTFSFile(filepath: string): Promise<string> {
+  try {
+    // Check if file exists
+    const fileInfo = await FileSystem.getInfoAsync(filepath);
+
+    if (!fileInfo.exists) {
+      const error = `GTFS file not found: ${filepath}`;
+      console.warn(`[GTFS Loader] ${error}`);
+      throw new Error(error);
+    }
+
+    // Read file content
+    const content = await FileSystem.readAsStringAsync(filepath, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    console.log(`[GTFS Loader] Successfully loaded: ${filepath} (${content.length} bytes)`);
+    return content;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.warn(`[GTFS Loader] Failed to load ${filepath}:`, errorMessage);
+    throw error;
+  }
 }
 
 /**
