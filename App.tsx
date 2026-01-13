@@ -13,11 +13,21 @@ import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from '
 import { LineCard } from './src/components/transit/LineCard';
 import { StopCard } from './src/components/transit/StopCard';
 import { SearchBar } from './src/components/transit/SearchBar';
+import { testGTFSParser } from './src/core/__tests__/gtfs-example';
+import type { GTFSData } from './src/core/types/gtfs';
 import './global.css';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [gtfsData, setGtfsData] = useState<GTFSData | null>(null);
+
+  const handleTestGTFS = () => {
+    console.log('🧪 Testing GTFS Parser...');
+    const result = testGTFSParser();
+    setGtfsData(result.data);
+    console.log('✅ GTFS Parser test complete!');
+  };
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -32,6 +42,43 @@ export default function App() {
             <Text className="text-base text-gray-600 text-center">
               Composants UI avec React Native Reusables ✅
             </Text>
+          </View>
+
+          <Separator />
+
+          {/* GTFS Parser Test */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Feature #3: GTFS Parser</Text>
+            <Button
+              label="🧪 Test GTFS Parser"
+              onPress={handleTestGTFS}
+              variant={gtfsData ? "secondary" : "default"}
+            />
+            {gtfsData && (
+              <Card className="border-l-4 border-l-green-500">
+                <CardHeader>
+                  <CardTitle>Parser Results ✅</CardTitle>
+                  <CardDescription>Successfully parsed GTFS data</CardDescription>
+                </CardHeader>
+                <CardContent className="gap-2">
+                  <Text className="text-sm text-gray-700 dark:text-gray-300">
+                    📍 Stops: {gtfsData.stops.length} (Châtelet, Concorde, Étoile, La Défense)
+                  </Text>
+                  <Text className="text-sm text-gray-700 dark:text-gray-300">
+                    🚇 Routes: {gtfsData.routes.length} (Métro 1, Métro 4, Bus 42)
+                  </Text>
+                  <Text className="text-sm text-gray-700 dark:text-gray-300">
+                    🚌 Trips: {gtfsData.trips.length}
+                  </Text>
+                  <Text className="text-sm text-gray-700 dark:text-gray-300">
+                    ⏰ Stop Times: {gtfsData.stopTimes.length}
+                  </Text>
+                  <View className="mt-2">
+                    <Badge label="papaparse ✓" variant="success" />
+                  </View>
+                </CardContent>
+              </Card>
+            )}
           </View>
 
           <Separator />
