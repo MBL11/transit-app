@@ -30,6 +30,40 @@ export interface ParseResult<T> {
 }
 
 /**
+ * Remove BOM (Byte Order Mark) from UTF-8 encoded files
+ * GTFS files from European transit agencies often include BOM
+ */
+function removeBOM(content: string): string {
+  return content.replace(/^\uFEFF/, '');
+}
+
+/**
+ * Validate that required columns are present in the CSV
+ */
+function validateColumns(
+  data: any[],
+  requiredColumns: string[],
+  fileName: string
+): void {
+  if (data.length === 0) {
+    console.warn(`[GTFS Parser] ${fileName}: No data found`);
+    return;
+  }
+
+  const firstRow = data[0];
+  const missingColumns = requiredColumns.filter(
+    (col) => !(col in firstRow) && firstRow[col] === undefined
+  );
+
+  if (missingColumns.length > 0) {
+    console.warn(
+      `[GTFS Parser] ${fileName}: Missing required columns:`,
+      missingColumns
+    );
+  }
+}
+
+/**
  * Parse CSV content to typed objects
  */
 function parseCSV<T>(
@@ -38,18 +72,40 @@ function parseCSV<T>(
 ): ParseResult<T> {
   const { skipEmptyLines = true, trimHeaders = true } = options;
 
-  const result = Papa.parse<T>(csvContent, {
-    header: true,
-    skipEmptyLines,
-    trimHeaders,
-    transformHeader: (header) => (trimHeaders ? header.trim() : header),
-    transform: (value) => value.trim(),
-  });
+  try {
+    // Remove BOM if present
+    const cleanContent = removeBOM(csvContent);
 
-  return {
-    data: result.data,
-    errors: result.errors,
-  };
+    const result = Papa.parse<T>(cleanContent, {
+      header: true,
+      skipEmptyLines,
+      trimHeaders,
+      transformHeader: (header) => (trimHeaders ? header.trim() : header),
+      transform: (value) => value.trim(),
+    });
+
+    if (result.errors.length > 0) {
+      console.warn('[GTFS Parser] Parse errors:', result.errors);
+    }
+
+    return {
+      data: result.data,
+      errors: result.errors,
+    };
+  } catch (error) {
+    console.warn('[GTFS Parser] Parsing failed:', error);
+    return {
+      data: [],
+      errors: [
+        {
+          type: 'Error',
+          code: 'ParseError',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          row: 0,
+        },
+      ],
+    };
+  }
 }
 
 /**
@@ -60,6 +116,13 @@ export function parseStops(
   options?: GTFSParserOptions
 ): ParseResult<Stop> {
   const result = parseCSV<any>(csvContent, options);
+
+  // Validate required columns
+  validateColumns(
+    result.data,
+    ['stop_id', 'stop_name', 'stop_lat', 'stop_lon'],
+    'stops.txt'
+  );
 
   const stops: Stop[] = result.data.map((row) => ({
     stop_id: row.stop_id,
@@ -88,6 +151,13 @@ export function parseRoutes(
 ): ParseResult<Route> {
   const result = parseCSV<any>(csvContent, options);
 
+  // Validate required columns
+  validateColumns(
+    result.data,
+    ['route_id', 'route_short_name', 'route_long_name', 'route_type'],
+    'routes.txt'
+  );
+
   const routes: Route[] = result.data.map((row) => ({
     route_id: row.route_id,
     route_short_name: row.route_short_name,
@@ -110,6 +180,13 @@ export function parseTrips(
   options?: GTFSParserOptions
 ): ParseResult<Trip> {
   const result = parseCSV<any>(csvContent, options);
+
+  // Validate required columns
+  validateColumns(
+    result.data,
+    ['trip_id', 'route_id', 'service_id'],
+    'trips.txt'
+  );
 
   const trips: Trip[] = result.data.map((row) => ({
     trip_id: row.trip_id,
@@ -137,6 +214,13 @@ export function parseStopTimes(
   options?: GTFSParserOptions
 ): ParseResult<StopTime> {
   const result = parseCSV<any>(csvContent, options);
+
+  // Validate required columns
+  validateColumns(
+    result.data,
+    ['trip_id', 'stop_id', 'arrival_time', 'departure_time', 'stop_sequence'],
+    'stop_times.txt'
+  );
 
   const stopTimes: StopTime[] = result.data.map((row) => ({
     trip_id: row.trip_id,
