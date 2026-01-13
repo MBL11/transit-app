@@ -13,11 +13,48 @@ import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from '
 import { LineCard } from './src/components/transit/LineCard';
 import { StopCard } from './src/components/transit/StopCard';
 import { SearchBar } from './src/components/transit/SearchBar';
+import { initializeDatabase, dropAllTables, getDatabaseStats, isDatabaseEmpty } from './src/core/database';
 import './global.css';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [dbTestStatus, setDbTestStatus] = useState<string>('');
+  const [dbStats, setDbStats] = useState<any>(null);
+
+  // Test database initialization
+  const testDatabaseInit = async () => {
+    try {
+      setDbTestStatus('🔄 Initializing database...');
+
+      await initializeDatabase();
+
+      const stats = getDatabaseStats();
+      const isEmpty = isDatabaseEmpty();
+
+      setDbStats(stats);
+      setDbTestStatus(`✅ Database initialized!\nEmpty: ${isEmpty}\nStops: ${stats.stops}, Routes: ${stats.routes}, Trips: ${stats.trips}, Stop Times: ${stats.stopTimes}`);
+    } catch (error) {
+      setDbTestStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Reset database
+  const resetDatabase = async () => {
+    try {
+      setDbTestStatus('🔄 Resetting database...');
+
+      await dropAllTables();
+      await initializeDatabase();
+
+      const stats = getDatabaseStats();
+      setDbStats(stats);
+
+      setDbTestStatus(`✅ Database reset!\nStops: ${stats.stops}, Routes: ${stats.routes}, Trips: ${stats.trips}, Stop Times: ${stats.stopTimes}`);
+    } catch (error) {
+      setDbTestStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -32,6 +69,30 @@ export default function App() {
             <Text className="text-base text-gray-600 text-center">
               Composants UI avec React Native Reusables ✅
             </Text>
+          </View>
+
+          <Separator />
+
+          {/* Database Test */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">Database Test</Text>
+            <View className="flex-row gap-2">
+              <View className="flex-1">
+                <Button label="Init DB" onPress={testDatabaseInit} />
+              </View>
+              <View className="flex-1">
+                <Button label="Reset DB" variant="destructive" onPress={resetDatabase} />
+              </View>
+            </View>
+            {dbTestStatus ? (
+              <Card>
+                <CardContent className="p-3">
+                  <Text className="text-gray-900 dark:text-white font-mono text-sm">
+                    {dbTestStatus}
+                  </Text>
+                </CardContent>
+              </Card>
+            ) : null}
           </View>
 
           <Separator />
