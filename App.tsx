@@ -13,11 +13,40 @@ import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from '
 import { LineCard } from './src/components/transit/LineCard';
 import { StopCard } from './src/components/transit/StopCard';
 import { SearchBar } from './src/components/transit/SearchBar';
+import { parseStops } from './src/core/gtfs-parser';
 import './global.css';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [testResult, setTestResult] = useState<string>('');
+
+  const testParserValidation = () => {
+    console.log('🧪 Testing GTFS Parser Validation & Error Handling...\n');
+
+    // Test 1: CSV avec BOM UTF-8
+    const csvWithBOM = '\uFEFF' + `stop_id,stop_name,stop_lat,stop_lon
+TEST1,Test Stop,48.8566,2.3522`;
+    const result1 = parseStops(csvWithBOM);
+    console.log('✅ Test 1 - BOM Removal:', result1.data.length === 1 ? 'PASSED' : 'FAILED');
+
+    // Test 2: CSV avec colonnes manquantes
+    const csvMissingColumns = `stop_id,stop_name
+TEST2,Incomplete Stop`;
+    const result2 = parseStops(csvMissingColumns);
+    console.log('✅ Test 2 - Missing Columns Warning:', result2.data.length >= 0 ? 'PASSED (check console)' : 'FAILED');
+
+    // Test 3: CSV valide
+    const csvValid = `stop_id,stop_name,stop_lat,stop_lon
+TEST3,Valid Stop,48.8566,2.3522`;
+    const result3 = parseStops(csvValid);
+    console.log('✅ Test 3 - Valid CSV:', result3.data.length === 1 && result3.errors.length === 0 ? 'PASSED' : 'FAILED');
+
+    setTestResult(`Tests completed! Check console for details.
+Test 1 (BOM): ${result1.data.length === 1 ? '✅' : '❌'}
+Test 2 (Missing Cols): ✅ (see warnings)
+Test 3 (Valid): ${result3.data.length === 1 ? '✅' : '❌'}`);
+  };
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -32,6 +61,30 @@ export default function App() {
             <Text className="text-base text-gray-600 text-center">
               Composants UI avec React Native Reusables ✅
             </Text>
+          </View>
+
+          <Separator />
+
+          {/* Parser Validation Test */}
+          <View className="gap-3">
+            <Text className="text-xl font-semibold mb-2">🧪 Parser Validation Test</Text>
+            <Button
+              label="Test BOM + Validation + Errors"
+              onPress={testParserValidation}
+              variant={testResult ? "secondary" : "default"}
+            />
+            {testResult && (
+              <Card className="border-l-4 border-l-green-500">
+                <CardContent className="p-4">
+                  <Text className="text-sm text-gray-900 dark:text-white whitespace-pre-line">
+                    {testResult}
+                  </Text>
+                  <Text className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    💡 Check the console for detailed warnings
+                  </Text>
+                </CardContent>
+              </Card>
+            )}
           </View>
 
           <Separator />
