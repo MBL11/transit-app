@@ -13,48 +13,11 @@ import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from '
 import { LineCard } from './src/components/transit/LineCard';
 import { StopCard } from './src/components/transit/StopCard';
 import { SearchBar } from './src/components/transit/SearchBar';
-import { parseGTFS } from './src/core/gtfs-parser';
-import type { GTFSData } from './src/core/types/gtfs';
 import './global.css';
-
-// Sample GTFS data for testing
-const sampleStopsCSV = `stop_id,stop_name,stop_lat,stop_lon,stop_code
-CHAT,Châtelet,48.858370,2.347860,1234
-CONC,Concorde,48.865720,2.321490,5678
-ETOILE,Charles de Gaulle - Étoile,48.873790,2.295030,9012
-DEFENSE,La Défense,48.892320,2.237980,3456`;
-
-const sampleRoutesCSV = `route_id,route_short_name,route_long_name,route_type,route_color,route_text_color
-M1,1,La Défense - Château de Vincennes,1,FFCD00,000000
-M4,4,Porte de Clignancourt - Mairie de Montrouge,1,A0006E,FFFFFF
-BUS42,42,Gare du Nord - Porte de Versailles,3,00AA55,FFFFFF`;
-
-const sampleTripsCSV = `trip_id,route_id,service_id,trip_headsign,direction_id
-TRIP1,M1,WD,Château de Vincennes,0
-TRIP2,M1,WD,La Défense,1`;
-
-const sampleStopTimesCSV = `trip_id,stop_id,arrival_time,departure_time,stop_sequence
-TRIP1,DEFENSE,08:00:00,08:00:30,1
-TRIP1,ETOILE,08:05:00,08:05:30,2
-TRIP1,CONC,08:08:00,08:08:30,3
-TRIP1,CHAT,08:12:00,08:12:30,4`;
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [gtfsData, setGtfsData] = useState<GTFSData | null>(null);
-
-  const handleTestGTFS = () => {
-    console.log('🧪 Testing GTFS Parser...');
-    const result = parseGTFS({
-      stops: sampleStopsCSV,
-      routes: sampleRoutesCSV,
-      trips: sampleTripsCSV,
-      stopTimes: sampleStopTimesCSV,
-    });
-    setGtfsData(result.data);
-    console.log('✅ GTFS Parser test complete!', result.data);
-  };
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -69,43 +32,6 @@ export default function App() {
             <Text className="text-base text-gray-600 text-center">
               Composants UI avec React Native Reusables ✅
             </Text>
-          </View>
-
-          <Separator />
-
-          {/* GTFS Parser Test */}
-          <View className="gap-3">
-            <Text className="text-xl font-semibold mb-2">Feature #3: GTFS Parser</Text>
-            <Button
-              label="🧪 Test GTFS Parser"
-              onPress={handleTestGTFS}
-              variant={gtfsData ? "secondary" : "default"}
-            />
-            {gtfsData && (
-              <Card className="border-l-4 border-l-green-500">
-                <CardHeader>
-                  <CardTitle>Parser Results ✅</CardTitle>
-                  <CardDescription>Successfully parsed GTFS data</CardDescription>
-                </CardHeader>
-                <CardContent className="gap-2">
-                  <Text className="text-sm text-gray-700 dark:text-gray-300">
-                    📍 Stops: {gtfsData.stops.length} (Châtelet, Concorde, Étoile, La Défense)
-                  </Text>
-                  <Text className="text-sm text-gray-700 dark:text-gray-300">
-                    🚇 Routes: {gtfsData.routes.length} (Métro 1, Métro 4, Bus 42)
-                  </Text>
-                  <Text className="text-sm text-gray-700 dark:text-gray-300">
-                    🚌 Trips: {gtfsData.trips.length}
-                  </Text>
-                  <Text className="text-sm text-gray-700 dark:text-gray-300">
-                    ⏰ Stop Times: {gtfsData.stopTimes.length}
-                  </Text>
-                  <View className="mt-2">
-                    <Badge label="papaparse ✓" variant="success" />
-                  </View>
-                </CardContent>
-              </Card>
-            )}
           </View>
 
           <Separator />
