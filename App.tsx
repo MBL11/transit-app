@@ -13,8 +13,8 @@ import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from '
 import { LineCard } from './src/components/transit/LineCard';
 import { StopCard } from './src/components/transit/StopCard';
 import { SearchBar } from './src/components/transit/SearchBar';
-import { testGTFSParser } from './src/core/__tests__/gtfs-example';
-import type { GTFSData } from './src/core/types/gtfs';
+import { testGTFSParser } from '@/core/__tests__/gtfs-example';
+import type { GTFSData } from '@/core/types/gtfs';
 import './global.css';
 
 export default function App() {
