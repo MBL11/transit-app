@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ScrollView } from 'react-native';
 import { useState } from 'react';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Button } from './src/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './src/components/ui/card';
 import { Badge } from './src/components/ui/badge';

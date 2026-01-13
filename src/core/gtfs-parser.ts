@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import type {
   Stop,
   Route,
