@@ -13,7 +13,20 @@ import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetContent } from '
 import { LineCard } from './src/components/transit/LineCard';
 import { StopCard } from './src/components/transit/StopCard';
 import { SearchBar } from './src/components/transit/SearchBar';
-import { initializeDatabase, dropAllTables, getDatabaseStats, isDatabaseEmpty } from './src/core/database';
+import {
+  initializeDatabase,
+  dropAllTables,
+  getDatabaseStats,
+  isDatabaseEmpty,
+  insertStops,
+  insertRoutes,
+  insertTrips,
+  insertStopTimes,
+  getAllStops,
+  getStopById,
+  getRoutesByStopId,
+  searchStops
+} from './src/core/database';
 import './global.css';
 
 export default function App() {
@@ -56,6 +69,69 @@ export default function App() {
     }
   };
 
+  // Test CRUD operations
+  const testCRUD = async () => {
+    try {
+      setDbTestStatus('🔄 Testing CRUD operations...\n');
+
+      // 1. Initialize database
+      await initializeDatabase();
+      setDbTestStatus((prev) => prev + '✅ Database initialized\n');
+
+      // 2. Insert test data
+      const testStops = [
+        { id: 'CHAT', name: 'Châtelet', lat: 48.8584, lon: 2.3470, locationType: 1 },
+        { id: 'GARE', name: 'Gare du Nord', lat: 48.8809, lon: 2.3553, locationType: 1 },
+        { id: 'REPU', name: 'République', lat: 48.8673, lon: 2.3636, locationType: 1 },
+      ];
+      await insertStops(testStops);
+      setDbTestStatus((prev) => prev + '✅ 3 stops inserted\n');
+
+      const testRoutes = [
+        { id: 'M1', shortName: '1', longName: 'Ligne 1', type: 1, color: '#FFCD00', textColor: '#000000' },
+        { id: 'M4', shortName: '4', longName: 'Ligne 4', type: 1, color: '#A0006E', textColor: '#FFFFFF' },
+      ];
+      await insertRoutes(testRoutes);
+      setDbTestStatus((prev) => prev + '✅ 2 routes inserted\n');
+
+      const testTrips = [
+        { id: 'T1', routeId: 'M1', serviceId: 'WD', headsign: 'La Défense', directionId: 0 },
+        { id: 'T2', routeId: 'M4', serviceId: 'WD', headsign: 'Porte de Clignancourt', directionId: 0 },
+      ];
+      await insertTrips(testTrips);
+      setDbTestStatus((prev) => prev + '✅ 2 trips inserted\n');
+
+      const testStopTimes = [
+        { tripId: 'T1', stopId: 'CHAT', arrivalTime: '08:00:00', departureTime: '08:00:30', stopSequence: 1 },
+        { tripId: 'T1', stopId: 'REPU', arrivalTime: '08:05:00', departureTime: '08:05:30', stopSequence: 2 },
+        { tripId: 'T2', stopId: 'CHAT', arrivalTime: '08:10:00', departureTime: '08:10:30', stopSequence: 1 },
+        { tripId: 'T2', stopId: 'GARE', arrivalTime: '08:15:00', departureTime: '08:15:30', stopSequence: 2 },
+      ];
+      await insertStopTimes(testStopTimes);
+      setDbTestStatus((prev) => prev + '✅ 4 stop times inserted\n\n');
+
+      // 3. Test queries
+      const allStops = await getAllStops();
+      setDbTestStatus((prev) => prev + `✅ getAllStops(): ${allStops.length} stops\n`);
+
+      const chatelet = await getStopById('CHAT');
+      setDbTestStatus((prev) => prev + `✅ getStopById('CHAT'): ${chatelet?.name}\n`);
+
+      const routesAtChatelet = await getRoutesByStopId('CHAT');
+      setDbTestStatus((prev) => prev + `✅ getRoutesByStopId('CHAT'): ${routesAtChatelet.length} routes (${routesAtChatelet.map(r => r.shortName).join(', ')})\n`);
+
+      const searchResults = await searchStops('gare');
+      setDbTestStatus((prev) => prev + `✅ searchStops('gare'): ${searchResults.length} results (${searchResults.map(s => s.name).join(', ')})\n\n`);
+
+      // 4. Show final stats
+      const stats = getDatabaseStats();
+      setDbTestStatus((prev) => prev + `📊 Final stats:\nStops: ${stats.stops}, Routes: ${stats.routes}, Trips: ${stats.trips}, Stop Times: ${stats.stopTimes}`);
+
+    } catch (error) {
+      setDbTestStatus((prev) => prev + `\n❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar style="auto" />
@@ -84,6 +160,7 @@ export default function App() {
                 <Button label="Reset DB" variant="destructive" onPress={resetDatabase} />
               </View>
             </View>
+            <Button label="Test CRUD" variant="secondary" onPress={testCRUD} />
             {dbTestStatus ? (
               <Card>
                 <CardContent className="p-3">
