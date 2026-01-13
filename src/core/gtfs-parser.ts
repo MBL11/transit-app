@@ -47,10 +47,8 @@ export async function loadGTFSFile(filepath: string): Promise<string> {
       throw new Error(error);
     }
 
-    // Read file content
-    const content = await FileSystem.readAsStringAsync(filepath, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    // Read file content (UTF-8 by default)
+    const content = await FileSystem.readAsStringAsync(filepath);
 
     console.log(`[GTFS Loader] Successfully loaded: ${filepath} (${content.length} bytes)`);
     return content;

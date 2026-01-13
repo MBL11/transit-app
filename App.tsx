@@ -62,9 +62,7 @@ TESTFILE1,Test Stop from File,48.8566,2.3522
 TESTFILE2,Another Stop,48.8600,2.3500`;
 
       console.log(`Creating test file at: ${testFilePath}`);
-      await FileSystem.writeAsStringAsync(testFilePath, testData, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      await FileSystem.writeAsStringAsync(testFilePath, testData);
 
       // Test loading the file
       console.log('Loading file with loadGTFSFile()...');
