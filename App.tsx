@@ -1,6 +1,11 @@
+/**
+ * App.tsx for testing the map
+ * Copy this content to App.tsx to test the map
+ */
+
 import './global.css';
-import { HooksTest } from './src/components/HooksTest';
+import { MapTest } from './src/components/MapTest';
 
 export default function App() {
-  return <HooksTest />;
+  return <MapTest />;
 }
