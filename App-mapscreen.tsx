@@ -1,11 +1,13 @@
 /**
- * App.tsx with MapScreen (production version)
- * Use this instead of MapTest for the real app
+ * App.tsx with MapScreen (legacy test file)
+ * NOTE: This file is deprecated. Use App.tsx with RootNavigator instead.
+ * Kept for reference only.
  */
 
 import './global.css';
-import { MapScreen } from './src/screens';
+import { RootNavigator } from './src/navigation/RootNavigator';
 
 export default function App() {
-  return <MapScreen />;
+  // @ts-ignore - Legacy test file, use RootNavigator in production
+  return <RootNavigator />;
 }

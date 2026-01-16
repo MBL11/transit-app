@@ -11,7 +11,7 @@ import { LineCard } from '../components/transit/LineCard';
 import { SearchBar } from '../components/transit/SearchBar';
 import { useRoutes } from '../hooks';
 import type { Route } from '../core/types/models';
-import type { LinesStackParamList } from '../navigation/LinesStackNavigator';
+import type { LinesStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<LinesStackParamList, 'LinesList'>;
 

@@ -23,11 +23,10 @@ function parseCSV<T>(csvContent: string, fileName: string): T[] {
   const result = Papa.parse<T>(csvContent, {
     header: true,
     skipEmptyLines: true,
-    encoding: 'UTF-8',
-    transformHeader: (header) => header.trim(),
+    transformHeader: (header: string) => header.trim(),
   });
 
-  if (result.errors.length > 0) {
+  if (result.errors && result.errors.length > 0) {
     console.warn(`[GTFSParser] Errors in ${fileName}:`, result.errors.slice(0, 5));
   }
 
