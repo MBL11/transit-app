@@ -16,6 +16,8 @@ export function MapScreen() {
   const { adapter } = useAdapter();
   const [importing, setImporting] = useState(false);
 
+  console.log('[MapScreen] Render - stops:', stops.length, 'loading:', loading, 'error:', error);
+
   const handleStopPress = (stop: Stop) => {
     Alert.alert(
       stop.name,
