@@ -14,19 +14,19 @@ export async function fixRouteColors(db: SQLiteDatabase): Promise<number> {
 
   try {
     // First, let's see ALL routes to understand what we have
-    const allRoutes = await db.getAllAsync<{ id: string; color: string; textColor: string }>(
-      'SELECT id, color, textColor FROM routes'
+    const allRoutes = await db.getAllAsync<{ id: string; color: string; text_color: string }>(
+      'SELECT id, color, text_color FROM routes'
     );
     console.log(`[Migration] Total routes in database: ${allRoutes.length}`);
     allRoutes.forEach(r => {
-      console.log(`[Migration]   Route ${r.id}: color="${r.color || 'NULL'}" textColor="${r.textColor || 'NULL'}"`);
+      console.log(`[Migration]   Route ${r.id}: color="${r.color || 'NULL'}" text_color="${r.text_color || 'NULL'}"`);
     });
 
     // Get all routes with colors that don't start with #
-    const result = await db.getAllAsync<{ id: string; color: string; textColor: string }>(
-      `SELECT id, color, textColor FROM routes
+    const result = await db.getAllAsync<{ id: string; color: string; text_color: string }>(
+      `SELECT id, color, text_color FROM routes
        WHERE (color IS NOT NULL AND color != '' AND color NOT LIKE '#%')
-          OR (textColor IS NOT NULL AND textColor != '' AND textColor NOT LIKE '#%')`
+          OR (text_color IS NOT NULL AND text_color != '' AND text_color NOT LIKE '#%')`
     );
 
     if (result.length === 0) {
@@ -43,12 +43,12 @@ export async function fixRouteColors(db: SQLiteDatabase): Promise<number> {
         ? '#' + route.color
         : route.color;
 
-      const newTextColor = route.textColor && !route.textColor.startsWith('#')
-        ? '#' + route.textColor
-        : route.textColor;
+      const newTextColor = route.text_color && !route.text_color.startsWith('#')
+        ? '#' + route.text_color
+        : route.text_color;
 
       await db.runAsync(
-        'UPDATE routes SET color = ?, textColor = ? WHERE id = ?',
+        'UPDATE routes SET color = ?, text_color = ? WHERE id = ?',
         [newColor, newTextColor, route.id]
       );
 
