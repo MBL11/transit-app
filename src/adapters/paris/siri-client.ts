@@ -1,22 +1,11 @@
 import { XMLParser } from 'fast-xml-parser';
 import { cache } from '../../core/cache';
+import type { NextDeparture } from '../../core/types/adapter';
 
 const SIRI_BASE_URL = 'https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring';
 const API_KEY = process.env.EXPO_PUBLIC_IDFM_API_KEY || '';
 
 const CACHE_TTL = 30000; // 30 secondes
-
-export interface NextDeparture {
-  tripId: string;
-  routeId: string;
-  routeShortName: string;
-  routeColor?: string;
-  headsign: string;
-  departureTime: Date;
-  scheduledTime?: Date;
-  isRealtime: boolean;
-  delay: number; // in seconds
-}
 
 export async function fetchNextDepartures(stopId: string): Promise<NextDeparture[]> {
   // 1. Check cache

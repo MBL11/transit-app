@@ -83,9 +83,12 @@ export function DepartureRow({ departure }: DepartureRowProps) {
           <Text style={styles.relativeTime}>({relativeTime})</Text>
         </View>
 
-        {/* Delay (if any) */}
-        {delay > 0 && (
-          <Text style={styles.delay}>+{delay} min</Text>
+        {/* Delay (if significant) */}
+        {delay > 120 && (
+          <Text style={styles.delayLate}>+{Math.round(delay / 60)} min</Text>
+        )}
+        {delay < -60 && (
+          <Text style={styles.delayEarly}>-{Math.abs(Math.round(delay / 60))} min</Text>
         )}
       </View>
     </View>
@@ -144,10 +147,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  delay: {
+  delayLate: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FF6600',
+    color: '#CC0000',
+    marginLeft: 4,
+  },
+  delayEarly: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#00AA00',
     marginLeft: 4,
   },
 });

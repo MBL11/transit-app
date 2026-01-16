@@ -28,6 +28,7 @@ export interface NextDeparture {
   tripId: string;
   routeId: string;
   routeShortName: string;
+  routeColor?: string; // Hex color (optional)
   headsign: string;
   departureTime: Date;
   scheduledTime?: Date;

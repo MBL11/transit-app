@@ -10,6 +10,7 @@ import { DepartureRow, type Departure } from '../components/transit/DepartureRow
 import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDeparture } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
+import { parisAdapter } from '../adapters/paris/paris-adapter';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'StopDetails'>;
 
@@ -49,10 +50,9 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       setLoading(true);
       setError(null);
 
-      const [stopData, routesData, departuresData] = await Promise.all([
+      const [stopData, routesData] = await Promise.all([
         getStopById(stopId),
         getRoutesByStopId(stopId),
-        getNextDepartures(stopId, 20),
       ]);
 
       if (!stopData) {
@@ -62,11 +62,17 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       setStop(stopData);
       setRoutes(routesData);
 
-      // Convert TheoreticalDeparture to Departure (add isRealtime and delay)
-      const formattedDepartures: Departure[] = departuresData.map((dep: TheoreticalDeparture) => ({
-        ...dep,
-        isRealtime: false, // Theoretical data for now
-        delay: 0, // No delays in theoretical data
+      // Get departures from adapter (real-time or theoretical)
+      const departuresData = await parisAdapter.getNextDepartures(stopId);
+
+      // Convert to Departure format
+      const formattedDepartures: Departure[] = departuresData.map((dep) => ({
+        routeShortName: dep.routeShortName,
+        routeColor: dep.routeColor || '#CCCCCC',
+        headsign: dep.headsign,
+        departureTime: dep.departureTime,
+        isRealtime: dep.isRealtime,
+        delay: dep.delay,
       }));
 
       // Use mock data if no real data available (for testing)
@@ -82,12 +88,17 @@ export function StopDetailsScreen({ route, navigation }: Props) {
   // Refresh only departures (for pull-to-refresh and auto-refresh)
   const refreshDepartures = async () => {
     try {
-      const departuresData = await getNextDepartures(stopId, 20);
+      // Get departures from adapter (real-time or theoretical)
+      const departuresData = await parisAdapter.getNextDepartures(stopId);
 
-      const formattedDepartures: Departure[] = departuresData.map((dep: TheoreticalDeparture) => ({
-        ...dep,
-        isRealtime: false,
-        delay: 0,
+      // Convert to Departure format
+      const formattedDepartures: Departure[] = departuresData.map((dep) => ({
+        routeShortName: dep.routeShortName,
+        routeColor: dep.routeColor || '#CCCCCC',
+        headsign: dep.headsign,
+        departureTime: dep.departureTime,
+        isRealtime: dep.isRealtime,
+        delay: dep.delay,
       }));
 
       // Use mock data if no real data available (for testing)
@@ -181,9 +192,21 @@ export function StopDetailsScreen({ route, navigation }: Props) {
         {/* Next departures section */}
         <View style={styles.departuresSection}>
           <View style={styles.departureSectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Prochains passages <Text style={styles.departureCount}>({departures.length})</Text>
-            </Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.sectionTitle}>
+                Prochains passages <Text style={styles.departureCount}>({departures.length})</Text>
+              </Text>
+              {departures.length > 0 && (
+                <View style={[
+                  styles.realtimeBadge,
+                  departures.some(d => d.isRealtime) ? styles.realtimeBadgeActive : styles.realtimeBadgeInactive
+                ]}>
+                  <Text style={styles.realtimeBadgeText}>
+                    {departures.some(d => d.isRealtime) ? '🔴 Temps réel' : '⏱️ Théorique'}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {departures.length === 0 ? (
@@ -275,9 +298,30 @@ const styles = StyleSheet.create({
     marginTop: 8,
     minHeight: 200,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   departureCount: {
     fontWeight: 'normal',
     color: '#666',
+  },
+  realtimeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  realtimeBadgeActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  realtimeBadgeInactive: {
+    backgroundColor: '#F5F5F5',
+  },
+  realtimeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111',
   },
   emptyContainer: {
     paddingVertical: 40,
