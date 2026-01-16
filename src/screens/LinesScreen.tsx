@@ -6,6 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
 import { LineCard } from '../components/transit/LineCard';
+import { SearchBar } from '../components/transit/SearchBar';
 import { useRoutes } from '../hooks';
 import type { Route } from '../core/types/models';
 
@@ -33,16 +34,32 @@ const typeLabels: Record<TransitType, string> = {
 export function LinesScreen() {
   const { routes, loading, error } = useRoutes();
   const [selectedType, setSelectedType] = useState<TransitType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter routes by type
+  // Filter routes by type AND search query
   const filteredRoutes = useMemo(() => {
-    if (selectedType === 'all') return routes;
+    let filtered = routes;
 
-    return routes.filter(route => {
-      const type = getTransitType(route.type);
-      return type === selectedType;
-    });
-  }, [routes, selectedType]);
+    // Filter by type
+    if (selectedType !== 'all') {
+      filtered = filtered.filter(route => {
+        const type = getTransitType(route.type);
+        return type === selectedType;
+      });
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(route => {
+        const matchesNumber = route.shortName.toLowerCase().includes(query);
+        const matchesName = route.longName.toLowerCase().includes(query);
+        return matchesNumber || matchesName;
+      });
+    }
+
+    return filtered;
+  }, [routes, selectedType, searchQuery]);
 
   const handleLinePress = (route: Route) => {
     // TODO: Navigate to line details screen
@@ -88,6 +105,15 @@ export function LinesScreen() {
         <Text style={styles.subtitle}>
           {filteredRoutes.length} ligne{filteredRoutes.length > 1 ? 's' : ''}
         </Text>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <SearchBar
+          placeholder="Rechercher une ligne..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
 
       {/* Type Filters */}
@@ -168,6 +194,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 4,
+  },
+  searchContainer: {
+    padding: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   filtersContainer: {
     flexDirection: 'row',
