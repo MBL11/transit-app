@@ -4,8 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
 import { RouteResult } from '../components/transit/RouteResult';
 import { findRoute } from '../core/routing';
 import type { Stop } from '../core/types/models';
@@ -20,6 +19,10 @@ export function RouteScreen() {
   // Selected stops
   const [fromStopId, setFromStopId] = useState<string>('');
   const [toStopId, setToStopId] = useState<string>('');
+
+  // Modal state for stop selection
+  const [showStopPicker, setShowStopPicker] = useState(false);
+  const [selectingFor, setSelectingFor] = useState<'from' | 'to'>('from');
 
   // Results
   const [journeys, setJourneys] = useState<JourneyResult[]>([]);
@@ -90,6 +93,25 @@ export function RouteScreen() {
     console.log('[RouteScreen] Journey pressed:', journey);
   };
 
+  const openStopPicker = (type: 'from' | 'to') => {
+    setSelectingFor(type);
+    setShowStopPicker(true);
+  };
+
+  const selectStop = (stopId: string) => {
+    if (selectingFor === 'from') {
+      setFromStopId(stopId);
+    } else {
+      setToStopId(stopId);
+    }
+    setShowStopPicker(false);
+  };
+
+  const getStopName = (stopId: string) => {
+    const stop = stops.find(s => s.id === stopId);
+    return stop ? stop.name : 'Sélectionner un arrêt';
+  };
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -118,17 +140,15 @@ export function RouteScreen() {
         {/* From Stop */}
         <View style={styles.pickerContainer}>
           <Text style={styles.label}>Départ</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={fromStopId}
-              onValueChange={setFromStopId}
-              style={styles.picker}
-            >
-              {stops.map(stop => (
-                <Picker.Item key={stop.id} label={stop.name} value={stop.id} />
-              ))}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.stopSelector}
+            onPress={() => openStopPicker('from')}
+          >
+            <Text style={[styles.stopSelectorText, !fromStopId && styles.stopSelectorPlaceholder]}>
+              {getStopName(fromStopId)}
+            </Text>
+            <Text style={styles.dropdownIcon}>▼</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Swap Button */}
@@ -139,17 +159,15 @@ export function RouteScreen() {
         {/* To Stop */}
         <View style={styles.pickerContainer}>
           <Text style={styles.label}>Arrivée</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={toStopId}
-              onValueChange={setToStopId}
-              style={styles.picker}
-            >
-              {stops.map(stop => (
-                <Picker.Item key={stop.id} label={stop.name} value={stop.id} />
-              ))}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.stopSelector}
+            onPress={() => openStopPicker('to')}
+          >
+            <Text style={[styles.stopSelectorText, !toStopId && styles.stopSelectorPlaceholder]}>
+              {getStopName(toStopId)}
+            </Text>
+            <Text style={styles.dropdownIcon}>▼</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Calculate Button */}
@@ -197,6 +215,53 @@ export function RouteScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Stop Selection Modal */}
+      <Modal
+        visible={showStopPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowStopPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectingFor === 'from' ? 'Choisir le départ' : 'Choisir l\'arrivée'}
+              </Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowStopPicker(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={stops}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.stopItem,
+                    (selectingFor === 'from' ? fromStopId : toStopId) === item.id && styles.stopItemSelected,
+                  ]}
+                  onPress={() => selectStop(item.id)}
+                >
+                  <Text style={[
+                    styles.stopItemText,
+                    (selectingFor === 'from' ? fromStopId : toStopId) === item.id && styles.stopItemTextSelected,
+                  ]}>
+                    {item.name}
+                  </Text>
+                  {(selectingFor === 'from' ? fromStopId : toStopId) === item.id && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -254,15 +319,29 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
-  pickerWrapper: {
+  stopSelector: {
     backgroundColor: '#f9f9f9',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ddd',
-    overflow: 'hidden',
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 50,
   },
-  picker: {
-    height: 50,
+  stopSelectorText: {
+    fontSize: 16,
+    color: '#000',
+    flex: 1,
+  },
+  stopSelectorPlaceholder: {
+    color: '#999',
+  },
+  dropdownIcon: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
   },
   swapButton: {
     alignSelf: 'center',
@@ -325,5 +404,68 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
     marginBottom: 16,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: 20,
+    color: '#666',
+  },
+  stopItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  stopItemSelected: {
+    backgroundColor: '#E6F2FF',
+  },
+  stopItemText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  stopItemTextSelected: {
+    color: '#0066CC',
+    fontWeight: '600',
+  },
+  checkmark: {
+    fontSize: 18,
+    color: '#0066CC',
+    marginLeft: 8,
   },
 });
