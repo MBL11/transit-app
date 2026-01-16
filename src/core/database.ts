@@ -449,12 +449,25 @@ export async function searchStops(query: string): Promise<Stop[]> {
   const db = openDatabase();
 
   try {
-    const rows = db.getAllSync<any>(
-      'SELECT * FROM stops WHERE name LIKE ? COLLATE NOCASE LIMIT 50',
-      [`%${query}%`]
-    );
+    // Get all stops and filter client-side for accent-insensitive search
+    const rows = db.getAllSync<any>('SELECT * FROM stops');
 
-    return rows.map((row) => ({
+    // Normalize query for accent-insensitive comparison
+    const normalizedQuery = query
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    const filteredRows = rows.filter((row: any) => {
+      const normalizedName = row.name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      return normalizedName.includes(normalizedQuery);
+    });
+
+    // Limit results to 50
+    return filteredRows.slice(0, 50).map((row: any) => ({
       id: row.id,
       name: row.name,
       lat: row.lat,
@@ -464,6 +477,50 @@ export async function searchStops(query: string): Promise<Stop[]> {
     }));
   } catch (error) {
     console.error('[Database] ❌ Failed to search stops:', error);
+    throw error;
+  }
+}
+
+/**
+ * Search routes by name or short name (accent-insensitive)
+ */
+export async function searchRoutes(query: string): Promise<Route[]> {
+  const db = openDatabase();
+
+  try {
+    // Get all routes and filter client-side for accent-insensitive search
+    const rows = db.getAllSync<any>('SELECT * FROM routes');
+
+    // Normalize query for accent-insensitive comparison
+    const normalizedQuery = query
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    const filteredRows = rows.filter((row: any) => {
+      const normalizedShortName = row.short_name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      const normalizedLongName = row.long_name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      return normalizedShortName.includes(normalizedQuery) ||
+             normalizedLongName.includes(normalizedQuery);
+    });
+
+    // Limit results to 50
+    return filteredRows.slice(0, 50).map((row: any) => ({
+      id: row.id,
+      shortName: row.short_name,
+      longName: row.long_name,
+      type: row.type,
+      color: row.color,
+      textColor: row.text_color,
+    }));
+  } catch (error) {
+    console.error('[Database] ❌ Failed to search routes:', error);
     throw error;
   }
 }
