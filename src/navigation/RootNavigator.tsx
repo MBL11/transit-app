@@ -10,6 +10,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
 import { SearchStackNavigator } from './SearchStackNavigator';
+import { RouteStackNavigator } from './RouteStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -56,6 +57,16 @@ export function RootNavigator() {
             title: 'Recherche',
             tabBarLabel: 'Recherche',
             tabBarIcon: ({ color }) => <TabIcon icon="🔍" color={color} />,
+            headerShown: false, // Let the stack handle its own headers
+          }}
+        />
+        <Tab.Screen
+          name="Route"
+          component={RouteStackNavigator}
+          options={{
+            title: 'Itinéraire',
+            tabBarLabel: 'Itinéraire',
+            tabBarIcon: ({ color }) => <TabIcon icon="🚏" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
         />
