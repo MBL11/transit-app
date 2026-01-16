@@ -1,15 +1,18 @@
 /**
  * Map Screen
- * Main screen displaying transit stops on an interactive map
+ * Main screen displaying transit stops on an interactive map with bottom sheet
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TransitMap } from '../components/map';
+import { BottomSheet } from '../components/ui/BottomSheet';
+import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
 import { useStops } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
-import type { Stop } from '../core/types/models';
+import type { Stop, Route } from '../core/types/models';
+import type { NextDeparture } from '../core/types/adapter';
 import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
 
@@ -20,10 +23,64 @@ export function MapScreen({ navigation }: Props) {
   const { adapter } = useAdapter();
   const [importing, setImporting] = useState(false);
 
+  // Bottom sheet state
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
+  const [stopRoutes, setStopRoutes] = useState<Route[]>([]);
+  const [stopDepartures, setStopDepartures] = useState<NextDeparture[]>([]);
+  const [loadingStopData, setLoadingStopData] = useState(false);
+
   console.log('[MapScreen] Render - stops:', stops.length, 'loading:', loading, 'error:', error);
 
+  // Load stop details when a stop is selected
+  useEffect(() => {
+    if (selectedStop && adapter) {
+      loadStopDetails(selectedStop.id);
+    }
+  }, [selectedStop, adapter]);
+
+  const loadStopDetails = async (stopId: string) => {
+    try {
+      setLoadingStopData(true);
+      console.log('[MapScreen] Loading details for stop:', stopId);
+
+      // Load routes for this stop
+      const routes = await db.getRoutesByStopId(stopId);
+      setStopRoutes(routes);
+
+      // Load next departures
+      const departures = await adapter!.getNextDepartures(stopId);
+      setStopDepartures(departures);
+
+      console.log('[MapScreen] Loaded', routes.length, 'routes and', departures.length, 'departures');
+    } catch (err) {
+      console.error('[MapScreen] Error loading stop details:', err);
+      Alert.alert('Erreur', 'Impossible de charger les détails de l\'arrêt');
+    } finally {
+      setLoadingStopData(false);
+    }
+  };
+
   const handleStopPress = (stop: Stop) => {
-    navigation.navigate('StopDetails', { stopId: stop.id });
+    setSelectedStop(stop);
+    setSheetVisible(true);
+  };
+
+  const handleSheetClose = () => {
+    setSheetVisible(false);
+    // Clear data after animation
+    setTimeout(() => {
+      setSelectedStop(null);
+      setStopRoutes([]);
+      setStopDepartures([]);
+    }, 300);
+  };
+
+  const handleLinePress = (routeId: string) => {
+    // Close sheet and navigate to Lines tab with the selected route
+    setSheetVisible(false);
+    console.log('[MapScreen] Line pressed:', routeId);
+    // TODO: Navigate to Lines tab and show route details
   };
 
   const handleImportData = async () => {
@@ -132,6 +189,22 @@ export function MapScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <TransitMap stops={stops} onStopPress={handleStopPress} />
+
+      {/* Bottom Sheet */}
+      <BottomSheet
+        visible={sheetVisible}
+        onClose={handleSheetClose}
+        snapPoints={['40%', '70%', '90%']}
+      >
+        <StopDetailsSheet
+          stop={selectedStop}
+          routes={stopRoutes}
+          departures={stopDepartures}
+          loading={loadingStopData}
+          onLinePress={handleLinePress}
+          onClose={handleSheetClose}
+        />
+      </BottomSheet>
     </View>
   );
 }

@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 export interface Departure {
   routeShortName: string;
-  routeColor: string;
+  routeColor?: string;
   headsign: string;
   departureTime: Date;
   isRealtime: boolean;
@@ -12,6 +12,7 @@ export interface Departure {
 
 export interface DepartureRowProps {
   departure: Departure;
+  onPress?: () => void;
 }
 
 /**
@@ -45,7 +46,7 @@ function formatTime(date: Date): string {
   return `${hours}:${minutes}`;
 }
 
-export function DepartureRow({ departure }: DepartureRowProps) {
+export function DepartureRow({ departure, onPress }: DepartureRowProps) {
   const {
     routeShortName,
     routeColor,
@@ -58,10 +59,12 @@ export function DepartureRow({ departure }: DepartureRowProps) {
   const relativeTime = getRelativeTime(departureTime);
   const formattedTime = formatTime(departureTime);
 
+  const Container = onPress ? TouchableOpacity : View;
+
   return (
-    <View style={styles.container}>
+    <Container style={styles.container} onPress={onPress} activeOpacity={0.7}>
       {/* Line badge */}
-      <View style={[styles.lineBadge, { backgroundColor: routeColor }]}>
+      <View style={[styles.lineBadge, { backgroundColor: routeColor || '#999999' }]}>
         <Text style={styles.lineBadgeText}>{routeShortName}</Text>
       </View>
 
@@ -91,7 +94,7 @@ export function DepartureRow({ departure }: DepartureRowProps) {
           <Text style={styles.delayEarly}>-{Math.abs(Math.round(delay / 60))} min</Text>
         )}
       </View>
-    </View>
+    </Container>
   );
 }
 
