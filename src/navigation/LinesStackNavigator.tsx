@@ -9,6 +9,8 @@ import { LinesScreen } from '../screens/LinesScreen';
 import { LineDetailsScreen } from '../screens/LineDetailsScreen';
 import { StopDetailsScreen } from '../screens/StopDetailsScreen';
 
+console.log('[LinesStackNavigator] StopDetailsScreen imported:', !!StopDetailsScreen);
+
 export type LinesStackParamList = {
   LinesList: undefined;
   LineDetails: { routeId: string };
