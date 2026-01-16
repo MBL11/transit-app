@@ -5,13 +5,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteResult } from '../components/transit/RouteResult';
 import { findRoute } from '../core/routing';
 import type { Stop } from '../core/types/models';
 import type { JourneyResult } from '../core/types/routing';
+import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
 import * as db from '../core/database';
 
+type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalculation'>;
+
 export function RouteScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
@@ -87,8 +93,7 @@ export function RouteScreen() {
   };
 
   const handleJourneyPress = (journey: JourneyResult) => {
-    // TODO: Show detailed journey view
-    console.log('[RouteScreen] Journey pressed:', journey);
+    navigation.navigate('RouteDetails', { journey });
   };
 
   const openFromSearch = () => {
