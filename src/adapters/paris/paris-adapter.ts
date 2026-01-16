@@ -184,7 +184,8 @@ export class ParisAdapter implements TransitAdapter {
           st.departure_time,
           t.headsign,
           r.id as route_id,
-          r.short_name as route_short_name
+          r.short_name as route_short_name,
+          r.color as route_color
          FROM stop_times st
          JOIN trips t ON st.trip_id = t.id
          JOIN routes r ON t.route_id = r.id
@@ -205,6 +206,7 @@ export class ParisAdapter implements TransitAdapter {
           tripId: row.trip_id,
           routeId: row.route_id,
           routeShortName: row.route_short_name,
+          routeColor: row.route_color ? `#${row.route_color}` : undefined,
           headsign: row.headsign || 'Unknown',
           departureTime: departureDate,
           scheduledTime: departureDate,
