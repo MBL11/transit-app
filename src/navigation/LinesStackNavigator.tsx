@@ -7,6 +7,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LinesScreen } from '../screens/LinesScreen';
 import { LineDetailsScreen } from '../screens/LineDetailsScreen';
+import { StopDetailsScreen } from '../screens/StopDetailsScreen';
 
 export type LinesStackParamList = {
   LinesList: undefined;
@@ -42,6 +43,13 @@ export function LinesStackNavigator() {
         component={LineDetailsScreen}
         options={{
           title: 'Détails de la ligne',
+        }}
+      />
+      <Stack.Screen
+        name="StopDetails"
+        component={StopDetailsScreen}
+        options={{
+          title: 'Détails de l\'arrêt',
         }}
       />
     </Stack.Navigator>

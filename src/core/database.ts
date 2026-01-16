@@ -523,3 +523,61 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
     throw error;
   }
 }
+
+/**
+ * Departure information for display
+ */
+export interface TheoreticalDeparture {
+  routeShortName: string;
+  routeColor: string;
+  headsign: string;
+  departureTime: Date;
+}
+
+/**
+ * Get next theoretical departures for a stop
+ * Returns upcoming departures sorted by time
+ */
+export async function getNextDepartures(stopId: string, limit: number = 20): Promise<TheoreticalDeparture[]> {
+  const db = openDatabase();
+
+  try {
+    // Get current time in HH:MM:SS format
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+
+    const rows = db.getAllSync<any>(
+      `SELECT
+         routes.short_name,
+         routes.color,
+         trips.headsign,
+         stop_times.departure_time
+       FROM stop_times
+       JOIN trips ON stop_times.trip_id = trips.id
+       JOIN routes ON trips.route_id = routes.id
+       WHERE stop_times.stop_id = ?
+         AND stop_times.departure_time >= ?
+       ORDER BY stop_times.departure_time
+       LIMIT ?`,
+      [stopId, currentTime, limit]
+    );
+
+    // Convert to Date objects and return
+    return rows.map((row) => {
+      // Parse HH:MM:SS to Date (today's date with this time)
+      const [hours, minutes, seconds] = row.departure_time.split(':').map(Number);
+      const departureDate = new Date();
+      departureDate.setHours(hours, minutes, seconds || 0, 0);
+
+      return {
+        routeShortName: row.short_name,
+        routeColor: row.color,
+        headsign: row.headsign || 'Direction inconnue',
+        departureTime: departureDate,
+      };
+    });
+  } catch (error) {
+    console.error('[Database] ❌ Failed to get next departures:', error);
+    throw error;
+  }
+}
