@@ -10,9 +10,18 @@ import type { SQLiteDatabase } from 'expo-sqlite';
  * This handles data imported before the parser normalization was added
  */
 export async function fixRouteColors(db: SQLiteDatabase): Promise<number> {
-  console.log('[Migration] Checking for routes with colors missing # prefix...');
+  console.log('[Migration] 🔍 Checking for routes with colors missing # prefix...');
 
   try {
+    // First, let's see ALL routes to understand what we have
+    const allRoutes = await db.getAllAsync<{ id: string; color: string; textColor: string }>(
+      'SELECT id, color, textColor FROM routes'
+    );
+    console.log(`[Migration] Total routes in database: ${allRoutes.length}`);
+    allRoutes.forEach(r => {
+      console.log(`[Migration]   Route ${r.id}: color="${r.color || 'NULL'}" textColor="${r.textColor || 'NULL'}"`);
+    });
+
     // Get all routes with colors that don't start with #
     const result = await db.getAllAsync<{ id: string; color: string; textColor: string }>(
       `SELECT id, color, textColor FROM routes
@@ -21,11 +30,11 @@ export async function fixRouteColors(db: SQLiteDatabase): Promise<number> {
     );
 
     if (result.length === 0) {
-      console.log('[Migration] ✅ All route colors already have # prefix');
+      console.log('[Migration] ✅ All route colors already have # prefix (or are NULL)');
       return 0;
     }
 
-    console.log(`[Migration] Found ${result.length} routes with colors missing # prefix`);
+    console.log(`[Migration] 🔧 Found ${result.length} routes with colors missing # prefix`);
 
     // Fix each route
     let fixedCount = 0;
@@ -59,11 +68,17 @@ export async function fixRouteColors(db: SQLiteDatabase): Promise<number> {
  * Run all pending migrations
  */
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
-  console.log('[Migration] Running database migrations...');
+  console.log('');
+  console.log('========================================');
+  console.log('[Migration] 🚀 Running database migrations...');
+  console.log('========================================');
 
   try {
     await fixRouteColors(db);
+    console.log('========================================');
     console.log('[Migration] ✅ All migrations completed');
+    console.log('========================================');
+    console.log('');
   } catch (error) {
     console.error('[Migration] ❌ Migration failed:', error);
     // Don't throw - let app continue even if migration fails
