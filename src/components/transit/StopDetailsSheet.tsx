@@ -8,6 +8,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import type { Stop, Route } from '../../core/types/models';
 import type { NextDeparture } from '../../core/types/adapter';
 import { DepartureRow } from './DepartureRow';
+import { AlertBanner } from './AlertBanner';
+import { useAlerts } from '../../hooks';
+import { isStopAffected, isRouteAffected } from '../../adapters/paris/alerts';
 
 interface StopDetailsSheetProps {
   stop: Stop | null;
@@ -26,6 +29,8 @@ export function StopDetailsSheet({
   onLinePress,
   onClose,
 }: StopDetailsSheetProps) {
+  const { alerts } = useAlerts();
+
   if (!stop) {
     return (
       <View style={styles.emptyContainer}>
@@ -35,6 +40,13 @@ export function StopDetailsSheet({
   }
 
   const hasRealtime = departures.some(d => d.isRealtime);
+
+  // Find alerts affecting this stop or its routes
+  const relevantAlerts = alerts.filter(alert => {
+    const affectsStop = isStopAffected(stop.id, [alert]);
+    const affectsRoutes = routes.some(route => isRouteAffected(route.id, [alert]));
+    return affectsStop || affectsRoutes;
+  });
 
   return (
     <View style={styles.container}>
@@ -54,6 +66,16 @@ export function StopDetailsSheet({
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Alerts Section */}
+        {relevantAlerts.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⚠️ Alertes ({relevantAlerts.length})</Text>
+            {relevantAlerts.map(alert => (
+              <AlertBanner key={alert.id} alert={alert} />
+            ))}
+          </View>
+        )}
+
         {/* Lines Section */}
         {routes.length > 0 && (
           <View style={styles.section}>

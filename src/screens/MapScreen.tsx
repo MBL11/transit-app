@@ -4,12 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TransitMap } from '../components/map';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
-import { useStops } from '../hooks';
+import { AlertBanner } from '../components/transit/AlertBanner';
+import { useStops, useAlerts } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
 import type { Stop, Route } from '../core/types/models';
 import type { NextDeparture } from '../core/types/adapter';
@@ -21,6 +22,7 @@ type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 export function MapScreen({ navigation }: Props) {
   const { stops, loading, error } = useStops();
   const { adapter } = useAdapter();
+  const { alerts } = useAlerts();
   const [importing, setImporting] = useState(false);
 
   // Bottom sheet state
@@ -223,6 +225,23 @@ export function MapScreen({ navigation }: Props) {
     <View style={styles.container}>
       <TransitMap stops={stops} onStopPress={handleStopPress} />
 
+      {/* Alerts Banner */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.alertsContent}
+          >
+            {alerts.slice(0, 5).map(alert => (
+              <View key={alert.id} style={styles.alertItem}>
+                <AlertBanner alert={alert} />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Reimport button (floating) */}
       <TouchableOpacity
         style={styles.reimportButton}
@@ -329,5 +348,19 @@ const styles = StyleSheet.create({
   },
   reimportButtonText: {
     fontSize: 24,
+  },
+  alertsContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  alertsContent: {
+    paddingHorizontal: 16,
+  },
+  alertItem: {
+    width: 300,
+    marginRight: 12,
   },
 });

@@ -9,3 +9,5 @@ export {
   useRoutes,
   useDepartures,
 } from './useAdapter';
+
+export { useAlerts } from './useAlerts';
