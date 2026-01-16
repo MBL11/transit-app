@@ -7,11 +7,12 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
+import { deserializeJourney } from '../core/types/routing-serialization';
 
 type Props = NativeStackScreenProps<RouteStackParamList, 'RouteDetails'>;
 
 export function RouteDetailsScreen({ route }: Props) {
-  const { journey } = route.params;
+  const journey = deserializeJourney(route.params.journey);
 
   const formatTime = (date: Date): string => {
     const hours = date.getHours().toString().padStart(2, '0');

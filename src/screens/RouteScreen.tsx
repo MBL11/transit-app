@@ -12,6 +12,7 @@ import { findRoute } from '../core/routing';
 import type { Stop } from '../core/types/models';
 import type { JourneyResult } from '../core/types/routing';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
+import { serializeJourney } from '../core/types/routing-serialization';
 import * as db from '../core/database';
 
 type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalculation'>;
@@ -93,7 +94,7 @@ export function RouteScreen() {
   };
 
   const handleJourneyPress = (journey: JourneyResult) => {
-    navigation.navigate('RouteDetails', { journey });
+    navigation.navigate('RouteDetails', { journey: serializeJourney(journey) });
   };
 
   const openFromSearch = () => {

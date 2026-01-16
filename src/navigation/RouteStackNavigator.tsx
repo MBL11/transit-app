@@ -7,12 +7,12 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RouteScreen } from '../screens/RouteScreen';
 import { RouteDetailsScreen } from '../screens/RouteDetailsScreen';
-import type { JourneyResult } from '../core/types/routing';
+import type { SerializableJourneyResult } from '../core/types/routing-serialization';
 
 export type RouteStackParamList = {
   RouteCalculation: undefined;
   RouteDetails: {
-    journey: JourneyResult;
+    journey: SerializableJourneyResult;
   };
 };
 
