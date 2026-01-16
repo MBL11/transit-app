@@ -5,13 +5,17 @@
 
 import React, { useState } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TransitMap } from '../components/map';
 import { useStops } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
 import type { Stop } from '../core/types/models';
+import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
 
-export function MapScreen() {
+type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
+
+export function MapScreen({ navigation }: Props) {
   const { stops, loading, error } = useStops();
   const { adapter } = useAdapter();
   const [importing, setImporting] = useState(false);
@@ -19,11 +23,7 @@ export function MapScreen() {
   console.log('[MapScreen] Render - stops:', stops.length, 'loading:', loading, 'error:', error);
 
   const handleStopPress = (stop: Stop) => {
-    Alert.alert(
-      stop.name,
-      `Latitude: ${stop.lat.toFixed(4)}\nLongitude: ${stop.lon.toFixed(4)}`,
-      [{ text: 'OK' }]
-    );
+    navigation.navigate('StopDetails', { stopId: stop.id });
   };
 
   const handleImportData = async () => {

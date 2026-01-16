@@ -138,9 +138,6 @@ export function StopDetailsScreen({ route, navigation }: Props) {
         {/* Stop header */}
         <View style={styles.header}>
           <Text style={styles.stopName}>{stop.name}</Text>
-          <Text style={styles.coordinates}>
-            {stop.lat.toFixed(4)}, {stop.lon.toFixed(4)}
-          </Text>
         </View>
 
         {/* Lines serving this stop */}

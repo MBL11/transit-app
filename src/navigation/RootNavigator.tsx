@@ -7,7 +7,7 @@ import React from 'react';
 import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MapScreen } from '../screens';
+import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
 
 const Tab = createBottomTabNavigator();
@@ -30,11 +30,12 @@ export function RootNavigator() {
       >
         <Tab.Screen
           name="Map"
-          component={MapScreen}
+          component={MapStackNavigator}
           options={{
             title: 'Carte',
             tabBarLabel: 'Carte',
             tabBarIcon: ({ color }) => <TabIcon icon="🗺️" color={color} />,
+            headerShown: false, // Let the stack handle its own headers
           }}
         />
         <Tab.Screen
