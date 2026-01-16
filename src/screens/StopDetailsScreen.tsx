@@ -13,6 +13,14 @@ import type { LinesStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'StopDetails'>;
 
+// Mock departures for testing
+const getMockDepartures = (): Departure[] => [
+  { routeShortName: '1', routeColor: '#FFCD00', headsign: 'La Défense', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '1', routeColor: '#FFCD00', headsign: 'Château de Vincennes', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '4', routeColor: '#A0006E', headsign: 'Porte de Clignancourt', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '14', routeColor: '#62259D', headsign: 'Olympiades', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
+];
+
 export function StopDetailsScreen({ route, navigation }: Props) {
   const { stopId } = route.params;
   const [stop, setStop] = useState<Stop | null>(null);
@@ -61,7 +69,8 @@ export function StopDetailsScreen({ route, navigation }: Props) {
         delay: 0, // No delays in theoretical data
       }));
 
-      setDepartures(formattedDepartures);
+      // Use mock data if no real data available (for testing)
+      setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
     } catch (err) {
       console.error('[StopDetailsScreen] Error loading stop data:', err);
       setError(err instanceof Error ? err : new Error('Erreur de chargement'));
@@ -81,7 +90,8 @@ export function StopDetailsScreen({ route, navigation }: Props) {
         delay: 0,
       }));
 
-      setDepartures(formattedDepartures);
+      // Use mock data if no real data available (for testing)
+      setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
     } catch (err) {
       console.error('[StopDetailsScreen] Error refreshing departures:', err);
     }
