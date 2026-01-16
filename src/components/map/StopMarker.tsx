@@ -12,7 +12,7 @@ interface StopMarkerProps {
   stop: Stop;
   isSelected?: boolean;
   routeType?: number; // 1=metro, 3=bus, etc.
-  onPress: () => void;
+  onPress: (stop: Stop) => void;
 }
 
 export function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerProps) {
@@ -46,7 +46,7 @@ export function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerP
         latitude: stop.lat,
         longitude: stop.lon,
       }}
-      onPress={onPress}
+      onPress={() => onPress(stop)}
     >
       <View style={styles.container}>
         <View

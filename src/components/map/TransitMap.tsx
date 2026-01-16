@@ -46,7 +46,7 @@ export function TransitMap({ stops, onStopPress, initialRegion }: TransitMapProp
             key={stop.id}
             stop={stop}
             isSelected={selectedStopId === stop.id}
-            onPress={() => handleMarkerPress(stop)}
+            onPress={handleMarkerPress}
           />
         ))}
       </MapView>
