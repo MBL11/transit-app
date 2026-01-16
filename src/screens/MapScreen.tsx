@@ -88,6 +88,9 @@ export function MapScreen({ navigation }: Props) {
       setImporting(true);
       console.log('[MapScreen] Starting data import...');
 
+      // Clear existing data first to remove old timestamps
+      db.clearAllData();
+
       // Generate dynamic times (always in the future)
       const now = new Date();
       const generateFutureTime = (offsetMinutes: number): string => {
@@ -220,6 +223,19 @@ export function MapScreen({ navigation }: Props) {
     <View style={styles.container}>
       <TransitMap stops={stops} onStopPress={handleStopPress} />
 
+      {/* Reimport button (floating) */}
+      <TouchableOpacity
+        style={styles.reimportButton}
+        onPress={handleImportData}
+        disabled={importing}
+      >
+        {importing ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={styles.reimportButtonText}>🔄</Text>
+        )}
+      </TouchableOpacity>
+
       {/* Bottom Sheet */}
       <BottomSheet
         visible={sheetVisible}
@@ -291,5 +307,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  reimportButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#0066CC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  reimportButtonText: {
+    fontSize: 24,
   },
 });

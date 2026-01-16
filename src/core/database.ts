@@ -182,6 +182,28 @@ export function isDatabaseEmpty(): boolean {
   return stats.stops === 0 && stats.routes === 0;
 }
 
+/**
+ * Clear all GTFS data from database
+ */
+export function clearAllData(): void {
+  const db = openDatabase();
+  console.log('[Database] Clearing all data...');
+
+  try {
+    db.execSync('BEGIN TRANSACTION;');
+    db.execSync('DELETE FROM stop_times;');
+    db.execSync('DELETE FROM trips;');
+    db.execSync('DELETE FROM routes;');
+    db.execSync('DELETE FROM stops;');
+    db.execSync('COMMIT;');
+    console.log('[Database] ✅ All data cleared');
+  } catch (error) {
+    db.execSync('ROLLBACK;');
+    console.error('[Database] ❌ Failed to clear data:', error);
+    throw error;
+  }
+}
+
 // ============================================================================
 // CRUD OPERATIONS
 // ============================================================================
