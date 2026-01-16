@@ -33,11 +33,11 @@ export function MapScreen() {
 
       // Sample GTFS data
       const routes = [
-        { id: 'M1', short_name: 'M1', long_name: 'Métro 1', type: 1, color: '#FFCD00', text_color: '#000000' },
-        { id: 'M4', short_name: 'M4', long_name: 'Métro 4', type: 1, color: '#BC1A8D', text_color: '#FFFFFF' },
-        { id: 'M14', short_name: 'M14', long_name: 'Métro 14', type: 1, color: '#62259D', text_color: '#FFFFFF' },
-        { id: 'B21', short_name: 'B21', long_name: 'Bus 21', type: 3, color: '#82C8E6', text_color: '#000000' },
-        { id: 'B38', short_name: 'B38', long_name: 'Bus 38', type: 3, color: '#FF7E2E', text_color: '#000000' },
+        { id: 'M1', shortName: 'M1', longName: 'Métro 1', type: 1, color: '#FFCD00', textColor: '#000000' },
+        { id: 'M4', shortName: 'M4', longName: 'Métro 4', type: 1, color: '#BC1A8D', textColor: '#FFFFFF' },
+        { id: 'M14', shortName: 'M14', longName: 'Métro 14', type: 1, color: '#62259D', textColor: '#FFFFFF' },
+        { id: 'B21', shortName: 'B21', longName: 'Bus 21', type: 3, color: '#82C8E6', textColor: '#000000' },
+        { id: 'B38', shortName: 'B38', longName: 'Bus 38', type: 3, color: '#FF7E2E', textColor: '#000000' },
       ];
 
       const stops = [
