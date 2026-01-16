@@ -3,8 +3,8 @@
  * Displays stop information and next departures
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DepartureRow, type Departure } from '../components/transit/DepartureRow';
 import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDeparture } from '../core/database';
@@ -19,10 +19,21 @@ export function StopDetailsScreen({ route, navigation }: Props) {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Initial load
   useEffect(() => {
     loadStopData();
+  }, [stopId]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshDepartures();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
   }, [stopId]);
 
   const loadStopData = async () => {
@@ -59,6 +70,35 @@ export function StopDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  // Refresh only departures (for pull-to-refresh and auto-refresh)
+  const refreshDepartures = async () => {
+    try {
+      const departuresData = await getNextDepartures(stopId, 20);
+
+      const formattedDepartures: Departure[] = departuresData.map((dep: TheoreticalDeparture) => ({
+        ...dep,
+        isRealtime: false,
+        delay: 0,
+      }));
+
+      setDepartures(formattedDepartures);
+    } catch (err) {
+      console.error('[StopDetailsScreen] Error refreshing departures:', err);
+    }
+  };
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshDepartures();
+    setRefreshing(false);
+  }, [stopId]);
+
+  // Navigate to line details
+  const handleLinePress = (routeId: string) => {
+    navigation.navigate('LineDetails', { routeId });
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -87,33 +127,46 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       {/* Stop header */}
       <View style={styles.header}>
         <Text style={styles.stopName}>{stop.name}</Text>
-        <Text style={styles.stopId}>ID: {stop.id}</Text>
+        <Text style={styles.coordinates}>
+          {stop.lat.toFixed(4)}, {stop.lon.toFixed(4)}
+        </Text>
       </View>
 
       {/* Lines serving this stop */}
       {routes.length > 0 && (
         <View style={styles.linesSection}>
-          <Text style={styles.sectionTitle}>Lignes desservies</Text>
-          <View style={styles.linesBadgeContainer}>
+          <Text style={styles.sectionTitle}>Lignes desservant cet arrêt</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.linesBadgeContainer}
+          >
             {routes.map((route) => (
-              <View
+              <Pressable
                 key={route.id}
-                style={[styles.lineBadge, { backgroundColor: route.color }]}
+                onPress={() => handleLinePress(route.id)}
+                style={({ pressed }) => [
+                  styles.lineBadge,
+                  { backgroundColor: route.color },
+                  pressed && styles.lineBadgePressed,
+                ]}
               >
                 <Text style={[styles.lineBadgeText, { color: route.textColor }]}>
                   {route.shortName}
                 </Text>
-              </View>
+              </Pressable>
             ))}
-          </View>
+          </ScrollView>
         </View>
       )}
 
       {/* Next departures section */}
       <View style={styles.departuresSection}>
-        <Text style={styles.sectionTitle}>
-          Prochains passages <Text style={styles.departureCount}>({departures.length})</Text>
-        </Text>
+        <View style={styles.departureSectionHeader}>
+          <Text style={styles.sectionTitle}>
+            Prochains passages <Text style={styles.departureCount}>({departures.length})</Text>
+          </Text>
+        </View>
 
         {departures.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -124,6 +177,14 @@ export function StopDetailsScreen({ route, navigation }: Props) {
             data={departures}
             keyExtractor={(item, index) => `${item.routeShortName}-${index}`}
             renderItem={({ item }) => <DepartureRow departure={item} />}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#0066CC']}
+                tintColor="#0066CC"
+              />
+            }
           />
         )}
       </View>
@@ -150,14 +211,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   stopName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#111',
   },
-  stopId: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+  coordinates: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 6,
   },
   linesSection: {
     backgroundColor: 'white',
@@ -173,20 +234,27 @@ const styles = StyleSheet.create({
   },
   linesBadgeContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingRight: 16,
   },
   lineBadge: {
     minWidth: 48,
-    height: 32,
+    height: 36,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+  },
+  lineBadgePressed: {
+    opacity: 0.7,
   },
   lineBadgeText: {
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  departureSectionHeader: {
+    padding: 16,
+    paddingBottom: 8,
   },
   departuresSection: {
     flex: 1,
