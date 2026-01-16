@@ -13,6 +13,7 @@ import type {
 import type { Stop, Route, Trip, StopTime } from '../../core/types/models';
 import * as db from '../../core/database';
 import { parisConfig, parisDataSource } from './config';
+import { runMigrations } from '../../core/database-migration';
 
 /**
  * Paris adapter implementation
@@ -241,6 +242,10 @@ export class ParisAdapter implements TransitAdapter {
       } else {
         const stats = db.getDatabaseStats();
         console.log('[ParisAdapter] ✅ Database initialized with data:', stats);
+
+        // Run database migrations (e.g., fix route colors)
+        const database = db.openDatabase();
+        await runMigrations(database);
       }
 
       this.lastUpdateTime = new Date();
