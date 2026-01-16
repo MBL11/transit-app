@@ -3,14 +3,18 @@
  * Main screen displaying transit stops on an interactive map
  */
 
-import React from 'react';
-import { View, Text, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ActivityIndicator, Alert, StyleSheet, Pressable } from 'react-native';
 import { TransitMap } from '../components/map';
-import { useStops } from '../hooks';
+import { useStops, useAdapter } from '../hooks';
+import { importGTFSData } from '../core/gtfs-importer';
+import { SAMPLE_GTFS_DATA } from '../components/MapTest';
 import type { Stop } from '../core/types/models';
 
 export function MapScreen() {
-  const { stops, loading, error } = useStops();
+  const { stops, loading, error, refresh } = useStops();
+  const { adapter } = useAdapter();
+  const [importing, setImporting] = useState(false);
 
   const handleStopPress = (stop: Stop) => {
     Alert.alert(
@@ -18,6 +22,21 @@ export function MapScreen() {
       `Latitude: ${stop.lat.toFixed(4)}\nLongitude: ${stop.lon.toFixed(4)}`,
       [{ text: 'OK' }]
     );
+  };
+
+  const handleImport = async () => {
+    if (!adapter) return;
+
+    try {
+      setImporting(true);
+      await importGTFSData(SAMPLE_GTFS_DATA, adapter);
+      await refresh();
+      Alert.alert('Succès', 'Données réimportées avec succès');
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Erreur lors de l\'import');
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Loading state
@@ -55,6 +74,19 @@ export function MapScreen() {
   return (
     <View style={styles.container}>
       <TransitMap stops={stops} onStopPress={handleStopPress} />
+
+      {/* Temporary: Reimport button */}
+      <View style={styles.buttonContainer}>
+        <Pressable
+          style={[styles.importButton, importing && styles.importButtonDisabled]}
+          onPress={handleImport}
+          disabled={importing}
+        >
+          <Text style={styles.importButtonText}>
+            {importing ? '⏳ Import...' : '🔄 Réimporter données'}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -97,5 +129,31 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#666',
+  },
+  buttonContainer: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+  },
+  importButton: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  importButtonDisabled: {
+    backgroundColor: '#999',
+  },
+  importButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
