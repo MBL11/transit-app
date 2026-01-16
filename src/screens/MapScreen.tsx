@@ -3,14 +3,18 @@
  * Main screen displaying transit stops on an interactive map
  */
 
-import React from 'react';
-import { View, Text, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import { TransitMap } from '../components/map';
 import { useStops } from '../hooks';
+import { useAdapter } from '../hooks/useAdapter';
 import type { Stop } from '../core/types/models';
+import * as db from '../core/database';
 
 export function MapScreen() {
   const { stops, loading, error } = useStops();
+  const { adapter } = useAdapter();
+  const [importing, setImporting] = useState(false);
 
   const handleStopPress = (stop: Stop) => {
     Alert.alert(
@@ -18,6 +22,66 @@ export function MapScreen() {
       `Latitude: ${stop.lat.toFixed(4)}\nLongitude: ${stop.lon.toFixed(4)}`,
       [{ text: 'OK' }]
     );
+  };
+
+  const handleImportData = async () => {
+    try {
+      setImporting(true);
+      console.log('[MapScreen] Starting data import...');
+
+      // Sample GTFS data
+      const routes = [
+        { id: 'M1', short_name: 'M1', long_name: 'Métro 1', type: 1, color: '#FFCD00', text_color: '#000000' },
+        { id: 'M4', short_name: 'M4', long_name: 'Métro 4', type: 1, color: '#BC1A8D', text_color: '#FFFFFF' },
+        { id: 'M14', short_name: 'M14', long_name: 'Métro 14', type: 1, color: '#62259D', text_color: '#FFFFFF' },
+        { id: 'B21', short_name: 'B21', long_name: 'Bus 21', type: 3, color: '#82C8E6', text_color: '#000000' },
+        { id: 'B38', short_name: 'B38', long_name: 'Bus 38', type: 3, color: '#FF7E2E', text_color: '#000000' },
+      ];
+
+      const stops = [
+        { id: 'STOP001', name: 'La Défense', lat: 48.8920, lon: 2.2380, locationType: 0, parentStation: undefined },
+        { id: 'STOP002', name: 'Châtelet', lat: 48.8583, lon: 2.3470, locationType: 0, parentStation: undefined },
+        { id: 'STOP003', name: 'Gare de Lyon', lat: 48.8444, lon: 2.3739, locationType: 0, parentStation: undefined },
+        { id: 'STOP004', name: 'Saint-Lazare', lat: 48.8760, lon: 2.3260, locationType: 0, parentStation: undefined },
+        { id: 'STOP005', name: 'République', lat: 48.8674, lon: 2.3637, locationType: 0, parentStation: undefined },
+        { id: 'STOP006', name: 'Bastille', lat: 48.8530, lon: 2.3690, locationType: 0, parentStation: undefined },
+        { id: 'STOP007', name: 'Nation', lat: 48.8480, lon: 2.3960, locationType: 0, parentStation: undefined },
+      ];
+
+      const trips = [
+        { id: 'TRIP001', routeId: 'M1', serviceId: 'WD', headsign: 'Château de Vincennes', directionId: 0, shapeId: undefined },
+        { id: 'TRIP002', routeId: 'M1', serviceId: 'WD', headsign: 'La Défense', directionId: 1, shapeId: undefined },
+        { id: 'TRIP003', routeId: 'M4', serviceId: 'WD', headsign: 'Porte de Clignancourt', directionId: 0, shapeId: undefined },
+        { id: 'TRIP004', routeId: 'B21', serviceId: 'WD', headsign: 'Gare Saint-Lazare', directionId: 0, shapeId: undefined },
+      ];
+
+      const stopTimes = [
+        { tripId: 'TRIP001', arrivalTime: '08:30:00', departureTime: '08:30:00', stopId: 'STOP001', stopSequence: 1 },
+        { tripId: 'TRIP001', arrivalTime: '08:45:00', departureTime: '08:45:00', stopId: 'STOP002', stopSequence: 2 },
+        { tripId: 'TRIP001', arrivalTime: '09:00:00', departureTime: '09:00:00', stopId: 'STOP003', stopSequence: 3 },
+        { tripId: 'TRIP002', arrivalTime: '10:00:00', departureTime: '10:00:00', stopId: 'STOP003', stopSequence: 1 },
+        { tripId: 'TRIP002', arrivalTime: '10:15:00', departureTime: '10:15:00', stopId: 'STOP001', stopSequence: 2 },
+      ];
+
+      // Import using database functions
+      await db.insertRoutes(routes);
+      await db.insertStops(stops);
+      await db.insertTrips(trips);
+      await db.insertStopTimes(stopTimes);
+
+      Alert.alert('Succès', 'Données importées avec succès!');
+      console.log('[MapScreen] Data imported successfully');
+
+      // Reload page
+      if (adapter) {
+        await adapter.initialize();
+      }
+    } catch (err) {
+      console.error('[MapScreen] Import error:', err);
+      Alert.alert('Erreur', 'Échec de l\'import des données');
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Loading state
@@ -47,6 +111,17 @@ export function MapScreen() {
       <View style={styles.centerContainer}>
         <Text style={styles.emptyIcon}>🗺️</Text>
         <Text style={styles.emptyText}>Aucun arrêt disponible</Text>
+        <TouchableOpacity
+          style={styles.importButton}
+          onPress={handleImportData}
+          disabled={importing}
+        >
+          {importing ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.importButtonText}>Importer les données</Text>
+          )}
+        </TouchableOpacity>
       </View>
     );
   }
@@ -97,5 +172,19 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#666',
+    marginBottom: 24,
+  },
+  importButton: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  importButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
