@@ -1,12 +1,15 @@
 /**
  * Map Screen
- * Main screen displaying transit stops on an interactive map
+ * Main screen displaying transit stops on an interactive map with bottom sheet
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { TransitMap } from '../components/map';
+import { StopDetailsContent } from '../components/transit/StopDetailsContent';
 import { useStops } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
 import type { Stop } from '../core/types/models';
@@ -19,11 +22,23 @@ export function MapScreen({ navigation }: Props) {
   const { stops, loading, error } = useStops();
   const { adapter } = useAdapter();
   const [importing, setImporting] = useState(false);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+
+  // Bottom sheet ref and snap points
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const snapPoints = useMemo(() => ['25%', '50%', '90%'], []);
 
   console.log('[MapScreen] Render - stops:', stops.length, 'loading:', loading, 'error:', error);
 
   const handleStopPress = (stop: Stop) => {
-    navigation.navigate('StopDetails', { stopId: stop.id });
+    setSelectedStopId(stop.id);
+    bottomSheetRef.current?.expand();
+  };
+
+  const handleLinePress = (routeId: string) => {
+    // For now, just log - LineDetails navigation not available from Map stack
+    console.log('[MapScreen] Line pressed:', routeId);
+    // TODO: Navigate to Lines tab and open LineDetails
   };
 
   const handleImportData = async () => {
@@ -130,9 +145,32 @@ export function MapScreen({ navigation }: Props) {
 
   // Map view
   return (
-    <View style={styles.container}>
-      <TransitMap stops={stops} onStopPress={handleStopPress} />
-    </View>
+    <GestureHandlerRootView style={styles.container}>
+      <View style={styles.container}>
+        <TransitMap stops={stops} onStopPress={handleStopPress} />
+
+        {/* Bottom Sheet for stop details */}
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={-1}
+          snapPoints={snapPoints}
+          enablePanDownToClose
+        >
+          <BottomSheetView style={styles.bottomSheetContent}>
+            {selectedStopId ? (
+              <StopDetailsContent
+                stopId={selectedStopId}
+                onLinePress={handleLinePress}
+              />
+            ) : (
+              <View style={styles.emptySheetContainer}>
+                <Text style={styles.emptySheetText}>Sélectionnez un arrêt sur la carte</Text>
+              </View>
+            )}
+          </BottomSheetView>
+        </BottomSheet>
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -188,5 +226,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  bottomSheetContent: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  emptySheetContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptySheetText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
