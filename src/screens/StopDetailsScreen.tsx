@@ -9,7 +9,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DepartureRow, type Departure } from '../components/transit/DepartureRow';
 import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDeparture } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
-import type { LinesStackParamList } from '../navigation/LinesStackNavigator';
+import type { LinesStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'StopDetails'>;
 

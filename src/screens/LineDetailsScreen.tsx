@@ -9,7 +9,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StopCard } from '../components/transit/StopCard';
 import { getRouteById, getStopsByRouteId } from '../core/database';
 import type { Route, Stop } from '../core/types/models';
-import type { LinesStackParamList } from '../navigation/LinesStackNavigator';
+import type { LinesStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'LineDetails'>;
 

@@ -8,14 +8,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LinesScreen } from '../screens/LinesScreen';
 import { LineDetailsScreen } from '../screens/LineDetailsScreen';
 import { StopDetailsScreen } from '../screens/StopDetailsScreen';
+import type { LinesStackParamList } from './types';
 
 console.log('[LinesStackNavigator] StopDetailsScreen imported:', !!StopDetailsScreen);
-
-export type LinesStackParamList = {
-  LinesList: undefined;
-  LineDetails: { routeId: string };
-  StopDetails: { stopId: string };
-};
 
 const Stack = createNativeStackNavigator<LinesStackParamList>();
 
