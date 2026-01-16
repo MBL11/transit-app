@@ -36,16 +36,6 @@ export function LinesScreen() {
   const [selectedType, setSelectedType] = useState<TransitType>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Debug: Log colors when routes load
-  React.useEffect(() => {
-    if (routes.length > 0) {
-      console.log('=== ROUTES DEBUG ===');
-      routes.forEach(route => {
-        console.log(`Route ${route.shortName}: color="${route.color}" textColor="${route.textColor}"`);
-      });
-    }
-  }, [routes]);
-
   // Filter routes by type AND search query
   const filteredRoutes = useMemo(() => {
     let filtered = routes;
