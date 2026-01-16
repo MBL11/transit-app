@@ -1,10 +1,10 @@
 /**
- * App.tsx with MapScreen (production version)
+ * App.tsx with Navigation (production version)
  */
 
 import './global.css';
-import { MapScreen } from './src/screens';
+import { RootNavigator } from './src/navigation';
 
 export default function App() {
-  return <MapScreen />;
+  return <RootNavigator />;
 }
