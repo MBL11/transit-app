@@ -14,6 +14,7 @@ import type { Stop, Route, Trip, StopTime } from '../../core/types/models';
 import * as db from '../../core/database';
 import { parisConfig, parisDataSource } from './config';
 import { runMigrations } from '../../core/database-migration';
+import { fetchNextDepartures } from './siri-client';
 
 /**
  * Paris adapter implementation
@@ -143,12 +144,31 @@ export class ParisAdapter implements TransitAdapter {
   }
 
   /**
-   * Get next departures for a stop (real-time)
-   * TODO: Implement SIRI-Lite API integration (Step 10)
-   * For now, returns static schedule data
+   * Get next departures for a stop (real-time with SIRI fallback)
    */
   async getNextDepartures(stopId: string): Promise<NextDeparture[]> {
     console.log(`[ParisAdapter] Getting next departures for stop ${stopId}...`);
+
+    try {
+      // Try to fetch real-time data from SIRI-Lite
+      const realtime = await fetchNextDepartures(stopId);
+      if (realtime.length > 0) {
+        console.log(`[ParisAdapter] ✅ Found ${realtime.length} real-time departures from SIRI`);
+        return realtime;
+      }
+    } catch (error) {
+      console.warn('[ParisAdapter] ⚠️ SIRI fetch failed, falling back to theoretical:', error);
+    }
+
+    // Fallback to theoretical schedule
+    return this.getTheoreticalDepartures(stopId);
+  }
+
+  /**
+   * Get theoretical departures from static GTFS schedule
+   */
+  private async getTheoreticalDepartures(stopId: string): Promise<NextDeparture[]> {
+    console.log(`[ParisAdapter] Getting theoretical departures for stop ${stopId}...`);
 
     try {
       const database = db.openDatabase();
@@ -188,15 +208,15 @@ export class ParisAdapter implements TransitAdapter {
           headsign: row.headsign || 'Unknown',
           departureTime: departureDate,
           scheduledTime: departureDate,
-          isRealtime: false, // Static schedule for now
+          isRealtime: false, // Static schedule
           delay: 0,
         };
       });
 
-      console.log(`[ParisAdapter] ✅ Found ${departures.length} next departures`);
+      console.log(`[ParisAdapter] ✅ Found ${departures.length} theoretical departures`);
       return departures;
     } catch (error) {
-      console.error('[ParisAdapter] ❌ Failed to get next departures:', error);
+      console.error('[ParisAdapter] ❌ Failed to get theoretical departures:', error);
       return [];
     }
   }
