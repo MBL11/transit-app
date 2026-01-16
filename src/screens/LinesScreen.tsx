@@ -5,10 +5,15 @@
 
 import React, { useState, useMemo } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LineCard } from '../components/transit/LineCard';
 import { SearchBar } from '../components/transit/SearchBar';
 import { useRoutes } from '../hooks';
 import type { Route } from '../core/types/models';
+import type { LinesStackParamList } from '../navigation/LinesStackNavigator';
+
+type NavigationProp = NativeStackNavigationProp<LinesStackParamList, 'LinesList'>;
 
 type TransitType = 'all' | 'metro' | 'bus' | 'tram' | 'rer';
 
@@ -32,6 +37,7 @@ const typeLabels: Record<TransitType, string> = {
 };
 
 export function LinesScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { routes, loading, error } = useRoutes();
   const [selectedType, setSelectedType] = useState<TransitType>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,8 +68,7 @@ export function LinesScreen() {
   }, [routes, selectedType, searchQuery]);
 
   const handleLinePress = (route: Route) => {
-    // TODO: Navigate to line details screen
-    console.log('Line pressed:', route.shortName, route.longName);
+    navigation.navigate('LineDetails', { routeId: route.id });
   };
 
   // Loading state

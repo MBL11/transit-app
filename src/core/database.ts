@@ -467,3 +467,59 @@ export async function searchStops(query: string): Promise<Stop[]> {
     throw error;
   }
 }
+
+/**
+ * Get route by ID
+ */
+export async function getRouteById(id: string): Promise<Route | null> {
+  const db = openDatabase();
+
+  try {
+    const row = db.getFirstSync<any>('SELECT * FROM routes WHERE id = ?', [id]);
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      shortName: row.short_name,
+      longName: row.long_name,
+      type: row.type,
+      color: row.color,
+      textColor: row.text_color,
+    };
+  } catch (error) {
+    console.error('[Database] ❌ Failed to get route by ID:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get stops served by a specific route (ordered by stop sequence)
+ */
+export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
+  const db = openDatabase();
+
+  try {
+    const rows = db.getAllSync<any>(
+      `SELECT DISTINCT stops.*
+       FROM stops
+       JOIN stop_times ON stops.id = stop_times.stop_id
+       JOIN trips ON stop_times.trip_id = trips.id
+       WHERE trips.route_id = ?
+       ORDER BY stop_times.stop_sequence`,
+      [routeId]
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      lat: row.lat,
+      lon: row.lon,
+      locationType: row.location_type,
+      parentStation: row.parent_station,
+    }));
+  } catch (error) {
+    console.error('[Database] ❌ Failed to get stops by route ID:', error);
+    throw error;
+  }
+}
