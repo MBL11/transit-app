@@ -9,6 +9,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
+import { SearchStackNavigator } from './SearchStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -45,6 +46,16 @@ export function RootNavigator() {
             title: 'Lignes',
             tabBarLabel: 'Lignes',
             tabBarIcon: ({ color }) => <TabIcon icon="🚇" color={color} />,
+            headerShown: false, // Let the stack handle its own headers
+          }}
+        />
+        <Tab.Screen
+          name="SearchTab"
+          component={SearchStackNavigator}
+          options={{
+            title: 'Recherche',
+            tabBarLabel: 'Recherche',
+            tabBarIcon: ({ color }) => <TabIcon icon="🔍" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
         />
