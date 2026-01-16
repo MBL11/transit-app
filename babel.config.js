@@ -3,11 +3,17 @@ module.exports = function (api) {
   return {
     presets: [
       ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
-      'nativewind/babel',
     ],
-    // NOTE: react-native-reanimated@3.16.7 works with Expo Go without babel plugin
-    // plugins: [
-    //   'react-native-reanimated/plugin',
-    // ],
+    plugins: [
+      // NativeWind CSS interop plugin (without worklets)
+      require('react-native-css-interop/dist/babel-plugin').default,
+      [
+        '@babel/plugin-transform-react-jsx',
+        {
+          runtime: 'automatic',
+          importSource: 'react-native-css-interop',
+        },
+      ],
+    ],
   };
 };
