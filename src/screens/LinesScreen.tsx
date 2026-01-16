@@ -147,7 +147,7 @@ export function LinesScreen() {
           <LineCard
             lineNumber={item.shortName}
             lineName={item.longName}
-            lineColor={item.color ? `#${item.color}` : '#FF6600'}
+            lineColor={item.color || '#FF6600'}
             type={getTransitType(item.type)}
             onPress={() => handleLinePress(item)}
           />
