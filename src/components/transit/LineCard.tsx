@@ -1,8 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, PressableProps } from 'react-native';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/utils';
+import { View, Text, Pressable, PressableProps, StyleSheet } from 'react-native';
 
 export interface LineCardProps extends Omit<PressableProps, 'children'> {
   lineNumber: string;
@@ -10,15 +7,14 @@ export interface LineCardProps extends Omit<PressableProps, 'children'> {
   lineColor: string;
   direction?: string;
   type?: 'metro' | 'bus' | 'tram' | 'rer' | 'train';
-  className?: string;
 }
 
 const typeColors = {
-  metro: 'bg-transit-metro',
-  bus: 'bg-transit-bus',
-  tram: 'bg-transit-tram',
-  rer: 'bg-transit-rer',
-  train: 'bg-transit-primary',
+  metro: '#003366', // Dark blue
+  bus: '#00AA55', // Green
+  tram: '#CC0000', // Red
+  rer: '#7B68EE', // Purple
+  train: '#0066CC', // Blue
 };
 
 const typeLabels = {
@@ -35,46 +31,97 @@ export function LineCard({
   lineColor,
   direction,
   type = 'bus',
-  className,
   ...props
 }: LineCardProps) {
   return (
-    <Pressable {...props}>
-      <Card className={cn('border-l-4', className)} style={{ borderLeftColor: lineColor }}>
-        <CardContent className="p-4">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3 flex-1">
-              {/* Line Number Badge */}
-              <View
-                className="w-12 h-12 rounded-lg items-center justify-center"
-                style={{ backgroundColor: lineColor }}
-              >
-                <Text className="text-white font-bold text-lg">
-                  {lineNumber}
-                </Text>
-              </View>
-
-              {/* Line Info */}
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-gray-900 dark:text-white">
-                  {lineName}
-                </Text>
-                {direction && (
-                  <Text className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
-                    → {direction}
-                  </Text>
-                )}
-              </View>
+    <Pressable {...props} style={styles.pressable}>
+      <View style={[styles.card, { borderLeftColor: lineColor }]}>
+        <View style={styles.content}>
+          <View style={styles.leftSection}>
+            {/* Line Number Badge */}
+            <View style={[styles.badge, { backgroundColor: lineColor }]}>
+              <Text style={styles.badgeText}>{lineNumber}</Text>
             </View>
 
-            {/* Type Badge */}
-            <Badge
-              label={typeLabels[type]}
-              className={cn('ml-2', typeColors[type])}
-            />
+            {/* Line Info */}
+            <View style={styles.infoContainer}>
+              <Text style={styles.lineName}>{lineName}</Text>
+              {direction && (
+                <Text style={styles.direction}>→ {direction}</Text>
+              )}
+            </View>
           </View>
-        </CardContent>
-      </Card>
+
+          {/* Type Badge */}
+          <View style={[styles.typeBadge, { backgroundColor: typeColors[type] }]}>
+            <Text style={styles.typeBadgeText}>{typeLabels[type]}</Text>
+          </View>
+        </View>
+      </View>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  pressable: {
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  leftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  badge: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  infoContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  lineName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
+  direction: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  typeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  typeBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});

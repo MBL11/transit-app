@@ -144,15 +144,13 @@ export function LinesScreen() {
         data={filteredRoutes}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.lineCardContainer}>
-            <LineCard
-              lineNumber={item.shortName}
-              lineName={item.longName}
-              lineColor={item.color ? `#${item.color}` : '#FF6600'}
-              type={getTransitType(item.type)}
-              onPress={() => handleLinePress(item)}
-            />
-          </View>
+          <LineCard
+            lineNumber={item.shortName}
+            lineName={item.longName}
+            lineColor={item.color ? `#${item.color}` : '#FF6600'}
+            type={getTransitType(item.type)}
+            onPress={() => handleLinePress(item)}
+          />
         )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
@@ -228,9 +226,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 12,
-  },
-  lineCardContainer: {
-    marginBottom: 12,
   },
   loadingText: {
     marginTop: 16,
