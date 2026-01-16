@@ -1,10 +1,10 @@
 /**
  * Route Screen
- * Allows users to search for routes between two stops
+ * Allows users to search for routes between two stops with autocomplete
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput } from 'react-native';
 import { RouteResult } from '../components/transit/RouteResult';
 import { findRoute } from '../core/routing';
 import type { Stop } from '../core/types/models';
@@ -17,12 +17,17 @@ export function RouteScreen() {
   const [calculating, setCalculating] = useState(false);
 
   // Selected stops
-  const [fromStopId, setFromStopId] = useState<string>('');
-  const [toStopId, setToStopId] = useState<string>('');
+  const [fromStop, setFromStop] = useState<Stop | null>(null);
+  const [toStop, setToStop] = useState<Stop | null>(null);
 
-  // Modal state for stop selection
-  const [showStopPicker, setShowStopPicker] = useState(false);
-  const [selectingFor, setSelectingFor] = useState<'from' | 'to'>('from');
+  // Search states
+  const [showFromSearch, setShowFromSearch] = useState(false);
+  const [showToSearch, setShowToSearch] = useState(false);
+  const [fromSearchQuery, setFromSearchQuery] = useState('');
+  const [toSearchQuery, setToSearchQuery] = useState('');
+
+  // Departure time
+  const [departureTime, setDepartureTime] = useState(new Date());
 
   // Results
   const [journeys, setJourneys] = useState<JourneyResult[]>([]);
@@ -38,12 +43,6 @@ export function RouteScreen() {
       setLoading(true);
       const allStops = await db.getAllStops();
       setStops(allStops);
-
-      // Pre-select first two stops if available
-      if (allStops.length >= 2) {
-        setFromStopId(allStops[0].id);
-        setToStopId(allStops[1].id);
-      }
     } catch (err) {
       console.error('[RouteScreen] Error loading stops:', err);
       Alert.alert('Erreur', 'Impossible de charger les arrêts');
@@ -53,12 +52,12 @@ export function RouteScreen() {
   };
 
   const handleCalculateRoute = async () => {
-    if (!fromStopId || !toStopId) {
+    if (!fromStop || !toStop) {
       Alert.alert('Erreur', 'Veuillez sélectionner un départ et une arrivée');
       return;
     }
 
-    if (fromStopId === toStopId) {
+    if (fromStop.id === toStop.id) {
       Alert.alert('Erreur', 'Le départ et l\'arrivée doivent être différents');
       return;
     }
@@ -66,10 +65,9 @@ export function RouteScreen() {
     try {
       setCalculating(true);
       setHasSearched(false);
-      console.log('[RouteScreen] Calculating route from', fromStopId, 'to', toStopId);
+      console.log('[RouteScreen] Calculating route from', fromStop.id, 'to', toStop.id);
 
-      const departureTime = new Date(); // Now
-      const results = await findRoute(fromStopId, toStopId, departureTime);
+      const results = await findRoute(fromStop.id, toStop.id, departureTime);
 
       setJourneys(results);
       setHasSearched(true);
@@ -83,9 +81,9 @@ export function RouteScreen() {
   };
 
   const handleSwapStops = () => {
-    const temp = fromStopId;
-    setFromStopId(toStopId);
-    setToStopId(temp);
+    const tempStop = fromStop;
+    setFromStop(toStop);
+    setToStop(tempStop);
   };
 
   const handleJourneyPress = (journey: JourneyResult) => {
@@ -93,23 +91,47 @@ export function RouteScreen() {
     console.log('[RouteScreen] Journey pressed:', journey);
   };
 
-  const openStopPicker = (type: 'from' | 'to') => {
-    setSelectingFor(type);
-    setShowStopPicker(true);
+  const openFromSearch = () => {
+    setFromSearchQuery('');
+    setShowFromSearch(true);
   };
 
-  const selectStop = (stopId: string) => {
-    if (selectingFor === 'from') {
-      setFromStopId(stopId);
-    } else {
-      setToStopId(stopId);
-    }
-    setShowStopPicker(false);
+  const openToSearch = () => {
+    setToSearchQuery('');
+    setShowToSearch(true);
   };
 
-  const getStopName = (stopId: string) => {
-    const stop = stops.find(s => s.id === stopId);
-    return stop ? stop.name : 'Sélectionner un arrêt';
+  const selectFromStop = (stop: Stop) => {
+    setFromStop(stop);
+    setShowFromSearch(false);
+  };
+
+  const selectToStop = (stop: Stop) => {
+    setToStop(stop);
+    setShowToSearch(false);
+  };
+
+  const filterStops = (query: string) => {
+    if (!query.trim()) return stops;
+    const lowerQuery = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return stops.filter(stop =>
+      stop.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(lowerQuery)
+    );
+  };
+
+  const formatTime = (date: Date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  const setDepartureToNow = () => {
+    setDepartureTime(new Date());
+  };
+
+  const adjustDepartureTime = (minutes: number) => {
+    const newTime = new Date(departureTime.getTime() + minutes * 60000);
+    setDepartureTime(newTime);
   };
 
   if (loading) {
@@ -131,6 +153,10 @@ export function RouteScreen() {
     );
   }
 
+  const filteredFromStops = filterStops(fromSearchQuery);
+  const filteredToStops = filterStops(toSearchQuery);
+  const canSearch = fromStop !== null && toStop !== null && fromStop.id !== toStop.id;
+
   return (
     <View style={styles.container}>
       {/* Header with stop selection */}
@@ -138,43 +164,73 @@ export function RouteScreen() {
         <Text style={styles.title}>Calculer un itinéraire</Text>
 
         {/* From Stop */}
-        <View style={styles.pickerContainer}>
-          <Text style={styles.label}>Départ</Text>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>📍 Départ</Text>
           <TouchableOpacity
-            style={styles.stopSelector}
-            onPress={() => openStopPicker('from')}
+            style={styles.stopInput}
+            onPress={openFromSearch}
           >
-            <Text style={[styles.stopSelectorText, !fromStopId && styles.stopSelectorPlaceholder]}>
-              {getStopName(fromStopId)}
+            <Text style={[styles.stopInputText, !fromStop && styles.stopInputPlaceholder]}>
+              {fromStop ? fromStop.name : 'Sélectionner un arrêt'}
             </Text>
-            <Text style={styles.dropdownIcon}>▼</Text>
           </TouchableOpacity>
         </View>
 
         {/* Swap Button */}
-        <TouchableOpacity style={styles.swapButton} onPress={handleSwapStops}>
-          <Text style={styles.swapIcon}>⇅</Text>
+        <TouchableOpacity
+          style={[styles.swapButton, (!fromStop || !toStop) && styles.swapButtonDisabled]}
+          onPress={handleSwapStops}
+          disabled={!fromStop || !toStop}
+        >
+          <Text style={styles.swapIcon}>↕️</Text>
         </TouchableOpacity>
 
         {/* To Stop */}
-        <View style={styles.pickerContainer}>
-          <Text style={styles.label}>Arrivée</Text>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>🎯 Arrivée</Text>
           <TouchableOpacity
-            style={styles.stopSelector}
-            onPress={() => openStopPicker('to')}
+            style={styles.stopInput}
+            onPress={openToSearch}
           >
-            <Text style={[styles.stopSelectorText, !toStopId && styles.stopSelectorPlaceholder]}>
-              {getStopName(toStopId)}
+            <Text style={[styles.stopInputText, !toStop && styles.stopInputPlaceholder]}>
+              {toStop ? toStop.name : 'Sélectionner un arrêt'}
             </Text>
-            <Text style={styles.dropdownIcon}>▼</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Departure Time Selector */}
+        <View style={styles.timeContainer}>
+          <Text style={styles.label}>🕒 Heure de départ</Text>
+          <View style={styles.timeControls}>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => adjustDepartureTime(-15)}
+            >
+              <Text style={styles.timeButtonText}>-15min</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.timeDisplay}
+              onPress={setDepartureToNow}
+            >
+              <Text style={styles.timeDisplayText}>{formatTime(departureTime)}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => adjustDepartureTime(15)}
+            >
+              <Text style={styles.timeButtonText}>+15min</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={setDepartureToNow}>
+            <Text style={styles.nowButton}>Maintenant</Text>
           </TouchableOpacity>
         </View>
 
         {/* Calculate Button */}
         <TouchableOpacity
-          style={[styles.calculateButton, calculating && styles.calculateButtonDisabled]}
+          style={[styles.calculateButton, (!canSearch || calculating) && styles.calculateButtonDisabled]}
           onPress={handleCalculateRoute}
-          disabled={calculating}
+          disabled={!canSearch || calculating}
         >
           {calculating ? (
             <ActivityIndicator color="#fff" />
@@ -216,48 +272,123 @@ export function RouteScreen() {
         )}
       </ScrollView>
 
-      {/* Stop Selection Modal */}
+      {/* From Stop Search Modal */}
       <Modal
-        visible={showStopPicker}
+        visible={showFromSearch}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowStopPicker(false)}
+        onRequestClose={() => setShowFromSearch(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {selectingFor === 'from' ? 'Choisir le départ' : 'Choisir l\'arrivée'}
-              </Text>
+              <Text style={styles.modalTitle}>📍 Choisir le départ</Text>
               <TouchableOpacity
                 style={styles.modalCloseButton}
-                onPress={() => setShowStopPicker(false)}
+                onPress={() => setShowFromSearch(false)}
               >
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
+            <View style={styles.searchInputContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher un arrêt..."
+                value={fromSearchQuery}
+                onChangeText={setFromSearchQuery}
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
             <FlatList
-              data={stops}
+              data={filteredFromStops}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
                     styles.stopItem,
-                    (selectingFor === 'from' ? fromStopId : toStopId) === item.id && styles.stopItemSelected,
+                    fromStop?.id === item.id && styles.stopItemSelected,
                   ]}
-                  onPress={() => selectStop(item.id)}
+                  onPress={() => selectFromStop(item)}
                 >
                   <Text style={[
                     styles.stopItemText,
-                    (selectingFor === 'from' ? fromStopId : toStopId) === item.id && styles.stopItemTextSelected,
+                    fromStop?.id === item.id && styles.stopItemTextSelected,
                   ]}>
                     {item.name}
                   </Text>
-                  {(selectingFor === 'from' ? fromStopId : toStopId) === item.id && (
+                  {fromStop?.id === item.id && (
                     <Text style={styles.checkmark}>✓</Text>
                   )}
                 </TouchableOpacity>
               )}
+              ListEmptyComponent={
+                <View style={styles.emptySearchContainer}>
+                  <Text style={styles.emptySearchText}>Aucun arrêt trouvé</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* To Stop Search Modal */}
+      <Modal
+        visible={showToSearch}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowToSearch(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🎯 Choisir l'arrivée</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowToSearch(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.searchInputContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher un arrêt..."
+                value={toSearchQuery}
+                onChangeText={setToSearchQuery}
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            <FlatList
+              data={filteredToStops}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.stopItem,
+                    toStop?.id === item.id && styles.stopItemSelected,
+                  ]}
+                  onPress={() => selectToStop(item)}
+                >
+                  <Text style={[
+                    styles.stopItemText,
+                    toStop?.id === item.id && styles.stopItemTextSelected,
+                  ]}>
+                    {item.name}
+                  </Text>
+                  {toStop?.id === item.id && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptySearchContainer}>
+                  <Text style={styles.emptySearchText}>Aucun arrêt trouvé</Text>
+                </View>
+              }
             />
           </View>
         </View>
@@ -310,7 +441,7 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 20,
   },
-  pickerContainer: {
+  inputContainer: {
     marginBottom: 12,
   },
   label: {
@@ -319,29 +450,21 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
-  stopSelector: {
+  stopInput: {
     backgroundColor: '#f9f9f9',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ddd',
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     minHeight: 50,
+    justifyContent: 'center',
   },
-  stopSelectorText: {
+  stopInputText: {
     fontSize: 16,
     color: '#000',
-    flex: 1,
   },
-  stopSelectorPlaceholder: {
+  stopInputPlaceholder: {
     color: '#999',
-  },
-  dropdownIcon: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 8,
   },
   swapButton: {
     alignSelf: 'center',
@@ -353,9 +476,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 8,
   },
+  swapButtonDisabled: {
+    opacity: 0.4,
+  },
   swapIcon: {
+    fontSize: 20,
+  },
+  timeContainer: {
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  timeControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  timeButton: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  timeButtonText: {
+    fontSize: 14,
+    color: '#0066CC',
+    fontWeight: '600',
+  },
+  timeDisplay: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  timeDisplayText: {
     fontSize: 24,
+    fontWeight: 'bold',
     color: '#fff',
+  },
+  nowButton: {
+    fontSize: 14,
+    color: '#0066CC',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
   calculateButton: {
     backgroundColor: '#0066CC',
@@ -365,7 +530,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   calculateButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.4,
   },
   calculateButtonText: {
     color: '#fff',
@@ -443,6 +608,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#666',
   },
+  searchInputContainer: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  searchInput: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 12,
+    fontSize: 16,
+  },
   stopItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -467,5 +645,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#0066CC',
     marginLeft: 8,
+  },
+  emptySearchContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptySearchText: {
+    fontSize: 16,
+    color: '#999',
   },
 });
