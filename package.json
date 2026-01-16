@@ -17,6 +17,7 @@
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.0",
     "fast-xml-parser": "^5.3.3",
+    "heap-js": "^2.7.1",
     "lucide-react-native": "^0.562.0",
     "nativewind": "^4.2.1",
     "papaparse": "^5.5.3",
