@@ -124,70 +124,74 @@ export function StopDetailsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Stop header */}
-      <View style={styles.header}>
-        <Text style={styles.stopName}>{stop.name}</Text>
-        <Text style={styles.coordinates}>
-          {stop.lat.toFixed(4)}, {stop.lon.toFixed(4)}
-        </Text>
-      </View>
-
-      {/* Lines serving this stop */}
-      {routes.length > 0 && (
-        <View style={styles.linesSection}>
-          <Text style={styles.sectionTitle}>Lignes desservant cet arrêt</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.linesBadgeContainer}
-          >
-            {routes.map((route) => (
-              <Pressable
-                key={route.id}
-                onPress={() => handleLinePress(route.id)}
-                style={({ pressed }) => [
-                  styles.lineBadge,
-                  { backgroundColor: route.color },
-                  pressed && styles.lineBadgePressed,
-                ]}
-              >
-                <Text style={[styles.lineBadgeText, { color: route.textColor }]}>
-                  {route.shortName}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Next departures section */}
-      <View style={styles.departuresSection}>
-        <View style={styles.departureSectionHeader}>
-          <Text style={styles.sectionTitle}>
-            Prochains passages <Text style={styles.departureCount}>({departures.length})</Text>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0066CC']}
+            tintColor="#0066CC"
+          />
+        }
+      >
+        {/* Stop header */}
+        <View style={styles.header}>
+          <Text style={styles.stopName}>{stop.name}</Text>
+          <Text style={styles.coordinates}>
+            {stop.lat.toFixed(4)}, {stop.lon.toFixed(4)}
           </Text>
         </View>
 
-        {departures.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucun passage prévu</Text>
+        {/* Lines serving this stop */}
+        {routes.length > 0 && (
+          <View style={styles.linesSection}>
+            <Text style={styles.sectionTitle}>Lignes desservant cet arrêt</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.linesBadgeContainer}
+            >
+              {routes.map((route) => (
+                <Pressable
+                  key={route.id}
+                  onPress={() => handleLinePress(route.id)}
+                  style={({ pressed }) => [
+                    styles.lineBadge,
+                    { backgroundColor: route.color },
+                    pressed && styles.lineBadgePressed,
+                  ]}
+                >
+                  <Text style={[styles.lineBadgeText, { color: route.textColor }]}>
+                    {route.shortName}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
-        ) : (
-          <FlatList
-            data={departures}
-            keyExtractor={(item, index) => `${item.routeShortName}-${index}`}
-            renderItem={({ item }) => <DepartureRow departure={item} />}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#0066CC']}
-                tintColor="#0066CC"
-              />
-            }
-          />
         )}
-      </View>
+
+        {/* Next departures section */}
+        <View style={styles.departuresSection}>
+          <View style={styles.departureSectionHeader}>
+            <Text style={styles.sectionTitle}>
+              Prochains passages <Text style={styles.departureCount}>({departures.length})</Text>
+            </Text>
+          </View>
+
+          {departures.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Aucun passage prévu</Text>
+            </View>
+          ) : (
+            <View>
+              {departures.map((departure, index) => (
+                <DepartureRow key={`${departure.routeShortName}-${index}`} departure={departure} />
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -196,6 +200,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  scrollView: {
+    flex: 1,
   },
   centerContainer: {
     flex: 1,
@@ -257,9 +264,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   departuresSection: {
-    flex: 1,
     backgroundColor: 'white',
     marginTop: 8,
+    minHeight: 200,
   },
   departureCount: {
     fontWeight: 'normal',
