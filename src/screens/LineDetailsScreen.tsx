@@ -60,7 +60,8 @@ export function LineDetailsScreen({ route, navigation }: Props) {
   };
 
   const handleStopPress = (stop: Stop) => {
-    navigation.navigate('StopDetails', { stopId: stop.id });
+    // TODO: Navigate to StopDetailsScreen (Step 8)
+    console.log('Stop pressed:', stop.name, stop.id);
   };
 
   // Loading state
