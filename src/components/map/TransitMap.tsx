@@ -3,128 +3,53 @@
  * Displays stops on a map using react-native-maps
  */
 
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { useStops, useRoutes } from '../../hooks';
+import React, { useState } from 'react';
+import { View, StyleSheet, Platform } from 'react-native';
+import MapView, { PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { StopMarker } from './StopMarker';
 import type { Stop } from '../../core/types/models';
 
 interface TransitMapProps {
-  onStopPress?: (stop: Stop) => void;
+  stops: Stop[];
+  onStopPress: (stop: Stop) => void;
+  initialRegion?: Region;
 }
 
-export function TransitMap({ onStopPress }: TransitMapProps) {
-  const { stops, loading: stopsLoading } = useStops();
-  const { routes, loading: routesLoading } = useRoutes();
-  const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
+const DEFAULT_REGION: Region = {
+  latitude: 48.8566,
+  longitude: 2.3522,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
 
-  // Filter routes: only Metro (type 1) and some Bus lines (type 3)
-  const filteredRoutes = useMemo(() => {
-    if (!routes) return [];
-
-    return routes.filter(route => {
-      // Metro (type 1)
-      if (route.type === 1) return true;
-
-      // Bus (type 3) - only lines with numbers < 100 (main lines)
-      if (route.type === 3) {
-        const lineNumber = parseInt(route.shortName);
-        return !isNaN(lineNumber) && lineNumber < 100;
-      }
-
-      return false;
-    });
-  }, [routes]);
-
-  // Filter stops: only those served by filtered routes
-  // For now, show all stops (we'll filter by route later if needed)
-  const filteredStops = useMemo(() => {
-    // Limit to 500 stops max to avoid performance issues
-    return stops.slice(0, 500);
-  }, [stops]);
+export function TransitMap({ stops, onStopPress, initialRegion }: TransitMapProps) {
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
 
   const handleMarkerPress = (stop: Stop) => {
-    setSelectedStop(stop);
-    onStopPress?.(stop);
+    setSelectedStopId(stop.id);
+    onStopPress(stop);
   };
-
-  if (stopsLoading || routesLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement de la carte...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
       <MapView
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         style={styles.map}
-        initialRegion={{
-          latitude: 48.8566,
-          longitude: 2.3522,
-          latitudeDelta: 0.15,
-          longitudeDelta: 0.15,
-        }}
+        initialRegion={initialRegion || DEFAULT_REGION}
         showsUserLocation
         showsMyLocationButton
         showsCompass
         showsScale
       >
-        {filteredStops.map((stop) => (
-          <Marker
+        {stops.map((stop) => (
+          <StopMarker
             key={stop.id}
-            coordinate={{
-              latitude: stop.lat,
-              longitude: stop.lon,
-            }}
+            stop={stop}
+            isSelected={selectedStopId === stop.id}
             onPress={() => handleMarkerPress(stop)}
-            pinColor={selectedStop?.id === stop.id ? '#0066CC' : '#FF6600'}
-          >
-            <View style={styles.markerContainer}>
-              <View
-                style={[
-                  styles.marker,
-                  selectedStop?.id === stop.id && styles.markerSelected,
-                ]}
-              >
-                <Text style={styles.markerText}>🚇</Text>
-              </View>
-            </View>
-          </Marker>
+          />
         ))}
       </MapView>
-
-      {/* Info overlay */}
-      <View style={styles.infoContainer}>
-        <View style={styles.infoBadge}>
-          <Text style={styles.infoText}>
-            {filteredStops.length} arrêts
-          </Text>
-        </View>
-        <View style={styles.infoBadge}>
-          <Text style={styles.infoText}>
-            {filteredRoutes.filter(r => r.type === 1).length} lignes métro
-          </Text>
-        </View>
-        <View style={styles.infoBadge}>
-          <Text style={styles.infoText}>
-            {filteredRoutes.filter(r => r.type === 3).length} lignes bus
-          </Text>
-        </View>
-      </View>
-
-      {/* Selected stop info */}
-      {selectedStop && (
-        <View style={styles.selectedStopContainer}>
-          <Text style={styles.selectedStopName}>{selectedStop.name}</Text>
-          <Text style={styles.selectedStopCoords}>
-            {selectedStop.lat.toFixed(4)}, {selectedStop.lon.toFixed(4)}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }

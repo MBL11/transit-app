@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { TransitMap } from './map';
-import { useAdapterData, useDepartures } from '../hooks';
+import { useAdapterData, useDepartures, useStops } from '../hooks';
 import { importGTFSToDatabase } from '../core/gtfs-importer';
 import * as db from '../core/database';
 import type { Stop } from '../core/types/models';
@@ -48,6 +48,7 @@ export function MapTest() {
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
   const [showMap, setShowMap] = useState(false);
   const { hasData } = useAdapterData();
+  const { stops } = useStops();
   const { departures, loading: departuresLoading } = useDepartures(
     selectedStop?.id || null
   );
@@ -121,7 +122,7 @@ export function MapTest() {
       {/* Map */}
       {showMap && (
         <>
-          <TransitMap onStopPress={handleStopPress} />
+          <TransitMap stops={stops} onStopPress={handleStopPress} />
 
           {/* Back button */}
           <View className="absolute top-20 right-4">

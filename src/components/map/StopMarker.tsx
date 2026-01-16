@@ -5,15 +5,17 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Marker } from 'react-native-maps';
 import type { Stop } from '../../core/types/models';
 
 interface StopMarkerProps {
   stop: Stop;
   isSelected?: boolean;
   routeType?: number; // 1=metro, 3=bus, etc.
+  onPress: () => void;
 }
 
-export function StopMarker({ stop, isSelected, routeType }: StopMarkerProps) {
+export function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerProps) {
   // Icon based on route type
   const getIcon = () => {
     switch (routeType) {
@@ -39,29 +41,37 @@ export function StopMarker({ stop, isSelected, routeType }: StopMarkerProps) {
   };
 
   return (
-    <View style={styles.container}>
-      <View
-        style={[
-          styles.marker,
-          {
-            backgroundColor: getColor(),
-            width: isSelected ? 40 : 32,
-            height: isSelected ? 40 : 32,
-            borderRadius: isSelected ? 20 : 16,
-          },
-        ]}
-      >
-        <Text style={styles.icon}>{getIcon()}</Text>
-      </View>
-
-      {isSelected && (
-        <View style={styles.labelContainer}>
-          <Text style={styles.label} numberOfLines={1}>
-            {stop.name}
-          </Text>
+    <Marker
+      coordinate={{
+        latitude: stop.lat,
+        longitude: stop.lon,
+      }}
+      onPress={onPress}
+    >
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.marker,
+            {
+              backgroundColor: getColor(),
+              width: isSelected ? 40 : 32,
+              height: isSelected ? 40 : 32,
+              borderRadius: isSelected ? 20 : 16,
+            },
+          ]}
+        >
+          <Text style={styles.icon}>{getIcon()}</Text>
         </View>
-      )}
-    </View>
+
+        {isSelected && (
+          <View style={styles.labelContainer}>
+            <Text style={styles.label} numberOfLines={1}>
+              {stop.name}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Marker>
   );
 }
 
