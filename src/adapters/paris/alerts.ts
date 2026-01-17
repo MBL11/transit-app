@@ -6,7 +6,49 @@ const SIRI_GM_URL = 'https://prim.iledefrance-mobilites.fr/marketplace/general-m
 const API_KEY = process.env.EXPO_PUBLIC_IDFM_API_KEY || '';
 const CACHE_TTL = 300000; // 5 minutes
 
+// Mode développement pour tester les alertes
+const DEV_MODE = true; // Mettre à false pour utiliser l'API réelle
+
+// Alertes de test pour le développement
+const MOCK_ALERTS: Alert[] = [
+  {
+    id: 'test-severe-1',
+    title: 'Interruption du trafic',
+    description: 'Trafic interrompu sur la ligne M1 entre Châtelet et Gare de Lyon en raison d\'un incident technique. Durée estimée : 30 minutes.',
+    severity: 'severe',
+    affectedRoutes: ['ROUTE001', 'M1'],
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 3600000), // +1h
+  },
+  {
+    id: 'test-warning-1',
+    title: 'Ralentissements',
+    description: 'Ralentissements sur la ligne M14 en raison d\'une affluence exceptionnelle.',
+    severity: 'warning',
+    affectedRoutes: ['ROUTE002', 'M14'],
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 7200000), // +2h
+  },
+  {
+    id: 'test-info-1',
+    title: 'Travaux programmés',
+    description: 'Travaux de maintenance ce week-end. La station Châtelet sera fermée samedi et dimanche.',
+    severity: 'info',
+    affectedStops: ['STOP001', 'STOP002'],
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 172800000), // +48h
+    url: 'https://www.ratp.fr',
+  },
+];
+
 export async function fetchAlerts(): Promise<Alert[]> {
+  // Mode développement : retourne des alertes de test
+  if (DEV_MODE) {
+    console.log('[Alerts] DEV MODE: Returning mock alerts');
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simule un délai réseau
+    return MOCK_ALERTS;
+  }
+
   // 1. Check cache
   const cacheKey = 'alerts';
   const cached = cache.get<Alert[]>(cacheKey, CACHE_TTL);
