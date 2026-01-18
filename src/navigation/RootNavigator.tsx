@@ -11,6 +11,7 @@ import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
 import { SearchStackNavigator } from './SearchStackNavigator';
 import { RouteStackNavigator } from './RouteStackNavigator';
+import { FavoritesStackNavigator } from './FavoritesStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -67,6 +68,16 @@ export function RootNavigator() {
             title: 'Itinéraire',
             tabBarLabel: 'Itinéraire',
             tabBarIcon: ({ color }) => <TabIcon icon="🚏" color={color} />,
+            headerShown: false, // Let the stack handle its own headers
+          }}
+        />
+        <Tab.Screen
+          name="Favorites"
+          component={FavoritesStackNavigator}
+          options={{
+            title: 'Favoris',
+            tabBarLabel: 'Favoris',
+            tabBarIcon: ({ color }) => <TabIcon icon="⭐" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
         />

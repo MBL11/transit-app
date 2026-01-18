@@ -9,7 +9,7 @@ import type { Stop, Route } from '../../core/types/models';
 import type { NextDeparture } from '../../core/types/adapter';
 import { DepartureRow } from './DepartureRow';
 import { AlertBanner } from './AlertBanner';
-import { useAlerts } from '../../hooks';
+import { useAlerts, useFavorites } from '../../hooks';
 import { isStopAffected, isRouteAffected } from '../../adapters/paris/alerts';
 
 interface StopDetailsSheetProps {
@@ -30,6 +30,7 @@ export function StopDetailsSheet({
   onClose,
 }: StopDetailsSheetProps) {
   const { alerts } = useAlerts();
+  const { isFavorite, toggleStop } = useFavorites();
 
   if (!stop) {
     return (
@@ -60,9 +61,19 @@ export function StopDetailsSheet({
             {stop.lat.toFixed(4)}°, {stop.lon.toFixed(4)}°
           </Text>
         </View>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>✕</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            onPress={() => toggleStop(stop)}
+            style={styles.favoriteButton}
+          >
+            <Text style={styles.favoriteButtonText}>
+              {isFavorite(stop.id, 'stop') ? '⭐' : '☆'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -196,6 +207,21 @@ const styles = StyleSheet.create({
   coordinates: {
     fontSize: 12,
     color: '#666',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  favoriteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favoriteButtonText: {
+    fontSize: 20,
   },
   closeButton: {
     width: 32,

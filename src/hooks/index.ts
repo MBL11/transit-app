@@ -11,3 +11,4 @@ export {
 } from './useAdapter';
 
 export { useAlerts } from './useAlerts';
+export { useFavorites } from './useFavorites';

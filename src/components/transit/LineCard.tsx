@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, PressableProps, StyleSheet } from 'react-native';
+import { View, Text, Pressable, PressableProps, StyleSheet, TouchableOpacity } from 'react-native';
 
 export interface LineCardProps extends Omit<PressableProps, 'children'> {
   lineNumber: string;
@@ -7,6 +7,8 @@ export interface LineCardProps extends Omit<PressableProps, 'children'> {
   lineColor: string;
   direction?: string;
   type?: 'metro' | 'bus' | 'tram' | 'rer' | 'train';
+  isFavorite?: boolean;
+  onFavoritePress?: () => void;
 }
 
 const typeColors = {
@@ -31,6 +33,8 @@ export function LineCard({
   lineColor,
   direction,
   type = 'bus',
+  isFavorite = false,
+  onFavoritePress,
   ...props
 }: LineCardProps) {
   return (
@@ -52,9 +56,26 @@ export function LineCard({
             </View>
           </View>
 
-          {/* Type Badge */}
-          <View style={[styles.typeBadge, { backgroundColor: typeColors[type] }]}>
-            <Text style={styles.typeBadgeText}>{typeLabels[type]}</Text>
+          <View style={styles.rightSection}>
+            {/* Type Badge */}
+            <View style={[styles.typeBadge, { backgroundColor: typeColors[type] }]}>
+              <Text style={styles.typeBadgeText}>{typeLabels[type]}</Text>
+            </View>
+
+            {/* Favorite Button */}
+            {onFavoritePress && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onFavoritePress();
+                }}
+                style={styles.favoriteButton}
+              >
+                <Text style={styles.favoriteButtonText}>
+                  {isFavorite ? '⭐' : '☆'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -113,15 +134,28 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   typeBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    marginLeft: 8,
   },
   typeBadgeText: {
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  favoriteButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favoriteButtonText: {
+    fontSize: 22,
   },
 });
