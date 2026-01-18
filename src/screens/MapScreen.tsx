@@ -238,7 +238,11 @@ export function MapScreen({ navigation }: Props) {
           >
             {alerts.slice(0, 5).map(alert => (
               <View key={alert.id} style={styles.alertItem}>
-                <AlertBanner alert={alert} />
+                <AlertBanner
+                  alert={alert}
+                  compact
+                  onPress={() => navigation.navigate('Alerts')}
+                />
               </View>
             ))}
           </ScrollView>
