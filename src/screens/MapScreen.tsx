@@ -25,6 +25,9 @@ export function MapScreen({ navigation }: Props) {
   const { alerts } = useAlerts();
   const [importing, setImporting] = useState(false);
 
+  // Filter severe/warning alerts for badge
+  const severeAlerts = alerts.filter(a => a.severity === 'severe' || a.severity === 'warning');
+
   // Bottom sheet state
   const [sheetVisible, setSheetVisible] = useState(false);
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
@@ -255,6 +258,16 @@ export function MapScreen({ navigation }: Props) {
         )}
       </TouchableOpacity>
 
+      {/* Alerts Badge */}
+      {severeAlerts.length > 0 && (
+        <TouchableOpacity
+          style={styles.alertsBadge}
+          onPress={() => navigation.navigate('Alerts')}
+        >
+          <Text style={styles.alertsBadgeText}>⚠️ {severeAlerts.length}</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Bottom Sheet */}
       <BottomSheet
         visible={sheetVisible}
@@ -348,6 +361,28 @@ const styles = StyleSheet.create({
   },
   reimportButtonText: {
     fontSize: 24,
+  },
+  alertsBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 72,
+    backgroundColor: '#DC143C',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  alertsBadgeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   alertsContainer: {
     position: 'absolute',

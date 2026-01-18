@@ -71,7 +71,7 @@ export function StopDetailsSheet({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>⚠️ Alertes ({relevantAlerts.length})</Text>
             {relevantAlerts.map(alert => (
-              <AlertBanner key={alert.id} alert={alert} />
+              <AlertBanner key={alert.id} alert={alert} compact />
             ))}
           </View>
         )}
