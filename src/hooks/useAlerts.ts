@@ -28,6 +28,11 @@ export function useAlerts() {
 
   useEffect(() => {
     loadAlerts();
+
+    // Rafraîchissement auto toutes les 5 minutes
+    const interval = setInterval(loadAlerts, 300000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return { alerts, loading, error, refresh: loadAlerts };

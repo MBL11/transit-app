@@ -9,10 +9,11 @@ import type { Alert } from '../../core/types/adapter';
 
 interface AlertBannerProps {
   alert: Alert;
+  compact?: boolean; // true = version courte pour les listes
   onPress?: () => void;
 }
 
-export function AlertBanner({ alert, onPress }: AlertBannerProps) {
+export function AlertBanner({ alert, compact = false, onPress }: AlertBannerProps) {
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -61,17 +62,29 @@ export function AlertBanner({ alert, onPress }: AlertBannerProps) {
       <View style={styles.content}>
         <Text style={styles.title}>{alert.title}</Text>
         {alert.description && (
-          <Text style={styles.description} numberOfLines={2}>
+          <Text style={styles.description} numberOfLines={compact ? 2 : undefined}>
             {alert.description}
           </Text>
         )}
-        {alert.affectedRoutes && alert.affectedRoutes.length > 0 && (
+        {alert.affectedRoutes && alert.affectedRoutes.length > 0 && alert.affectedRoutes.length < 5 && (
+          <View style={styles.badgesContainer}>
+            {alert.affectedRoutes.map((route, index) => (
+              <View key={index} style={styles.badge}>
+                <Text style={styles.badgeText}>{route}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        {alert.affectedRoutes && alert.affectedRoutes.length >= 5 && (
           <Text style={styles.affected}>
-            Lignes affectées : {alert.affectedRoutes.join(', ')}
+            {alert.affectedRoutes.length} lignes affectées
           </Text>
         )}
+        {onPress && compact && (
+          <Text style={styles.seeMore}>Voir plus →</Text>
+        )}
       </View>
-      {isClickable && (
+      {isClickable && !compact && (
         <View style={styles.arrowContainer}>
           <Text style={styles.arrow}>›</Text>
         </View>
@@ -126,6 +139,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#555',
     fontStyle: 'italic',
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 6,
+  },
+  badge: {
+    backgroundColor: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  seeMore: {
+    fontSize: 13,
+    color: '#0066CC',
+    fontWeight: '600',
+    marginTop: 6,
   },
   arrowContainer: {
     justifyContent: 'center',
