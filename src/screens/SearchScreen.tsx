@@ -3,7 +3,7 @@
  * Search for stops and lines with real-time filtering and tabs
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import { SearchBar } from '../components/transit/SearchBar';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
 import { useDebounce } from '../hooks/useDebounce';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { searchStops, searchRoutes, getRoutesByStopId } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
 import type { SearchStackParamList } from '../navigation/SearchStackNavigator';
@@ -37,6 +38,7 @@ function getRouteType(type: number): 'metro' | 'bus' | 'tram' | 'rer' | 'train' 
 
 export function SearchScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('stops');
   const [stopResults, setStopResults] = useState<StopWithRoutes[]>([]);
@@ -44,6 +46,7 @@ export function SearchScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
 
   const debouncedQuery = useDebounce(query, 300);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Search when debounced query changes or tab changes
   useEffect(() => {
@@ -209,75 +212,76 @@ export function SearchScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  searchContainer: {
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: '#0066CC',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#0066CC',
-    fontWeight: '600',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  listContent: {
-    padding: 16,
-  },
-  resultCount: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    searchContainer: {
+      padding: 16,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tabsContainer: {
+      flexDirection: 'row',
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    tabActive: {
+      borderBottomColor: colors.primary,
+    },
+    tabText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    tabTextActive: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    emptyIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    listContent: {
+      padding: 16,
+    },
+    resultCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 12,
+      fontWeight: '500',
+    },
+  });

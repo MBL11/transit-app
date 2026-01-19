@@ -9,7 +9,12 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { RootNavigator } from './src/navigation';
 
 function AppContent() {
-  const { isDark } = useTheme();
+  const { isDark, loaded } = useTheme();
+
+  // Wait for theme to load to prevent flash
+  if (!loaded) {
+    return null;
+  }
 
   return (
     <View className={isDark ? 'dark' : ''} style={{ flex: 1 }}>
