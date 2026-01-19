@@ -33,7 +33,10 @@ export function RouteScreen() {
   const [fromSearchQuery, setFromSearchQuery] = useState('');
   const [toSearchQuery, setToSearchQuery] = useState('');
 
-  // Departure time
+  // Time mode: 'departure' or 'arrival'
+  const [timeMode, setTimeMode] = useState<'departure' | 'arrival'>('departure');
+
+  // Departure/Arrival time
   const [departureTime, setDepartureTime] = useState(new Date());
 
   // Results
@@ -72,13 +75,27 @@ export function RouteScreen() {
     try {
       setCalculating(true);
       setHasSearched(false);
-      console.log('[RouteScreen] Calculating route from', fromStop.id, 'to', toStop.id);
+      console.log('[RouteScreen] Calculating route from', fromStop.id, 'to', toStop.id, 'mode:', timeMode);
 
-      const results = await findRoute(fromStop.id, toStop.id, departureTime);
+      // Calculate departure time based on mode
+      let searchTime = departureTime;
+      if (timeMode === 'arrival') {
+        // For arrival mode, subtract estimated journey time (30 min by default)
+        // This is a simplified approach - in reality we'd need reverse pathfinding
+        searchTime = new Date(departureTime.getTime() - 30 * 60000);
+        console.log('[RouteScreen] Arrival mode: searching from', formatTime(searchTime));
+      }
 
-      setJourneys(results);
+      const results = await findRoute(fromStop.id, toStop.id, searchTime);
+
+      // Filter results for arrival mode (keep only journeys arriving before target time)
+      const filteredResults = timeMode === 'arrival'
+        ? results.filter(j => j.arrivalTime <= departureTime)
+        : results;
+
+      setJourneys(filteredResults);
       setHasSearched(true);
-      console.log('[RouteScreen] Found', results.length, 'journeys');
+      console.log('[RouteScreen] Found', filteredResults.length, 'journeys');
     } catch (err) {
       console.error('[RouteScreen] Error calculating route:', err);
       Alert.alert('Erreur', 'Impossible de calculer l\'itinéraire');
@@ -204,9 +221,47 @@ export function RouteScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Departure Time Selector */}
+        {/* Time Mode Toggle */}
+        <View style={styles.timeModeContainer}>
+          <TouchableOpacity
+            style={[
+              styles.timeModeButton,
+              timeMode === 'departure' && styles.timeModeButtonActive,
+            ]}
+            onPress={() => setTimeMode('departure')}
+          >
+            <Text
+              style={[
+                styles.timeModeButtonText,
+                timeMode === 'departure' && styles.timeModeButtonTextActive,
+              ]}
+            >
+              Partir à
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.timeModeButton,
+              timeMode === 'arrival' && styles.timeModeButtonActive,
+            ]}
+            onPress={() => setTimeMode('arrival')}
+          >
+            <Text
+              style={[
+                styles.timeModeButtonText,
+                timeMode === 'arrival' && styles.timeModeButtonTextActive,
+              ]}
+            >
+              Arriver à
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Departure/Arrival Time Selector */}
         <View style={styles.timeContainer}>
-          <Text style={styles.label}>🕒 Heure de départ</Text>
+          <Text style={styles.label}>
+            🕒 {timeMode === 'departure' ? 'Heure de départ' : 'Heure d\'arrivée'}
+          </Text>
           <View style={styles.timeControls}>
             <TouchableOpacity
               style={styles.timeButton}
@@ -487,6 +542,30 @@ const styles = StyleSheet.create({
   },
   swapIcon: {
     fontSize: 20,
+  },
+  timeModeContainer: {
+    flexDirection: 'row',
+    marginVertical: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    padding: 2,
+  },
+  timeModeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  timeModeButtonActive: {
+    backgroundColor: '#0066CC',
+  },
+  timeModeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  timeModeButtonTextActive: {
+    color: '#fff',
   },
   timeContainer: {
     marginBottom: 12,
