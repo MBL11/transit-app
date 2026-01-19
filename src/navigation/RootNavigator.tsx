@@ -15,6 +15,7 @@ import { LinesStackNavigator } from './LinesStackNavigator';
 import { SearchStackNavigator } from './SearchStackNavigator';
 import { RouteStackNavigator } from './RouteStackNavigator';
 import { FavoritesStackNavigator } from './FavoritesStackNavigator';
+import { SettingsStackNavigator } from './SettingsStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -113,6 +114,16 @@ export function RootNavigator() {
             title: t('tabs.favorites'),
             tabBarLabel: t('tabs.favorites'),
             tabBarIcon: ({ color }) => <TabIcon icon="⭐" color={color} />,
+            headerShown: false, // Let the stack handle its own headers
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsStackNavigator}
+          options={{
+            title: t('settings.title'),
+            tabBarLabel: t('settings.title'),
+            tabBarIcon: ({ color }) => <TabIcon icon="⚙️" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
         />
