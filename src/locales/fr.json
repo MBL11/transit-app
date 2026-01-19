@@ -183,5 +183,22 @@
     "disconnected": "Déconnecté",
     "showingCachedData": "Affichage des données en cache",
     "noRealTimeData": "Données en temps réel indisponibles hors ligne"
+  },
+  "data": {
+    "title": "Gestion des données",
+    "currentData": "Données actuelles",
+    "dataLoaded": "Chargées",
+    "noData": "Aucune donnée",
+    "importRealData": "Importer les données GTFS réelles",
+    "updateData": "Mettre à jour les données",
+    "clearData": "Effacer les données",
+    "import": "Importer",
+    "importWarning": "Cela va télécharger ~800Mo de données GTFS depuis IDFM. Continuer ?",
+    "importSuccess": "Données GTFS importées avec succès !",
+    "importFailed": "Échec de l'importation des données GTFS",
+    "clearWarning": "Cela supprimera toutes les données de transport. Vous pourrez les réimporter plus tard.",
+    "dataCleared": "Toutes les données ont été effacées",
+    "clearFailed": "Échec de la suppression des données",
+    "infoMessage": "Les données GTFS réelles fournissent les horaires complets de toutes les lignes de transport d'Île-de-France. Le téléchargement est volumineux (~800Mo) mais ne doit être effectué qu'une seule fois."
   }
 }

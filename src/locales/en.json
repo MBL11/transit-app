@@ -183,5 +183,22 @@
     "disconnected": "Disconnected",
     "showingCachedData": "Showing cached data",
     "noRealTimeData": "Real-time data unavailable offline"
+  },
+  "data": {
+    "title": "Data Management",
+    "currentData": "Current Data",
+    "dataLoaded": "Loaded",
+    "noData": "No Data",
+    "importRealData": "Import Real GTFS Data",
+    "updateData": "Update Data",
+    "clearData": "Clear Data",
+    "import": "Import",
+    "importWarning": "This will download ~800MB of GTFS data from IDFM. Continue?",
+    "importSuccess": "GTFS data imported successfully!",
+    "importFailed": "Failed to import GTFS data",
+    "clearWarning": "This will delete all transit data. You can re-import it later.",
+    "dataCleared": "All data has been cleared",
+    "clearFailed": "Failed to clear data",
+    "infoMessage": "Real GTFS data provides complete schedules for all Île-de-France transit lines. The download is large (~800MB) but only needs to be done once."
   }
 }

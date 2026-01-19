@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
@@ -20,6 +21,7 @@ import { useThemeColors } from '../hooks/useThemeColors';
 import { changeLanguage } from '../i18n';
 import * as favoritesStorage from '../core/favorites';
 import type { ThemeMode } from '../hooks/useColorScheme';
+import type { SettingsStackParamList } from '../navigation/SettingsStackNavigator';
 
 const LANGUAGES = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -35,7 +37,9 @@ const THEMES: Array<{ mode: ThemeMode; icon: string }> = [
   { mode: 'system', icon: '⚙️' },
 ];
 
-export function SettingsScreen() {
+type Props = NativeStackScreenProps<SettingsStackParamList, 'SettingsList'>;
+
+export function SettingsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const { mode: themeMode, setThemeMode } = useTheme();
   const colors = useThemeColors();
@@ -157,6 +161,13 @@ export function SettingsScreen() {
       {/* Data Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('DataManagement')}
+        >
+          <Text style={styles.buttonText}>📊 {t('data.title')}</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.button} onPress={handleClearCache}>
           <Text style={styles.buttonText}>{t('settings.clearCache')}</Text>
