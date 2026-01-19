@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useThemeColors } from '../../hooks/useThemeColors';
 
 export interface Departure {
   routeShortName: string;
@@ -45,6 +46,8 @@ function formatTime(date: Date): string {
 
 export function DepartureRow({ departure, onPress }: DepartureRowProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     routeShortName,
     routeColor,
@@ -100,68 +103,69 @@ export function DepartureRow({ departure, onPress }: DepartureRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  lineBadge: {
-    minWidth: 40,
-    height: 40,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  lineBadgeText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  directionContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  direction: {
-    fontSize: 14,
-    color: '#111',
-    fontWeight: '500',
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  icon: {
-    fontSize: 16,
-  },
-  timeInfo: {
-    alignItems: 'flex-end',
-  },
-  departureTime: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-  },
-  relativeTime: {
-    fontSize: 12,
-    color: '#666',
-  },
-  delayLate: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#CC0000',
-    marginLeft: 4,
-  },
-  delayEarly: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#00AA00',
-    marginLeft: 4,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    lineBadge: {
+      minWidth: 40,
+      height: 40,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    lineBadgeText: {
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: 14,
+    },
+    directionContainer: {
+      flex: 1,
+      marginRight: 12,
+    },
+    direction: {
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    timeContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    icon: {
+      fontSize: 16,
+    },
+    timeInfo: {
+      alignItems: 'flex-end',
+    },
+    departureTime: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    relativeTime: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    delayLate: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.error,
+      marginLeft: 4,
+    },
+    delayEarly: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.success,
+      marginLeft: 4,
+    },
+  });

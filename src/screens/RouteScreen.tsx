@@ -3,11 +3,12 @@
  * Allows users to search for routes between two stops with autocomplete
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { RouteResult } from '../components/transit/RouteResult';
 import { findRoute } from '../core/routing';
 import type { Stop } from '../core/types/models';
@@ -20,10 +21,13 @@ type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalcu
 
 export function RouteScreen() {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const navigation = useNavigation<NavigationProp>();
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Selected stops
   const [fromStop, setFromStop] = useState<Stop | null>(null);
@@ -162,7 +166,7 @@ export function RouteScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
@@ -460,285 +464,287 @@ export function RouteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  searchContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 20,
-  },
-  inputContainer: {
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  stopInput: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 16,
-    minHeight: 50,
-    justifyContent: 'center',
-  },
-  stopInputText: {
-    fontSize: 16,
-    color: '#000',
-  },
-  stopInputPlaceholder: {
-    color: '#999',
-  },
-  swapButton: {
-    alignSelf: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#0066CC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  swapButtonDisabled: {
-    opacity: 0.4,
-  },
-  swapIcon: {
-    fontSize: 20,
-  },
-  timeModeContainer: {
-    flexDirection: 'row',
-    marginVertical: 12,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    padding: 2,
-  },
-  timeModeButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  timeModeButtonActive: {
-    backgroundColor: '#0066CC',
-  },
-  timeModeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  timeModeButtonTextActive: {
-    color: '#fff',
-  },
-  timeContainer: {
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  timeControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  timeButton: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  timeButtonText: {
-    fontSize: 14,
-    color: '#0066CC',
-    fontWeight: '600',
-  },
-  timeDisplay: {
-    backgroundColor: '#0066CC',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  timeDisplayText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  nowButton: {
-    fontSize: 14,
-    color: '#0066CC',
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-  },
-  calculateButton: {
-    backgroundColor: '#0066CC',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  calculateButtonDisabled: {
-    opacity: 0.4,
-  },
-  calculateButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  resultsContainer: {
-    flex: 1,
-  },
-  resultsContent: {
-    padding: 16,
-  },
-  calculatingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  calculatingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  noResultsContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  noResultsIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  noResultsText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  resultsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 16,
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseText: {
-    fontSize: 20,
-    color: '#666',
-  },
-  searchInputContainer: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  searchInput: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 12,
-    fontSize: 16,
-  },
-  stopItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  stopItemSelected: {
-    backgroundColor: '#E6F2FF',
-  },
-  stopItemText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
-  stopItemTextSelected: {
-    color: '#0066CC',
-    fontWeight: '600',
-  },
-  checkmark: {
-    fontSize: 18,
-    color: '#0066CC',
-    marginLeft: 8,
-  },
-  emptySearchContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptySearchText: {
-    fontSize: 16,
-    color: '#999',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+      padding: 20,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    emptyIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    emptyText: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    searchContainer: {
+      backgroundColor: colors.background,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 20,
+    },
+    inputContainer: {
+      marginBottom: 12,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    stopInput: {
+      backgroundColor: colors.inputBackground,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      minHeight: 50,
+      justifyContent: 'center',
+    },
+    stopInputText: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    stopInputPlaceholder: {
+      color: colors.textMuted,
+    },
+    swapButton: {
+      alignSelf: 'center',
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginVertical: 8,
+    },
+    swapButtonDisabled: {
+      opacity: 0.4,
+    },
+    swapIcon: {
+      fontSize: 20,
+    },
+    timeModeContainer: {
+      flexDirection: 'row',
+      marginVertical: 12,
+      backgroundColor: colors.buttonBackground,
+      borderRadius: 8,
+      padding: 2,
+    },
+    timeModeButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 6,
+      alignItems: 'center',
+    },
+    timeModeButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    timeModeButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    timeModeButtonTextActive: {
+      color: '#fff',
+    },
+    timeContainer: {
+      marginBottom: 12,
+      marginTop: 8,
+    },
+    timeControls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    timeButton: {
+      backgroundColor: colors.buttonBackground,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    timeButtonText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    timeDisplay: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 8,
+      minWidth: 100,
+      alignItems: 'center',
+    },
+    timeDisplayText: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#fff',
+    },
+    nowButton: {
+      fontSize: 14,
+      color: colors.primary,
+      textAlign: 'center',
+      textDecorationLine: 'underline',
+    },
+    calculateButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: 14,
+      borderRadius: 8,
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    calculateButtonDisabled: {
+      opacity: 0.4,
+    },
+    calculateButtonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    resultsContainer: {
+      flex: 1,
+    },
+    resultsContent: {
+      padding: 16,
+    },
+    calculatingContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    calculatingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    noResultsContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    noResultsIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    noResultsText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    resultsTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 16,
+    },
+    // Modal styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '80%',
+      paddingBottom: 20,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    modalCloseButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.buttonBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalCloseText: {
+      fontSize: 20,
+      color: colors.textSecondary,
+    },
+    searchInputContainer: {
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    searchInput: {
+      backgroundColor: colors.inputBackground,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 12,
+      fontSize: 16,
+      color: colors.text,
+    },
+    stopItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    stopItemSelected: {
+      backgroundColor: colors.activeBackground,
+    },
+    stopItemText: {
+      fontSize: 16,
+      color: colors.text,
+      flex: 1,
+    },
+    stopItemTextSelected: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    checkmark: {
+      fontSize: 18,
+      color: colors.primary,
+      marginLeft: 8,
+    },
+    emptySearchContainer: {
+      padding: 40,
+      alignItems: 'center',
+    },
+    emptySearchText: {
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+  });

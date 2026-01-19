@@ -3,13 +3,14 @@
  * Reusable component for displaying stop details (used in both screen and bottom sheet)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { DepartureRow, type Departure } from './DepartureRow';
 import { getStopById, getRoutesByStopId } from '../../core/database';
 import type { Stop, Route } from '../../core/types/models';
 import { parisAdapter } from '../../adapters/paris/paris-adapter';
 import { useTranslation } from 'react-i18next';
+import { useThemeColors } from '../../hooks/useThemeColors';
 
 interface StopDetailsContentProps {
   stopId: string;
@@ -26,6 +27,8 @@ const getMockDepartures = (): Departure[] => [
 
 export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [stop, setStop] = useState<Stop | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
@@ -121,7 +124,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
@@ -147,8 +150,8 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={['#0066CC']}
-          tintColor="#0066CC"
+          colors={[colors.primary]}
+          tintColor={colors.primary}
         />
       }
     >
@@ -221,121 +224,122 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
   );
 }
 
-const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-    minHeight: 200,
-  },
-  header: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  stopName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  linesSection: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 12,
-  },
-  linesBadgeContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingRight: 16,
-  },
-  lineBadge: {
-    minWidth: 48,
-    height: 36,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  lineBadgePressed: {
-    opacity: 0.7,
-  },
-  lineBadgeText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  departureSectionHeader: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  departuresSection: {
-    backgroundColor: 'white',
-    marginTop: 8,
-    minHeight: 200,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  departureCount: {
-    fontWeight: 'normal',
-    color: '#666',
-  },
-  realtimeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  realtimeBadgeActive: {
-    backgroundColor: '#E8F5E9',
-  },
-  realtimeBadgeInactive: {
-    backgroundColor: '#F5F5F5',
-  },
-  realtimeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#111',
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#CC0000',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    scrollView: {
+      flex: 1,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+      padding: 20,
+      minHeight: 200,
+    },
+    header: {
+      backgroundColor: colors.background,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    stopName: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    linesSection: {
+      backgroundColor: colors.background,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    linesBadgeContainer: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingRight: 16,
+    },
+    lineBadge: {
+      minWidth: 48,
+      height: 36,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+    lineBadgePressed: {
+      opacity: 0.7,
+    },
+    lineBadgeText: {
+      fontWeight: 'bold',
+      fontSize: 14,
+    },
+    departureSectionHeader: {
+      padding: 16,
+      paddingBottom: 8,
+    },
+    departuresSection: {
+      backgroundColor: colors.background,
+      marginTop: 8,
+      minHeight: 200,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    departureCount: {
+      fontWeight: 'normal',
+      color: colors.textSecondary,
+    },
+    realtimeBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    realtimeBadgeActive: {
+      backgroundColor: colors.isDark ? '#1B4D1B' : '#E8F5E9',
+    },
+    realtimeBadgeInactive: {
+      backgroundColor: colors.backgroundSecondary,
+    },
+    realtimeBadgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    emptyContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    errorIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    errorTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.error,
+      marginBottom: 8,
+    },
+    errorMessage: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+  });
