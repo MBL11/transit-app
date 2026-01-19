@@ -174,5 +174,14 @@
     "clearFavorites": "Delete all favorites",
     "clearFavoritesConfirm": "Are you sure you want to delete all your favorites?",
     "favoritesCleared": "All favorites have been deleted"
+  },
+  "network": {
+    "offline": "You are offline",
+    "online": "Back online",
+    "status": "Network status",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "showingCachedData": "Showing cached data",
+    "noRealTimeData": "Real-time data unavailable offline"
   }
 }

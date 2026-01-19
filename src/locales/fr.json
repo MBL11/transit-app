@@ -174,5 +174,14 @@
     "clearFavorites": "Supprimer tous les favoris",
     "clearFavoritesConfirm": "Voulez-vous vraiment supprimer tous vos favoris ?",
     "favoritesCleared": "Tous les favoris ont été supprimés"
+  },
+  "network": {
+    "offline": "Vous êtes hors ligne",
+    "online": "De retour en ligne",
+    "status": "État du réseau",
+    "connected": "Connecté",
+    "disconnected": "Déconnecté",
+    "showingCachedData": "Affichage des données en cache",
+    "noRealTimeData": "Données en temps réel indisponibles hors ligne"
   }
 }

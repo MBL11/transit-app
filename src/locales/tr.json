@@ -174,5 +174,14 @@
     "clearFavorites": "Tüm favorileri sil",
     "clearFavoritesConfirm": "Tüm favorilerinizi silmek istediğinizden emin misiniz?",
     "favoritesCleared": "Tüm favoriler silindi"
+  },
+  "network": {
+    "offline": "Çevrimdışısınız",
+    "online": "Tekrar çevrimiçi",
+    "status": "Ağ durumu",
+    "connected": "Bağlı",
+    "disconnected": "Bağlantı kesildi",
+    "showingCachedData": "Önbelleğe alınmış veriler gösteriliyor",
+    "noRealTimeData": "Gerçek zamanlı veriler çevrimdışıyken kullanılamaz"
   }
 }
