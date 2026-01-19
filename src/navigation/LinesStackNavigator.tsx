@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { LinesScreen } from '../screens/LinesScreen';
 import { LineDetailsScreen } from '../screens/LineDetailsScreen';
 import { StopDetailsScreen } from '../screens/StopDetailsScreen';
@@ -15,6 +16,8 @@ console.log('[LinesStackNavigator] StopDetailsScreen imported:', !!StopDetailsSc
 const Stack = createNativeStackNavigator<LinesStackParamList>();
 
 export function LinesStackNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -31,7 +34,7 @@ export function LinesStackNavigator() {
         name="LinesList"
         component={LinesScreen}
         options={{
-          title: 'Lignes',
+          title: t('tabs.lines'),
           headerShown: false, // Let the tab navigator handle the header
         }}
       />
@@ -39,14 +42,14 @@ export function LinesStackNavigator() {
         name="LineDetails"
         component={LineDetailsScreen}
         options={{
-          title: 'Détails de la ligne',
+          title: t('transit.lines'),
         }}
       />
       <Stack.Screen
         name="StopDetails"
         component={StopDetailsScreen}
         options={{
-          title: 'Détails de l\'arrêt',
+          title: t('transit.stops'),
         }}
       />
     </Stack.Navigator>

@@ -12,7 +12,16 @@
     "noResults": "Aucun résultat",
     "tryAgain": "Réessayer",
     "delete": "Supprimer",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer",
+    "success": "Succès",
+    "importData": "Importer les données",
+    "dataImported": "Données importées avec succès !",
+    "importFailed": "Échec de l'import des données",
+    "unableToLoad": "Impossible de charger",
+    "selectStopOnMap": "Sélectionnez un arrêt sur la carte",
+    "code": "Code",
+    "result": "résultat",
+    "result_plural": "résultats"
   },
   "tabs": {
     "map": "Carte",
@@ -43,8 +52,30 @@
     "bus": "Bus",
     "tram": "Tramway",
     "rer": "RER/Train",
+    "train": "Train",
     "linesServing": "Lignes desservant cet arrêt",
-    "stopsOnLine": "Arrêts de cette ligne"
+    "stopsOnLine": "Arrêts de cette ligne",
+    "loadingStops": "Chargement des arrêts...",
+    "loadingLines": "Chargement des lignes...",
+    "loadingError": "Erreur de chargement",
+    "noStopsAvailable": "Aucun arrêt disponible",
+    "noLinesAvailable": "Aucune ligne disponible",
+    "transportLines": "Lignes de transport",
+    "line": "ligne",
+    "line_plural": "lignes",
+    "searchLine": "Rechercher une ligne...",
+    "searchStop": "Rechercher un arrêt...",
+    "stopsServed": "Arrêts desservis",
+    "noStopsFound": "Aucun arrêt trouvé",
+    "stopNotFound": "Arrêt non trouvé",
+    "lineNotFound": "Ligne non trouvée",
+    "noLinesOfType": "Aucune ligne de type",
+    "affectedLinesCount": "{{count}} ligne affectée",
+    "affectedLinesCount_plural": "{{count}} lignes affectées",
+    "walkOnFoot": "à pied",
+    "takeLine": "Prendre",
+    "totalDuration": "Durée totale",
+    "estimatedArrival": "Heure d'arrivée estimée basée sur les horaires théoriques"
   },
   "time": {
     "now": "Maintenant",
@@ -61,7 +92,11 @@
     "stopsTab": "Arrêts",
     "linesTab": "Lignes",
     "typeToSearch": "Tapez pour rechercher",
-    "recentSearches": "Recherches récentes"
+    "recentSearches": "Recherches récentes",
+    "searching": "Recherche...",
+    "noResultsTryAgain": "Essayez de modifier votre recherche",
+    "searchStopByName": "Recherchez un arrêt par son nom",
+    "searchLineByName": "Recherchez une ligne par son nom ou numéro"
   },
   "favorites": {
     "title": "Favoris",
@@ -71,9 +106,15 @@
     "noFavoriteStops": "Aucun arrêt favori",
     "noFavoriteLines": "Aucune ligne favorite",
     "noFavoriteJourneys": "Aucun itinéraire favori",
-    "addHint": "Ajoutez vos arrêts et lignes favoris en cliquant sur l'étoile ⭐",
+    "addHint": "Ajoutez des arrêts, lignes ou itinéraires en favoris pour un accès rapide",
     "journeys": "Itinéraires",
-    "confirmDelete": "Supprimer ce favori ?"
+    "confirmDelete": "Supprimer ce favori ?",
+    "loadingFavorites": "Chargement des favoris...",
+    "stopsSection": "Arrêts favoris",
+    "linesSection": "Lignes favorites",
+    "journeysSection": "Itinéraires favoris",
+    "stopSubtitle": "Arrêt de transport",
+    "journeySubtitle": "Itinéraire enregistré"
   },
   "route": {
     "title": "Itinéraire",
@@ -89,16 +130,31 @@
     "walkDistance": "{{distance}} m",
     "take": "Prendre",
     "getOff": "Descendre à",
-    "saveJourney": "Sauvegarder cet itinéraire"
+    "saveJourney": "Sauvegarder cet itinéraire",
+    "routesFound": "itinéraire trouvé",
+    "routesFound_plural": "itinéraires trouvés",
+    "selectDepartureArrival": "Veuillez sélectionner un départ et une arrivée",
+    "differentStops": "Le départ et l'arrivée doivent être différents",
+    "unableToCalculate": "Impossible de calculer l'itinéraire",
+    "importDataFromMap": "Importez des données depuis l'écran Carte"
   },
   "alerts": {
     "title": "Perturbations",
-    "noAlerts": "Aucune perturbation en cours 🎉",
+    "noAlerts": "Aucune perturbation en cours",
+    "normalTraffic": "Le trafic est normal sur l'ensemble du réseau",
     "severe": "Alerte",
     "warning": "Perturbation",
     "info": "Information",
     "affectedLines": "Lignes concernées",
+    "affectedStops": "Arrêts affectés",
+    "stopsCount": "{{count}} arrêt",
+    "stopsCount_plural": "{{count}} arrêts",
+    "details": "Détails de la perturbation",
+    "startTime": "Début",
+    "endTime": "Fin prévue",
     "showMore": "Voir plus",
+    "showLess": "Voir moins",
+    "seeMore": "Voir plus →",
     "validUntil": "Jusqu'au {{date}}"
   },
   "settings": {
@@ -111,7 +167,12 @@
     "about": "À propos",
     "version": "Version",
     "dataSource": "Source des données",
+    "data": "Données",
     "clearCache": "Vider le cache",
-    "clearFavorites": "Supprimer tous les favoris"
+    "clearCacheConfirm": "Cette action supprimera toutes les données en cache.",
+    "cacheCleared": "Le cache a été vidé avec succès",
+    "clearFavorites": "Supprimer tous les favoris",
+    "clearFavoritesConfirm": "Voulez-vous vraiment supprimer tous vos favoris ?",
+    "favoritesCleared": "Tous les favoris ont été supprimés"
   }
 }

@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { LineCard } from '../components/transit/LineCard';
 import { SearchBar } from '../components/transit/SearchBar';
 import { useRoutes } from '../hooks';
@@ -28,19 +29,20 @@ const getTransitType = (gtfsType: number): 'metro' | 'bus' | 'tram' | 'rer' | 't
   }
 };
 
-const typeLabels: Record<TransitType, string> = {
-  all: 'Tous',
-  metro: 'Métro',
-  bus: 'Bus',
-  tram: 'Tram',
-  rer: 'RER',
-};
-
 export function LinesScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { routes, loading, error } = useRoutes();
   const [selectedType, setSelectedType] = useState<TransitType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const typeLabels: Record<TransitType, string> = {
+    all: t('transit.allTypes'),
+    metro: t('transit.metro'),
+    bus: t('transit.bus'),
+    tram: t('transit.tram'),
+    rer: t('transit.rer'),
+  };
 
   // Filter routes by type AND search query
   const filteredRoutes = useMemo(() => {
@@ -76,7 +78,7 @@ export function LinesScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement des lignes...</Text>
+        <Text style={styles.loadingText}>{t('transit.loadingLines')}</Text>
       </View>
     );
   }
@@ -86,7 +88,7 @@ export function LinesScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>Erreur de chargement</Text>
+        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
         <Text style={styles.errorMessage}>{error.message}</Text>
       </View>
     );
@@ -97,7 +99,7 @@ export function LinesScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.emptyIcon}>🚇</Text>
-        <Text style={styles.emptyText}>Aucune ligne disponible</Text>
+        <Text style={styles.emptyText}>{t('transit.noLinesAvailable')}</Text>
       </View>
     );
   }
@@ -106,16 +108,16 @@ export function LinesScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Lignes de transport</Text>
+        <Text style={styles.title}>{t('transit.transportLines')}</Text>
         <Text style={styles.subtitle}>
-          {filteredRoutes.length} ligne{filteredRoutes.length > 1 ? 's' : ''}
+          {filteredRoutes.length} {t(filteredRoutes.length > 1 ? 'transit.line_plural' : 'transit.line')}
         </Text>
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <SearchBar
-          placeholder="Rechercher une ligne..."
+          placeholder={t('transit.searchLine')}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -161,7 +163,7 @@ export function LinesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyFilterContainer}>
             <Text style={styles.emptyFilterText}>
-              Aucune ligne de type "{typeLabels[selectedType]}"
+              {t('transit.noLinesOfType')} "{typeLabels[selectedType]}"
             </Text>
           </View>
         }

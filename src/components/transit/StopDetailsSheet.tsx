@@ -11,6 +11,7 @@ import { DepartureRow } from './DepartureRow';
 import { AlertBanner } from './AlertBanner';
 import { useAlerts, useFavorites } from '../../hooks';
 import { isStopAffected, isRouteAffected } from '../../adapters/paris/alerts';
+import { useTranslation } from 'react-i18next';
 
 interface StopDetailsSheetProps {
   stop: Stop | null;
@@ -29,13 +30,14 @@ export function StopDetailsSheet({
   onLinePress,
   onClose,
 }: StopDetailsSheetProps) {
+  const { t } = useTranslation();
   const { alerts } = useAlerts();
   const { isFavorite, toggleStop } = useFavorites();
 
   if (!stop) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Sélectionnez un arrêt sur la carte</Text>
+        <Text style={styles.emptyText}>{t('common.selectStopOnMap')}</Text>
       </View>
     );
   }
@@ -103,7 +105,7 @@ export function StopDetailsSheet({
         {/* Alerts Section */}
         {relevantAlerts.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⚠️ Alertes ({relevantAlerts.length})</Text>
+            <Text style={styles.sectionTitle}>⚠️ {t('alerts.title')} ({relevantAlerts.length})</Text>
             {relevantAlerts.map(alert => (
               <AlertBanner key={alert.id} alert={alert} compact />
             ))}
@@ -113,7 +115,7 @@ export function StopDetailsSheet({
         {/* Lines Section */}
         {routes.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Lignes ({routes.length})</Text>
+            <Text style={styles.sectionTitle}>{t('transit.lines')} ({routes.length})</Text>
             <View style={styles.linesContainer}>
               {routes.map((route) => (
                 <TouchableOpacity
@@ -142,7 +144,7 @@ export function StopDetailsSheet({
         <View style={styles.section}>
           <View style={styles.departuresHeader}>
             <Text style={styles.sectionTitle}>
-              Prochains passages{' '}
+              {t('transit.nextDepartures')}{' '}
               <Text style={styles.departureCount}>({departures.length})</Text>
             </Text>
             {departures.length > 0 && (
@@ -155,7 +157,7 @@ export function StopDetailsSheet({
                 ]}
               >
                 <Text style={styles.realtimeBadgeText}>
-                  {hasRealtime ? '🔴 Temps réel' : '⏱️ Théorique'}
+                  {hasRealtime ? `🔴 ${t('transit.realtime')}` : `⏱️ ${t('transit.theoretical')}`}
                 </Text>
               </View>
             )}
@@ -164,13 +166,13 @@ export function StopDetailsSheet({
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#0066CC" />
-              <Text style={styles.loadingText}>Chargement...</Text>
+              <Text style={styles.loadingText}>{t('common.loading')}</Text>
             </View>
           ) : departures.length === 0 ? (
             <View style={styles.emptyDeparturesContainer}>
               <Text style={styles.emptyDeparturesIcon}>🚫</Text>
               <Text style={styles.emptyDeparturesText}>
-                Aucun passage prévu pour le moment
+                {t('transit.noDepartures')}
               </Text>
             </View>
           ) : (

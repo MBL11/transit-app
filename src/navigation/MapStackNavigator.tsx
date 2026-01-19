@@ -6,6 +6,7 @@
 import React from 'react';
 import { TouchableOpacity, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { MapScreen } from '../screens/MapScreen';
 import { StopDetailsScreen } from '../screens/StopDetailsScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
@@ -22,6 +23,8 @@ export type MapStackParamList = {
 const Stack = createNativeStackNavigator<MapStackParamList>();
 
 export function MapStackNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -38,7 +41,7 @@ export function MapStackNavigator() {
         name="MapView"
         component={MapScreen}
         options={({ navigation }) => ({
-          title: 'Carte',
+          title: t('tabs.map'),
           headerShown: true,
           headerRight: () => (
             <TouchableOpacity
@@ -54,21 +57,21 @@ export function MapStackNavigator() {
         name="StopDetails"
         component={StopDetailsScreen}
         options={{
-          title: 'Détails de l\'arrêt',
+          title: t('transit.stops'),
         }}
       />
       <Stack.Screen
         name="Alerts"
         component={AlertsScreen}
         options={{
-          title: 'Perturbations en cours',
+          title: t('alerts.title'),
         }}
       />
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
-          title: 'Paramètres',
+          title: t('settings.title'),
         }}
       />
     </Stack.Navigator>

@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { changeLanguage } from '../i18n';
 import * as favoritesStorage from '../core/favorites';
 
 const LANGUAGES = [
@@ -21,6 +21,7 @@ const LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
   { code: 'es', name: 'Español', flag: '🇪🇸' },
   { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
 ];
 
 export function SettingsScreen() {
@@ -28,21 +29,20 @@ export function SettingsScreen() {
 
   const currentLanguage = i18n.language;
 
-  const changeLanguage = async (languageCode: string) => {
+  const handleLanguageChange = async (languageCode: string) => {
     try {
-      await i18n.changeLanguage(languageCode);
-      await AsyncStorage.setItem('@app_language', languageCode);
+      await changeLanguage(languageCode);
       console.log('[Settings] Language changed to:', languageCode);
     } catch (error) {
       console.error('[Settings] Error changing language:', error);
-      Alert.alert(t('common.error'), 'Failed to change language');
+      Alert.alert(t('common.error'), t('common.error'));
     }
   };
 
   const handleClearCache = () => {
     Alert.alert(
       t('settings.clearCache'),
-      'Cette action supprimera toutes les données en cache.',
+      t('settings.clearCacheConfirm'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -50,7 +50,7 @@ export function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             // Clear cache logic here
-            Alert.alert('Cache vidé', 'Le cache a été supprimé avec succès');
+            Alert.alert(t('common.confirm'), t('settings.cacheCleared'));
           },
         },
       ]
@@ -60,7 +60,7 @@ export function SettingsScreen() {
   const handleClearFavorites = () => {
     Alert.alert(
       t('settings.clearFavorites'),
-      t('favorites.confirmDelete'),
+      t('settings.clearFavoritesConfirm'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -68,7 +68,7 @@ export function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await favoritesStorage.clearAllFavorites();
-            Alert.alert(t('common.confirm'), 'Favoris supprimés');
+            Alert.alert(t('common.confirm'), t('settings.favoritesCleared'));
           },
         },
       ]
@@ -87,7 +87,7 @@ export function SettingsScreen() {
               styles.languageItem,
               currentLanguage === lang.code && styles.languageItemActive,
             ]}
-            onPress={() => changeLanguage(lang.code)}
+            onPress={() => handleLanguageChange(lang.code)}
           >
             <View style={styles.languageLeft}>
               <Text style={styles.flag}>{lang.flag}</Text>
@@ -109,7 +109,7 @@ export function SettingsScreen() {
 
       {/* Data Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Données</Text>
+        <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
 
         <TouchableOpacity style={styles.button} onPress={handleClearCache}>
           <Text style={styles.buttonText}>{t('settings.clearCache')}</Text>

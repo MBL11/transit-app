@@ -12,7 +12,16 @@
     "noResults": "No results",
     "tryAgain": "Try again",
     "delete": "Delete",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "success": "Success",
+    "importData": "Import data",
+    "dataImported": "Data imported successfully!",
+    "importFailed": "Failed to import data",
+    "unableToLoad": "Unable to load",
+    "selectStopOnMap": "Select a stop on the map",
+    "code": "Code",
+    "result": "result",
+    "result_plural": "results"
   },
   "tabs": {
     "map": "Map",
@@ -43,8 +52,30 @@
     "bus": "Bus",
     "tram": "Tram",
     "rer": "Train",
+    "train": "Train",
     "linesServing": "Lines serving this stop",
-    "stopsOnLine": "Stops on this line"
+    "stopsOnLine": "Stops on this line",
+    "loadingStops": "Loading stops...",
+    "loadingLines": "Loading lines...",
+    "loadingError": "Loading error",
+    "noStopsAvailable": "No stops available",
+    "noLinesAvailable": "No lines available",
+    "transportLines": "Transit lines",
+    "line": "line",
+    "line_plural": "lines",
+    "searchLine": "Search for a line...",
+    "searchStop": "Search for a stop...",
+    "stopsServed": "Stops served",
+    "noStopsFound": "No stops found",
+    "stopNotFound": "Stop not found",
+    "lineNotFound": "Line not found",
+    "noLinesOfType": "No lines of type",
+    "affectedLinesCount": "{{count}} affected line",
+    "affectedLinesCount_plural": "{{count}} affected lines",
+    "walkOnFoot": "on foot",
+    "takeLine": "Take",
+    "totalDuration": "Total duration",
+    "estimatedArrival": "Estimated arrival time based on scheduled timetables"
   },
   "time": {
     "now": "Now",
@@ -61,7 +92,11 @@
     "stopsTab": "Stops",
     "linesTab": "Lines",
     "typeToSearch": "Type to search",
-    "recentSearches": "Recent searches"
+    "recentSearches": "Recent searches",
+    "searching": "Searching...",
+    "noResultsTryAgain": "Try modifying your search",
+    "searchStopByName": "Search for a stop by name",
+    "searchLineByName": "Search for a line by name or number"
   },
   "favorites": {
     "title": "Favorites",
@@ -71,9 +106,15 @@
     "noFavoriteStops": "No favorite stops",
     "noFavoriteLines": "No favorite lines",
     "noFavoriteJourneys": "No favorite journeys",
-    "addHint": "Add your favorite stops and lines by clicking the star ⭐",
+    "addHint": "Add stops, lines, or journeys to favorites for quick access",
     "journeys": "Journeys",
-    "confirmDelete": "Delete this favorite?"
+    "confirmDelete": "Delete this favorite?",
+    "loadingFavorites": "Loading favorites...",
+    "stopsSection": "Favorite stops",
+    "linesSection": "Favorite lines",
+    "journeysSection": "Favorite journeys",
+    "stopSubtitle": "Transit stop",
+    "journeySubtitle": "Saved journey"
   },
   "route": {
     "title": "Route",
@@ -89,16 +130,31 @@
     "walkDistance": "{{distance}} m",
     "take": "Take",
     "getOff": "Get off at",
-    "saveJourney": "Save this journey"
+    "saveJourney": "Save this journey",
+    "routesFound": "route found",
+    "routesFound_plural": "routes found",
+    "selectDepartureArrival": "Please select a departure and arrival stop",
+    "differentStops": "Departure and arrival must be different",
+    "unableToCalculate": "Unable to calculate route",
+    "importDataFromMap": "Import data from the Map screen"
   },
   "alerts": {
     "title": "Disruptions",
-    "noAlerts": "No disruptions 🎉",
+    "noAlerts": "No disruptions",
+    "normalTraffic": "Traffic is normal across the network",
     "severe": "Alert",
     "warning": "Disruption",
     "info": "Information",
     "affectedLines": "Affected lines",
+    "affectedStops": "Affected stops",
+    "stopsCount": "{{count}} stop",
+    "stopsCount_plural": "{{count}} stops",
+    "details": "Disruption details",
+    "startTime": "Start",
+    "endTime": "Expected end",
     "showMore": "Show more",
+    "showLess": "Show less",
+    "seeMore": "See more →",
     "validUntil": "Until {{date}}"
   },
   "settings": {
@@ -111,7 +167,12 @@
     "about": "About",
     "version": "Version",
     "dataSource": "Data source",
+    "data": "Data",
     "clearCache": "Clear cache",
-    "clearFavorites": "Delete all favorites"
+    "clearCacheConfirm": "This will delete all cached data.",
+    "cacheCleared": "Cache cleared successfully",
+    "clearFavorites": "Delete all favorites",
+    "clearFavoritesConfirm": "Are you sure you want to delete all your favorites?",
+    "favoritesCleared": "All favorites have been deleted"
   }
 }

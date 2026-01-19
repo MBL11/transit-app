@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import type { Alert } from '../../core/types/adapter';
+import { useTranslation } from 'react-i18next';
 
 interface AlertBannerProps {
   alert: Alert;
@@ -14,6 +15,7 @@ interface AlertBannerProps {
 }
 
 export function AlertBanner({ alert, compact = false, onPress }: AlertBannerProps) {
+  const { t } = useTranslation();
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -77,11 +79,11 @@ export function AlertBanner({ alert, compact = false, onPress }: AlertBannerProp
         )}
         {alert.affectedRoutes && alert.affectedRoutes.length >= 5 && (
           <Text style={styles.affected}>
-            {alert.affectedRoutes.length} lignes affectées
+            {t('transit.affectedLinesCount', { count: alert.affectedRoutes.length })}
           </Text>
         )}
         {onPress && compact && (
-          <Text style={styles.seeMore}>Voir plus →</Text>
+          <Text style={styles.seeMore}>{t('alerts.seeMore')}</Text>
         )}
       </View>
       {isClickable && !compact && (

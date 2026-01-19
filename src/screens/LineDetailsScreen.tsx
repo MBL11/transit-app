@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { StopCard } from '../components/transit/StopCard';
 import { getRouteById, getStopsByRouteId } from '../core/database';
 import type { Route, Stop } from '../core/types/models';
@@ -13,23 +14,24 @@ import type { LinesStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'LineDetails'>;
 
-// Map GTFS route types to display names
-const getRouteTypeLabel = (type: number): string => {
-  switch (type) {
-    case 0: return 'Tram';
-    case 1: return 'Métro';
-    case 2: return 'RER';
-    case 3: return 'Bus';
-    default: return 'Train';
-  }
-};
-
 export function LineDetailsScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { routeId } = route.params;
   const [lineRoute, setLineRoute] = useState<Route | null>(null);
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Map GTFS route types to display names
+  const getRouteTypeLabel = (type: number): string => {
+    switch (type) {
+      case 0: return t('transit.tram');
+      case 1: return t('transit.metro');
+      case 2: return t('transit.rer');
+      case 3: return t('transit.bus');
+      default: return t('transit.train');
+    }
+  };
 
   useEffect(() => {
     loadLineData();
@@ -46,14 +48,14 @@ export function LineDetailsScreen({ route, navigation }: Props) {
       ]);
 
       if (!routeData) {
-        throw new Error('Ligne non trouvée');
+        throw new Error(t('transit.lineNotFound'));
       }
 
       setLineRoute(routeData);
       setStops(stopsData);
     } catch (err) {
       console.error('[LineDetailsScreen] Error loading line data:', err);
-      setError(err instanceof Error ? err : new Error('Erreur de chargement'));
+      setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
     } finally {
       setLoading(false);
     }
@@ -68,7 +70,7 @@ export function LineDetailsScreen({ route, navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -78,9 +80,9 @@ export function LineDetailsScreen({ route, navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>Erreur de chargement</Text>
+        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
         <Text style={styles.errorMessage}>
-          {error?.message || 'Ligne non trouvée'}
+          {error?.message || t('transit.lineNotFound')}
         </Text>
       </View>
     );
@@ -109,12 +111,12 @@ export function LineDetailsScreen({ route, navigation }: Props) {
       {/* Stops section */}
       <View style={styles.stopsSection}>
         <Text style={styles.sectionTitle}>
-          Arrêts desservis : <Text style={styles.stopCount}>({stops.length})</Text>
+          {t('transit.stopsServed')} : <Text style={styles.stopCount}>({stops.length})</Text>
         </Text>
 
         {stops.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucun arrêt trouvé</Text>
+            <Text style={styles.emptyText}>{t('transit.noStopsFound')}</Text>
           </View>
         ) : (
           <FlatList

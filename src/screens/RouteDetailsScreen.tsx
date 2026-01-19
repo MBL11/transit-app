@@ -8,10 +8,12 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
 import { deserializeJourney } from '../core/types/routing-serialization';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<RouteStackParamList, 'RouteDetails'>;
 
 export function RouteDetailsScreen({ route }: Props) {
+  const { t } = useTranslation();
   const journey = deserializeJourney(route.params.journey);
 
   const formatTime = (date: Date): string => {
@@ -41,12 +43,12 @@ export function RouteDetailsScreen({ route }: Props) {
         </View>
         {journey.numberOfTransfers > 0 && (
           <Text style={styles.summaryTransfers}>
-            {journey.numberOfTransfers} correspondance{journey.numberOfTransfers > 1 ? 's' : ''}
+            {t('transit.transfers', { count: journey.numberOfTransfers })}
           </Text>
         )}
         {journey.totalWalkDistance > 0 && (
           <Text style={styles.summaryWalk}>
-            🚶 {Math.round(journey.totalWalkDistance)}m à pied
+            🚶 {Math.round(journey.totalWalkDistance)}m {t('transit.walkOnFoot')}
           </Text>
         )}
       </View>
@@ -104,7 +106,7 @@ export function RouteDetailsScreen({ route }: Props) {
                 <View style={styles.stepRight}>
                   {isWalk ? (
                     <View style={styles.walkDetails}>
-                      <Text style={styles.segmentAction}>Marcher {segment.duration} min</Text>
+                      <Text style={styles.segmentAction}>{t('route.walk')} {segment.duration} min</Text>
                       {segment.distance && (
                         <Text style={styles.segmentInfo}>≈ {Math.round(segment.distance)}m</Text>
                       )}
@@ -112,14 +114,14 @@ export function RouteDetailsScreen({ route }: Props) {
                   ) : (
                     <View style={styles.transitDetails}>
                       <Text style={styles.segmentAction}>
-                        Prendre {segment.route?.shortName}
+                        {t('transit.takeLine')} {segment.route?.shortName}
                       </Text>
                       {segment.route?.longName && (
                         <Text style={styles.segmentInfo}>{segment.route.longName}</Text>
                       )}
                       {segment.trip?.headsign && (
                         <Text style={styles.segmentDirection}>
-                          Direction {segment.trip.headsign}
+                          {t('transit.direction')} {segment.trip.headsign}
                         </Text>
                       )}
                       <Text style={styles.segmentDuration}>{segment.duration} min</Text>
@@ -152,10 +154,10 @@ export function RouteDetailsScreen({ route }: Props) {
       {/* Footer Info */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Durée totale : {formatDuration(journey.totalDuration)}
+          {t('transit.totalDuration')} : {formatDuration(journey.totalDuration)}
         </Text>
         <Text style={styles.footerSubtext}>
-          Heure d'arrivée estimée basée sur les horaires théoriques
+          {t('transit.estimatedArrival')}
         </Text>
       </View>
     </ScrollView>

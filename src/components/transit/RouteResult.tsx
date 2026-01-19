@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { JourneyResult } from '../../core/types/routing';
+import { useTranslation } from 'react-i18next';
 
 interface RouteResultProps {
   journey: JourneyResult;
@@ -22,6 +23,7 @@ function formatTime(date: Date): string {
 }
 
 export function RouteResult({ journey, onPress }: RouteResultProps) {
+  const { t } = useTranslation();
   const departureTimeStr = formatTime(journey.departureTime);
   const arrivalTimeStr = formatTime(journey.arrivalTime);
   const hasTransfers = journey.numberOfTransfers > 0;
@@ -34,7 +36,7 @@ export function RouteResult({ journey, onPress }: RouteResultProps) {
           <Text style={styles.duration}>{journey.totalDuration} min</Text>
           {hasTransfers && (
             <Text style={styles.transfers}>
-              {journey.numberOfTransfers} correspondance{journey.numberOfTransfers > 1 ? 's' : ''}
+              {t('transit.transfers', { count: journey.numberOfTransfers })}
             </Text>
           )}
         </View>
@@ -84,7 +86,7 @@ export function RouteResult({ journey, onPress }: RouteResultProps) {
       {/* Walk distance if present */}
       {journey.totalWalkDistance > 0 && (
         <Text style={styles.walkDistance}>
-          🚶 {Math.round(journey.totalWalkDistance)}m à pied
+          🚶 {Math.round(journey.totalWalkDistance)}m {t('transit.walkOnFoot')}
         </Text>
       )}
     </TouchableOpacity>

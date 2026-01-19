@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { TransitMap } from '../components/map';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
@@ -20,6 +21,7 @@ import * as db from '../core/database';
 type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
 export function MapScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { stops, loading, error } = useStops();
   const { adapter } = useAdapter();
   const { alerts } = useAlerts();
@@ -60,7 +62,7 @@ export function MapScreen({ navigation }: Props) {
       console.log('[MapScreen] Loaded', routes.length, 'routes and', departures.length, 'departures');
     } catch (err) {
       console.error('[MapScreen] Error loading stop details:', err);
-      Alert.alert('Erreur', 'Impossible de charger les détails de l\'arrêt');
+      Alert.alert(t('common.error'), t('common.unableToLoad') + ' ' + t('transit.stopDetails', { defaultValue: 'stop details' }));
     } finally {
       setLoadingStopData(false);
     }
@@ -166,7 +168,7 @@ export function MapScreen({ navigation }: Props) {
       await db.insertTrips(trips);
       await db.insertStopTimes(stopTimes);
 
-      Alert.alert('Succès', 'Données importées avec succès!');
+      Alert.alert(t('common.success'), t('common.dataImported'));
       console.log('[MapScreen] Data imported successfully');
 
       // Reload page
@@ -175,7 +177,7 @@ export function MapScreen({ navigation }: Props) {
       }
     } catch (err) {
       console.error('[MapScreen] Import error:', err);
-      Alert.alert('Erreur', 'Échec de l\'import des données');
+      Alert.alert(t('common.error'), t('common.importFailed'));
     } finally {
       setImporting(false);
     }
@@ -186,7 +188,7 @@ export function MapScreen({ navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement des arrêts...</Text>
+        <Text style={styles.loadingText}>{t('transit.loadingStops')}</Text>
       </View>
     );
   }
@@ -196,7 +198,7 @@ export function MapScreen({ navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>Erreur de chargement</Text>
+        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
         <Text style={styles.errorMessage}>{error.message}</Text>
       </View>
     );
@@ -207,7 +209,7 @@ export function MapScreen({ navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.emptyIcon}>🗺️</Text>
-        <Text style={styles.emptyText}>Aucun arrêt disponible</Text>
+        <Text style={styles.emptyText}>{t('transit.noStopsAvailable')}</Text>
         <TouchableOpacity
           style={styles.importButton}
           onPress={handleImportData}
@@ -216,7 +218,7 @@ export function MapScreen({ navigation }: Props) {
           {importing ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.importButtonText}>Importer les données</Text>
+            <Text style={styles.importButtonText}>{t('common.importData')}</Text>
           )}
         </TouchableOpacity>
       </View>

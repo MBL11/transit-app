@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { RouteResult } from '../components/transit/RouteResult';
 import { findRoute } from '../core/routing';
 import type { Stop } from '../core/types/models';
@@ -18,6 +19,7 @@ import * as db from '../core/database';
 type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalculation'>;
 
 export function RouteScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export function RouteScreen() {
       setStops(allStops);
     } catch (err) {
       console.error('[RouteScreen] Error loading stops:', err);
-      Alert.alert('Erreur', 'Impossible de charger les arrêts');
+      Alert.alert(t('common.error'), 'Unable to load stops');
     } finally {
       setLoading(false);
     }
@@ -63,12 +65,12 @@ export function RouteScreen() {
 
   const handleCalculateRoute = async () => {
     if (!fromStop || !toStop) {
-      Alert.alert('Erreur', 'Veuillez sélectionner un départ et une arrivée');
+      Alert.alert(t('common.error'), 'Please select a departure and arrival stop');
       return;
     }
 
     if (fromStop.id === toStop.id) {
-      Alert.alert('Erreur', 'Le départ et l\'arrivée doivent être différents');
+      Alert.alert(t('common.error'), 'Departure and arrival must be different');
       return;
     }
 
@@ -98,7 +100,7 @@ export function RouteScreen() {
       console.log('[RouteScreen] Found', filteredResults.length, 'journeys');
     } catch (err) {
       console.error('[RouteScreen] Error calculating route:', err);
-      Alert.alert('Erreur', 'Impossible de calculer l\'itinéraire');
+      Alert.alert(t('common.error'), 'Unable to calculate route');
     } finally {
       setCalculating(false);
     }
@@ -161,7 +163,7 @@ export function RouteScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement des arrêts...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -170,8 +172,8 @@ export function RouteScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.emptyIcon}>🗺️</Text>
-        <Text style={styles.emptyText}>Aucun arrêt disponible</Text>
-        <Text style={styles.emptySubtext}>Importez des données depuis l'écran Carte</Text>
+        <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+        <Text style={styles.emptySubtext}>Import data from the Map screen</Text>
       </View>
     );
   }
@@ -184,17 +186,17 @@ export function RouteScreen() {
     <View style={styles.container}>
       {/* Header with stop selection */}
       <View style={styles.searchContainer}>
-        <Text style={styles.title}>Calculer un itinéraire</Text>
+        <Text style={styles.title}>{t('route.title')}</Text>
 
         {/* From Stop */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>📍 Départ</Text>
+          <Text style={styles.label}>📍 {t('transit.from')}</Text>
           <TouchableOpacity
             style={styles.stopInput}
             onPress={openFromSearch}
           >
             <Text style={[styles.stopInputText, !fromStop && styles.stopInputPlaceholder]}>
-              {fromStop ? fromStop.name : 'Sélectionner un arrêt'}
+              {fromStop ? fromStop.name : t('search.placeholder')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -210,13 +212,13 @@ export function RouteScreen() {
 
         {/* To Stop */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>🎯 Arrivée</Text>
+          <Text style={styles.label}>🎯 {t('transit.to')}</Text>
           <TouchableOpacity
             style={styles.stopInput}
             onPress={openToSearch}
           >
             <Text style={[styles.stopInputText, !toStop && styles.stopInputPlaceholder]}>
-              {toStop ? toStop.name : 'Sélectionner un arrêt'}
+              {toStop ? toStop.name : t('search.placeholder')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -236,7 +238,7 @@ export function RouteScreen() {
                 timeMode === 'departure' && styles.timeModeButtonTextActive,
               ]}
             >
-              Partir à
+              {t('route.departAt')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -252,7 +254,7 @@ export function RouteScreen() {
                 timeMode === 'arrival' && styles.timeModeButtonTextActive,
               ]}
             >
-              Arriver à
+              {t('route.arriveBy')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -260,7 +262,7 @@ export function RouteScreen() {
         {/* Departure/Arrival Time Selector */}
         <View style={styles.timeContainer}>
           <Text style={styles.label}>
-            🕒 {timeMode === 'departure' ? 'Heure de départ' : 'Heure d\'arrivée'}
+            🕒 {timeMode === 'departure' ? t('route.departureTime') : t('route.arrivalTime')}
           </Text>
           <View style={styles.timeControls}>
             <TouchableOpacity
@@ -283,7 +285,7 @@ export function RouteScreen() {
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={setDepartureToNow}>
-            <Text style={styles.nowButton}>Maintenant</Text>
+            <Text style={styles.nowButton}>{t('time.now')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -296,7 +298,7 @@ export function RouteScreen() {
           {calculating ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.calculateButtonText}>Rechercher</Text>
+            <Text style={styles.calculateButtonText}>{t('route.searchRoute')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -306,21 +308,21 @@ export function RouteScreen() {
         {calculating && (
           <View style={styles.calculatingContainer}>
             <ActivityIndicator size="large" color="#0066CC" />
-            <Text style={styles.calculatingText}>Calcul en cours...</Text>
+            <Text style={styles.calculatingText}>{t('common.loading')}</Text>
           </View>
         )}
 
         {!calculating && hasSearched && journeys.length === 0 && (
           <View style={styles.noResultsContainer}>
             <Text style={styles.noResultsIcon}>🚫</Text>
-            <Text style={styles.noResultsText}>Aucun itinéraire trouvé</Text>
+            <Text style={styles.noResultsText}>{t('route.noRouteFound')}</Text>
           </View>
         )}
 
         {!calculating && journeys.length > 0 && (
           <>
             <Text style={styles.resultsTitle}>
-              {journeys.length} itinéraire{journeys.length > 1 ? 's' : ''} trouvé{journeys.length > 1 ? 's' : ''}
+              {journeys.length} {journeys.length > 1 ? 'routes found' : 'route found'}
             </Text>
             {journeys.map((journey, index) => (
               <RouteResult
@@ -343,7 +345,7 @@ export function RouteScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📍 Choisir le départ</Text>
+              <Text style={styles.modalTitle}>📍 {t('time.departure')}</Text>
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setShowFromSearch(false)}
@@ -354,7 +356,7 @@ export function RouteScreen() {
             <View style={styles.searchInputContainer}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Rechercher un arrêt..."
+                placeholder={t('search.placeholder')}
                 value={fromSearchQuery}
                 onChangeText={setFromSearchQuery}
                 autoFocus
@@ -386,7 +388,7 @@ export function RouteScreen() {
               )}
               ListEmptyComponent={
                 <View style={styles.emptySearchContainer}>
-                  <Text style={styles.emptySearchText}>Aucun arrêt trouvé</Text>
+                  <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
                 </View>
               }
             />
@@ -404,7 +406,7 @@ export function RouteScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>🎯 Choisir l'arrivée</Text>
+              <Text style={styles.modalTitle}>🎯 {t('time.arrival')}</Text>
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setShowToSearch(false)}
@@ -415,7 +417,7 @@ export function RouteScreen() {
             <View style={styles.searchInputContainer}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Rechercher un arrêt..."
+                placeholder={t('search.placeholder')}
                 value={toSearchQuery}
                 onChangeText={setToSearchQuery}
                 autoFocus
@@ -447,7 +449,7 @@ export function RouteScreen() {
               )}
               ListEmptyComponent={
                 <View style={styles.emptySearchContainer}>
-                  <Text style={styles.emptySearchText}>Aucun arrêt trouvé</Text>
+                  <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
                 </View>
               }
             />

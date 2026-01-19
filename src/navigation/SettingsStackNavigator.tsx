@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
 export type SettingsStackParamList = {
@@ -14,6 +15,8 @@ export type SettingsStackParamList = {
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
 export function SettingsStackNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -30,7 +33,7 @@ export function SettingsStackNavigator() {
         name="SettingsList"
         component={SettingsScreen}
         options={{
-          title: 'Paramètres',
+          title: t('settings.title'),
         }}
       />
     </Stack.Navigator>

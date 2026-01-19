@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, PressableProps, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 export interface StopCardProps extends Omit<PressableProps, 'children'> {
   stopName: string;
@@ -15,6 +16,8 @@ export function StopCard({
   distance,
   ...props
 }: StopCardProps) {
+  const { t } = useTranslation();
+
   return (
     <Pressable {...props} style={styles.pressable}>
       <View style={styles.card}>
@@ -25,7 +28,7 @@ export function StopCard({
               {stopName}
             </Text>
             {stopCode && (
-              <Text style={styles.stopCode}>Code: {stopCode}</Text>
+              <Text style={styles.stopCode}>{t('common.code')}: {stopCode}</Text>
             )}
           </View>
           {distance !== undefined && (

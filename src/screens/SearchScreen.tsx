@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { SearchBar } from '../components/transit/SearchBar';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
@@ -35,6 +36,7 @@ function getRouteType(type: number): 'metro' | 'bus' | 'tram' | 'rer' | 'train' 
 }
 
 export function SearchScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('stops');
   const [stopResults, setStopResults] = useState<StopWithRoutes[]>([]);
@@ -108,7 +110,7 @@ export function SearchScreen({ navigation }: Props) {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <SearchBar
-          placeholder={activeTab === 'stops' ? 'Rechercher un arrêt...' : 'Rechercher une ligne...'}
+          placeholder={activeTab === 'stops' ? t('transit.searchStop') : t('transit.searchLine')}
           value={query}
           onChangeText={setQuery}
           onClear={handleClear}
@@ -123,7 +125,7 @@ export function SearchScreen({ navigation }: Props) {
           onPress={() => setActiveTab('stops')}
         >
           <Text style={[styles.tabText, activeTab === 'stops' && styles.tabTextActive]}>
-            Arrêts
+            {t('search.stopsTab')}
           </Text>
         </Pressable>
         <Pressable
@@ -131,7 +133,7 @@ export function SearchScreen({ navigation }: Props) {
           onPress={() => setActiveTab('lines')}
         >
           <Text style={[styles.tabText, activeTab === 'lines' && styles.tabTextActive]}>
-            Lignes
+            {t('search.linesTab')}
           </Text>
         </Pressable>
       </View>
@@ -140,24 +142,24 @@ export function SearchScreen({ navigation }: Props) {
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#0066CC" />
-          <Text style={styles.loadingText}>Recherche...</Text>
+          <Text style={styles.loadingText}>{t('search.searching')}</Text>
         </View>
       ) : query.trim() && !hasResults ? (
         <View style={styles.centerContainer}>
           <Text style={styles.emptyIcon}>🔍</Text>
-          <Text style={styles.emptyTitle}>Aucun résultat</Text>
+          <Text style={styles.emptyTitle}>{t('common.noResults')}</Text>
           <Text style={styles.emptyText}>
-            Essayez de modifier votre recherche
+            {t('search.noResultsTryAgain')}
           </Text>
         </View>
       ) : !query.trim() ? (
         <View style={styles.centerContainer}>
           <Text style={styles.emptyIcon}>{activeTab === 'stops' ? '🚏' : '🚇'}</Text>
-          <Text style={styles.emptyTitle}>Tapez pour rechercher</Text>
+          <Text style={styles.emptyTitle}>{t('search.typeToSearch')}</Text>
           <Text style={styles.emptyText}>
             {activeTab === 'stops'
-              ? 'Recherchez un arrêt par son nom'
-              : 'Recherchez une ligne par son nom ou numéro'}
+              ? t('search.searchStopByName')
+              : t('search.searchLineByName')}
           </Text>
         </View>
       ) : (
@@ -176,7 +178,7 @@ export function SearchScreen({ navigation }: Props) {
               contentContainerStyle={styles.listContent}
               ListHeaderComponent={
                 <Text style={styles.resultCount}>
-                  {stopResults.length} {stopResults.length === 1 ? 'résultat' : 'résultats'}
+                  {stopResults.length} {t(stopResults.length === 1 ? 'common.result' : 'common.result_plural')}
                 </Text>
               }
             />
@@ -196,7 +198,7 @@ export function SearchScreen({ navigation }: Props) {
               contentContainerStyle={styles.listContent}
               ListHeaderComponent={
                 <Text style={styles.resultCount}>
-                  {lineResults.length} {lineResults.length === 1 ? 'résultat' : 'résultats'}
+                  {lineResults.length} {t(lineResults.length === 1 ? 'common.result' : 'common.result_plural')}
                 </Text>
               }
             />

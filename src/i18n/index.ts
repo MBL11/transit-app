@@ -6,40 +6,59 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import * as Localization from 'expo-localization';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import translations
 import fr from '../locales/fr.json';
 import en from '../locales/en.json';
 import es from '../locales/es.json';
 import ru from '../locales/ru.json';
+import tr from '../locales/tr.json';
 
 const resources = {
   fr: { translation: fr },
   en: { translation: en },
   es: { translation: es },
   ru: { translation: ru },
+  tr: { translation: tr },
 };
+
+// Supported languages
+const supportedLanguages = ['fr', 'en', 'es', 'ru', 'tr'];
 
 // Get device locale (first 2 chars: 'en-US' -> 'en')
 const deviceLocale = Localization.getLocales()[0]?.languageCode || 'en';
 
-// Supported languages
-const supportedLanguages = ['fr', 'en', 'es', 'ru'];
-
 // Fallback to 'en' if device language not supported
 const fallbackLocale = supportedLanguages.includes(deviceLocale) ? deviceLocale : 'en';
 
-i18n
-  .use(initReactI18next)
-  .init({
-    compatibilityJSON: 'v3',
-    resources,
-    lng: fallbackLocale,
-    fallbackLng: 'en',
-    interpolation: {
-      escapeValue: false, // React already escapes
-    },
-    pluralSeparator: '_',
-  });
+// Initialize i18n with async storage
+const initI18n = async () => {
+  // Load saved language from AsyncStorage
+  const savedLanguage = await AsyncStorage.getItem('app_language');
+  const initialLanguage = savedLanguage || fallbackLocale;
+
+  await i18n
+    .use(initReactI18next)
+    .init({
+      compatibilityJSON: 'v3',
+      resources,
+      lng: initialLanguage,
+      fallbackLng: 'en',
+      interpolation: {
+        escapeValue: false, // React already escapes
+      },
+      pluralSeparator: '_',
+    });
+};
+
+// Change language and save to storage
+export const changeLanguage = async (languageCode: string) => {
+  await AsyncStorage.setItem('app_language', languageCode);
+  await i18n.changeLanguage(languageCode);
+};
+
+// Initialize on import
+initI18n();
 
 export default i18n;

@@ -7,6 +7,7 @@ import React from 'react';
 import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useTranslation } from 'react-i18next';
 import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
 import { SearchStackNavigator } from './SearchStackNavigator';
@@ -16,6 +17,8 @@ import { FavoritesStackNavigator } from './FavoritesStackNavigator';
 const Tab = createBottomTabNavigator();
 
 export function RootNavigator() {
+  const { t } = useTranslation();
+
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -35,8 +38,8 @@ export function RootNavigator() {
           name="Map"
           component={MapStackNavigator}
           options={{
-            title: 'Carte',
-            tabBarLabel: 'Carte',
+            title: t('tabs.map'),
+            tabBarLabel: t('tabs.map'),
             tabBarIcon: ({ color }) => <TabIcon icon="🗺️" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
@@ -45,8 +48,8 @@ export function RootNavigator() {
           name="Lines"
           component={LinesStackNavigator}
           options={{
-            title: 'Lignes',
-            tabBarLabel: 'Lignes',
+            title: t('tabs.lines'),
+            tabBarLabel: t('tabs.lines'),
             tabBarIcon: ({ color }) => <TabIcon icon="🚇" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
@@ -55,8 +58,8 @@ export function RootNavigator() {
           name="SearchTab"
           component={SearchStackNavigator}
           options={{
-            title: 'Recherche',
-            tabBarLabel: 'Recherche',
+            title: t('tabs.search'),
+            tabBarLabel: t('tabs.search'),
             tabBarIcon: ({ color }) => <TabIcon icon="🔍" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
@@ -65,8 +68,8 @@ export function RootNavigator() {
           name="Route"
           component={RouteStackNavigator}
           options={{
-            title: 'Itinéraire',
-            tabBarLabel: 'Itinéraire',
+            title: t('tabs.route'),
+            tabBarLabel: t('tabs.route'),
             tabBarIcon: ({ color }) => <TabIcon icon="🚏" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}
@@ -75,8 +78,8 @@ export function RootNavigator() {
           name="Favorites"
           component={FavoritesStackNavigator}
           options={{
-            title: 'Favoris',
-            tabBarLabel: 'Favoris',
+            title: t('tabs.favorites'),
+            tabBarLabel: t('tabs.favorites'),
             tabBarIcon: ({ color }) => <TabIcon icon="⭐" color={color} />,
             headerShown: false, // Let the stack handle its own headers
           }}

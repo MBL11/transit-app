@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { useFavorites } from '../hooks';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
@@ -22,6 +23,7 @@ import type { FavoriteStop, FavoriteRoute, FavoriteJourney } from '../core/types
 type Props = NativeStackScreenProps<any, 'Favorites'>;
 
 export function FavoritesScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { favorites, stops, routes, journeys, loading, refresh, toggleStop, toggleRoute, remove, isFavorite } =
     useFavorites();
   const [refreshing, setRefreshing] = useState(false);
@@ -68,7 +70,7 @@ export function FavoritesScreen({ navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement des favoris...</Text>
+        <Text style={styles.loadingText}>{t('favorites.loadingFavorites')}</Text>
       </View>
     );
   }
@@ -83,9 +85,9 @@ export function FavoritesScreen({ navigation }: Props) {
         }
       >
         <Text style={styles.emptyIcon}>⭐</Text>
-        <Text style={styles.emptyTitle}>Aucun favori</Text>
+        <Text style={styles.emptyTitle}>{t('favorites.noFavorites')}</Text>
         <Text style={styles.emptyText}>
-          Ajoutez des arrêts, lignes ou itinéraires en favoris pour un accès rapide
+          {t('favorites.addHint')}
         </Text>
       </ScrollView>
     );
@@ -102,7 +104,7 @@ export function FavoritesScreen({ navigation }: Props) {
       {/* Favorite Stops */}
       {stops.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 Arrêts favoris ({stops.length})</Text>
+          <Text style={styles.sectionTitle}>📍 {t('favorites.stopsSection')} ({stops.length})</Text>
           {stops.map((favorite) => {
             const fav = favorite as FavoriteStop;
             return (
@@ -113,7 +115,7 @@ export function FavoritesScreen({ navigation }: Props) {
                 >
                   <View style={styles.cardInfo}>
                     <Text style={styles.cardTitle}>{fav.data.name}</Text>
-                    <Text style={styles.cardSubtitle}>Arrêt de transport</Text>
+                    <Text style={styles.cardSubtitle}>{t('favorites.stopSubtitle')}</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -131,7 +133,7 @@ export function FavoritesScreen({ navigation }: Props) {
       {/* Favorite Routes */}
       {routes.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🚇 Lignes favorites ({routes.length})</Text>
+          <Text style={styles.sectionTitle}>🚇 {t('favorites.linesSection')} ({routes.length})</Text>
           {routes.map((favorite) => {
             const fav = favorite as FavoriteRoute;
             return (
@@ -153,7 +155,7 @@ export function FavoritesScreen({ navigation }: Props) {
       {/* Favorite Journeys */}
       {journeys.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🗺️ Itinéraires favoris ({journeys.length})</Text>
+          <Text style={styles.sectionTitle}>🗺️ {t('favorites.journeysSection')} ({journeys.length})</Text>
           {journeys.map((favorite) => {
             const fav = favorite as FavoriteJourney;
             return (
@@ -166,7 +168,7 @@ export function FavoritesScreen({ navigation }: Props) {
                     <Text style={styles.cardTitle}>
                       {fav.data.fromStopName} → {fav.data.toStopName}
                     </Text>
-                    <Text style={styles.cardSubtitle}>Itinéraire enregistré</Text>
+                    <Text style={styles.cardSubtitle}>{t('favorites.journeySubtitle')}</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity

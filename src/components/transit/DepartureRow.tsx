@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 export interface Departure {
   routeShortName: string;
@@ -18,22 +19,18 @@ export interface DepartureRowProps {
 /**
  * Calculate relative time string from now to departure time
  */
-function getRelativeTime(departureTime: Date): string {
-  const now = new Date();
-  const diffMs = departureTime.getTime() - now.getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-
+function getRelativeTimeKey(diffMinutes: number): { key: string; params?: any } {
   if (diffMinutes < 1) {
-    return 'Maintenant';
+    return { key: 'time.now' };
   } else if (diffMinutes < 60) {
-    return `dans ${diffMinutes} min`;
+    return { key: 'time.inMinutes', params: { count: diffMinutes } };
   } else {
     const hours = Math.floor(diffMinutes / 60);
     const minutes = diffMinutes % 60;
     if (minutes === 0) {
-      return `dans ${hours}h`;
+      return { key: 'time.inHours', params: { count: hours } };
     }
-    return `dans ${hours}h${minutes}`;
+    return { key: 'time.inHoursMinutes', params: { hours, minutes } };
   }
 }
 
@@ -47,6 +44,7 @@ function formatTime(date: Date): string {
 }
 
 export function DepartureRow({ departure, onPress }: DepartureRowProps) {
+  const { t } = useTranslation();
   const {
     routeShortName,
     routeColor,
@@ -56,7 +54,11 @@ export function DepartureRow({ departure, onPress }: DepartureRowProps) {
     delay,
   } = departure;
 
-  const relativeTime = getRelativeTime(departureTime);
+  const now = new Date();
+  const diffMs = departureTime.getTime() - now.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const { key: timeKey, params: timeParams } = getRelativeTimeKey(diffMinutes);
+  const relativeTime = t(timeKey, timeParams);
   const formattedTime = formatTime(departureTime);
 
   const Container = onPress ? TouchableOpacity : View;

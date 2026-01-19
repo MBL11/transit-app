@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 
 export type FavoritesStackParamList = {
@@ -14,6 +15,8 @@ export type FavoritesStackParamList = {
 const Stack = createNativeStackNavigator<FavoritesStackParamList>();
 
 export function FavoritesStackNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -30,7 +33,7 @@ export function FavoritesStackNavigator() {
         name="FavoritesList"
         component={FavoritesScreen}
         options={{
-          title: 'Favoris',
+          title: t('tabs.favorites'),
         }}
       />
     </Stack.Navigator>

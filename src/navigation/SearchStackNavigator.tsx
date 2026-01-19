@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { SearchScreen } from '../screens/SearchScreen';
 import { StopDetailsScreen } from '../screens/StopDetailsScreen';
 import { LineDetailsScreen } from '../screens/LineDetailsScreen';
@@ -18,6 +19,8 @@ export type SearchStackParamList = {
 const Stack = createNativeStackNavigator<SearchStackParamList>();
 
 export function SearchStackNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -34,7 +37,7 @@ export function SearchStackNavigator() {
         name="Search"
         component={SearchScreen}
         options={{
-          title: 'Recherche',
+          title: t('tabs.search'),
           headerShown: false, // Let the tab navigator handle the header
         }}
       />
@@ -42,14 +45,14 @@ export function SearchStackNavigator() {
         name="StopDetails"
         component={StopDetailsScreen}
         options={{
-          title: 'Détails de l\'arrêt',
+          title: t('transit.stops'),
         }}
       />
       <Stack.Screen
         name="LineDetails"
         component={LineDetailsScreen}
         options={{
-          title: 'Détails de la ligne',
+          title: t('transit.lines'),
         }}
       />
     </Stack.Navigator>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, PressableProps, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 export interface LineCardProps extends Omit<PressableProps, 'children'> {
   lineNumber: string;
@@ -19,14 +20,6 @@ const typeColors = {
   train: '#0066CC', // Blue
 };
 
-const typeLabels = {
-  metro: 'Métro',
-  bus: 'Bus',
-  tram: 'Tram',
-  rer: 'RER',
-  train: 'Train',
-};
-
 export function LineCard({
   lineNumber,
   lineName,
@@ -37,6 +30,16 @@ export function LineCard({
   onFavoritePress,
   ...props
 }: LineCardProps) {
+  const { t } = useTranslation();
+
+  const typeLabels = {
+    metro: t('transit.metro'),
+    bus: t('transit.bus'),
+    tram: t('transit.tram'),
+    rer: t('transit.rer'),
+    train: t('transit.train'),
+  };
+
   return (
     <Pressable {...props} style={styles.pressable}>
       <View style={[styles.card, { borderLeftColor: lineColor }]}>

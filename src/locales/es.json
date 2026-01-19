@@ -12,7 +12,16 @@
     "noResults": "Sin resultados",
     "tryAgain": "Intentar de nuevo",
     "delete": "Eliminar",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "success": "Éxito",
+    "importData": "Importar datos",
+    "dataImported": "¡Datos importados con éxito!",
+    "importFailed": "Error al importar datos",
+    "unableToLoad": "No se puede cargar",
+    "selectStopOnMap": "Selecciona una parada en el mapa",
+    "code": "Código",
+    "result": "resultado",
+    "result_plural": "resultados"
   },
   "tabs": {
     "map": "Mapa",
@@ -43,8 +52,30 @@
     "bus": "Autobús",
     "tram": "Tranvía",
     "rer": "Tren",
+    "train": "Tren",
     "linesServing": "Líneas que sirven esta parada",
-    "stopsOnLine": "Paradas de esta línea"
+    "stopsOnLine": "Paradas de esta línea",
+    "loadingStops": "Cargando paradas...",
+    "loadingLines": "Cargando líneas...",
+    "loadingError": "Error de carga",
+    "noStopsAvailable": "Sin paradas disponibles",
+    "noLinesAvailable": "Sin líneas disponibles",
+    "transportLines": "Líneas de transporte",
+    "line": "línea",
+    "line_plural": "líneas",
+    "searchLine": "Buscar una línea...",
+    "searchStop": "Buscar una parada...",
+    "stopsServed": "Paradas servidas",
+    "noStopsFound": "No se encontraron paradas",
+    "stopNotFound": "Parada no encontrada",
+    "lineNotFound": "Línea no encontrada",
+    "noLinesOfType": "Sin líneas de tipo",
+    "affectedLinesCount": "{{count}} línea afectada",
+    "affectedLinesCount_plural": "{{count}} líneas afectadas",
+    "walkOnFoot": "a pie",
+    "takeLine": "Tomar",
+    "totalDuration": "Duración total",
+    "estimatedArrival": "Hora de llegada estimada basada en horarios programados"
   },
   "time": {
     "now": "Ahora",
@@ -61,7 +92,11 @@
     "stopsTab": "Paradas",
     "linesTab": "Líneas",
     "typeToSearch": "Escribe para buscar",
-    "recentSearches": "Búsquedas recientes"
+    "recentSearches": "Búsquedas recientes",
+    "searching": "Buscando...",
+    "noResultsTryAgain": "Intenta modificar tu búsqueda",
+    "searchStopByName": "Busca una parada por nombre",
+    "searchLineByName": "Busca una línea por nombre o número"
   },
   "favorites": {
     "title": "Favoritos",
@@ -71,9 +106,15 @@
     "noFavoriteStops": "Sin paradas favoritas",
     "noFavoriteLines": "Sin líneas favoritas",
     "noFavoriteJourneys": "Sin rutas favoritas",
-    "addHint": "Añade tus paradas y líneas favoritas haciendo clic en la estrella ⭐",
+    "addHint": "Añade paradas, líneas o rutas a favoritos para acceso rápido",
     "journeys": "Rutas",
-    "confirmDelete": "¿Eliminar este favorito?"
+    "confirmDelete": "¿Eliminar este favorito?",
+    "loadingFavorites": "Cargando favoritos...",
+    "stopsSection": "Paradas favoritas",
+    "linesSection": "Líneas favoritas",
+    "journeysSection": "Rutas favoritas",
+    "stopSubtitle": "Parada de transporte",
+    "journeySubtitle": "Ruta guardada"
   },
   "route": {
     "title": "Ruta",
@@ -89,16 +130,31 @@
     "walkDistance": "{{distance}} m",
     "take": "Tomar",
     "getOff": "Bajar en",
-    "saveJourney": "Guardar esta ruta"
+    "saveJourney": "Guardar esta ruta",
+    "routesFound": "ruta encontrada",
+    "routesFound_plural": "rutas encontradas",
+    "selectDepartureArrival": "Por favor selecciona una parada de salida y llegada",
+    "differentStops": "La salida y llegada deben ser diferentes",
+    "unableToCalculate": "No se puede calcular la ruta",
+    "importDataFromMap": "Importa datos desde la pantalla Mapa"
   },
   "alerts": {
     "title": "Interrupciones",
-    "noAlerts": "Sin interrupciones 🎉",
+    "noAlerts": "Sin interrupciones",
+    "normalTraffic": "El tráfico es normal en toda la red",
     "severe": "Alerta",
     "warning": "Interrupción",
     "info": "Información",
     "affectedLines": "Líneas afectadas",
+    "affectedStops": "Paradas afectadas",
+    "stopsCount": "{{count}} parada",
+    "stopsCount_plural": "{{count}} paradas",
+    "details": "Detalles de la interrupción",
+    "startTime": "Inicio",
+    "endTime": "Fin previsto",
     "showMore": "Ver más",
+    "showLess": "Ver menos",
+    "seeMore": "Ver más →",
     "validUntil": "Hasta el {{date}}"
   },
   "settings": {
@@ -111,7 +167,12 @@
     "about": "Acerca de",
     "version": "Versión",
     "dataSource": "Fuente de datos",
+    "data": "Datos",
     "clearCache": "Limpiar caché",
-    "clearFavorites": "Eliminar todos los favoritos"
+    "clearCacheConfirm": "Esta acción eliminará todos los datos en caché.",
+    "cacheCleared": "Caché limpiado con éxito",
+    "clearFavorites": "Eliminar todos los favoritos",
+    "clearFavoritesConfirm": "¿Estás seguro de que quieres eliminar todos tus favoritos?",
+    "favoritesCleared": "Todos los favoritos han sido eliminados"
   }
 }

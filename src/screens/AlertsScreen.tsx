@@ -5,11 +5,13 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { AlertBanner } from '../components/transit/AlertBanner';
 import { useAlerts } from '../hooks';
 import type { Alert } from '../core/types/adapter';
 
 export function AlertsScreen() {
+  const { t } = useTranslation();
   const { alerts, loading, refresh } = useAlerts();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
@@ -44,7 +46,7 @@ export function AlertsScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement des perturbations...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -64,8 +66,8 @@ export function AlertsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>🎉</Text>
-            <Text style={styles.emptyText}>Aucune perturbation en cours</Text>
-            <Text style={styles.emptySubtext}>Le trafic est normal sur l'ensemble du réseau</Text>
+            <Text style={styles.emptyText}>{t('alerts.noAlerts')}</Text>
+            <Text style={styles.emptySubtext}>{t('alerts.normalTraffic')}</Text>
           </View>
         }
       />
@@ -80,7 +82,7 @@ export function AlertsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Détails de la perturbation</Text>
+              <Text style={styles.modalTitle}>{t('alerts.details')}</Text>
               <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
                 <Text style={styles.closeButtonText}>✕</Text>
               </TouchableOpacity>
@@ -91,28 +93,28 @@ export function AlertsScreen() {
                 <AlertBanner alert={selectedAlert} compact={false} />
 
                 <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Début</Text>
+                  <Text style={styles.detailLabel}>{t('alerts.startTime')}</Text>
                   <Text style={styles.detailValue}>{formatDate(selectedAlert.startTime)}</Text>
                 </View>
 
                 {selectedAlert.endTime && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Fin prévue</Text>
+                    <Text style={styles.detailLabel}>{t('alerts.endTime')}</Text>
                     <Text style={styles.detailValue}>{formatDate(selectedAlert.endTime)}</Text>
                   </View>
                 )}
 
                 {selectedAlert.affectedRoutes && selectedAlert.affectedRoutes.length > 0 && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Lignes affectées</Text>
+                    <Text style={styles.detailLabel}>{t('alerts.affectedLines')}</Text>
                     <Text style={styles.detailValue}>{selectedAlert.affectedRoutes.join(', ')}</Text>
                   </View>
                 )}
 
                 {selectedAlert.affectedStops && selectedAlert.affectedStops.length > 0 && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Arrêts affectés</Text>
-                    <Text style={styles.detailValue}>{selectedAlert.affectedStops.length} arrêts</Text>
+                    <Text style={styles.detailLabel}>{t('alerts.affectedStops')}</Text>
+                    <Text style={styles.detailValue}>{t('alerts.stopsCount', { count: selectedAlert.affectedStops.length })}</Text>
                   </View>
                 )}
               </ScrollView>

@@ -9,6 +9,7 @@ import { DepartureRow, type Departure } from './DepartureRow';
 import { getStopById, getRoutesByStopId } from '../../core/database';
 import type { Stop, Route } from '../../core/types/models';
 import { parisAdapter } from '../../adapters/paris/paris-adapter';
+import { useTranslation } from 'react-i18next';
 
 interface StopDetailsContentProps {
   stopId: string;
@@ -24,6 +25,7 @@ const getMockDepartures = (): Departure[] => [
 ];
 
 export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentProps) {
+  const { t } = useTranslation();
   const [stop, setStop] = useState<Stop | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
@@ -56,7 +58,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
       ]);
 
       if (!stopData) {
-        throw new Error('Arrêt non trouvé');
+        throw new Error(t('transit.stopNotFound'));
       }
 
       setStop(stopData);
@@ -79,7 +81,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
       setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
     } catch (err) {
       console.error('[StopDetailsContent] Error loading stop data:', err);
-      setError(err instanceof Error ? err : new Error('Erreur de chargement'));
+      setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
     } finally {
       setLoading(false);
     }
@@ -120,7 +122,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -130,9 +132,9 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>Erreur de chargement</Text>
+        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
         <Text style={styles.errorMessage}>
-          {error?.message || 'Arrêt non trouvé'}
+          {error?.message || t('transit.stopNotFound')}
         </Text>
       </View>
     );
@@ -158,7 +160,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
       {/* Lines serving this stop */}
       {routes.length > 0 && (
         <View style={styles.linesSection}>
-          <Text style={styles.sectionTitle}>Lignes desservant cet arrêt</Text>
+          <Text style={styles.sectionTitle}>{t('transit.linesServing')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -188,7 +190,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
         <View style={styles.departureSectionHeader}>
           <View style={styles.titleRow}>
             <Text style={styles.sectionTitle}>
-              Prochains passages <Text style={styles.departureCount}>({departures.length})</Text>
+              {t('transit.nextDepartures')} <Text style={styles.departureCount}>({departures.length})</Text>
             </Text>
             {departures.length > 0 && (
               <View style={[
@@ -196,7 +198,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
                 departures.some(d => d.isRealtime) ? styles.realtimeBadgeActive : styles.realtimeBadgeInactive
               ]}>
                 <Text style={styles.realtimeBadgeText}>
-                  {departures.some(d => d.isRealtime) ? '🔴 Temps réel' : '⏱️ Théorique'}
+                  {departures.some(d => d.isRealtime) ? `🔴 ${t('transit.realtime')}` : `⏱️ ${t('transit.theoretical')}`}
                 </Text>
               </View>
             )}
@@ -205,7 +207,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
 
         {departures.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucun passage prévu</Text>
+            <Text style={styles.emptyText}>{t('transit.noDepartures')}</Text>
           </View>
         ) : (
           <View>
