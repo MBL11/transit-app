@@ -5,9 +5,11 @@
 
 import React from 'react';
 import { Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
+import { StatusBar } from 'expo-status-bar';
+import { useTheme } from '../contexts/ThemeContext';
 import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
 import { SearchStackNavigator } from './SearchStackNavigator';
@@ -16,11 +18,42 @@ import { FavoritesStackNavigator } from './FavoritesStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
+// Custom light theme for navigation
+const LightNavigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#FFFFFF',
+    card: '#FFFFFF',
+    text: '#000000',
+    border: '#E5E5E5',
+    primary: '#0066CC',
+    notification: '#FF6600',
+  },
+};
+
+// Custom dark theme for navigation
+const DarkNavigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#121212',
+    card: '#1E1E1E',
+    text: '#FAFAFA',
+    border: '#323232',
+    primary: '#0066CC',
+    notification: '#FF6600',
+  },
+};
+
 export function RootNavigator() {
   const { t } = useTranslation();
+  const { isDark } = useTheme();
 
   return (
-    <NavigationContainer>
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme}>
       <Tab.Navigator
         screenOptions={{
           headerStyle: {
@@ -31,7 +64,6 @@ export function RootNavigator() {
             fontWeight: 'bold',
           },
           tabBarActiveTintColor: '#0066CC',
-          tabBarInactiveTintColor: '#666',
         }}
       >
         <Tab.Screen
@@ -86,6 +118,7 @@ export function RootNavigator() {
         />
       </Tab.Navigator>
     </NavigationContainer>
+    </>
   );
 }
 

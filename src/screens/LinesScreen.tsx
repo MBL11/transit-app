@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { LineCard } from '../components/transit/LineCard';
 import { SearchBar } from '../components/transit/SearchBar';
 import { useRoutes } from '../hooks';
+import { useThemeColors } from '../hooks/useThemeColors';
 import type { Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
 
@@ -31,10 +32,13 @@ const getTransitType = (gtfsType: number): 'metro' | 'bus' | 'tram' | 'rer' | 't
 
 export function LinesScreen() {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const navigation = useNavigation<NavigationProp>();
   const { routes, loading, error } = useRoutes();
   const [selectedType, setSelectedType] = useState<TransitType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const typeLabels: Record<TransitType, string> = {
     all: t('transit.allTypes'),
@@ -77,7 +81,7 @@ export function LinesScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>{t('transit.loadingLines')}</Text>
       </View>
     );
@@ -172,102 +176,103 @@ export function LinesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  header: {
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0066CC',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  searchContainer: {
-    padding: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  filtersContainer: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    gap: 8,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  filterButtonActive: {
-    backgroundColor: '#0066CC',
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  filterTextActive: {
-    color: 'white',
-  },
-  listContent: {
-    padding: 12,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#CC0000',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyFilterContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  emptyFilterText: {
-    fontSize: 16,
-    color: '#666',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+      padding: 20,
+    },
+    header: {
+      padding: 16,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: colors.primary,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    searchContainer: {
+      padding: 12,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    filtersContainer: {
+      flexDirection: 'row',
+      padding: 12,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: 8,
+    },
+    filterButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.buttonBackground,
+    },
+    filterButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    filterText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    filterTextActive: {
+      color: 'white',
+    },
+    listContent: {
+      padding: 12,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    errorIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    errorTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.error,
+      marginBottom: 8,
+    },
+    errorMessage: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptyIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    emptyText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    emptyFilterContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    emptyFilterText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+  });

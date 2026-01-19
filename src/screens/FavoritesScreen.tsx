@@ -3,7 +3,7 @@
  * Displays user's saved favorites (stops, routes, journeys)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useFavorites } from '../hooks';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
 import type { FavoriteStop, FavoriteRoute, FavoriteJourney } from '../core/types/favorites';
@@ -24,9 +25,12 @@ type Props = NativeStackScreenProps<any, 'Favorites'>;
 
 export function FavoritesScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const { favorites, stops, routes, journeys, loading, refresh, toggleStop, toggleRoute, remove, isFavorite } =
     useFavorites();
   const [refreshing, setRefreshing] = useState(false);
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -69,7 +73,7 @@ export function FavoritesScreen({ navigation }: Props) {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>{t('favorites.loadingFavorites')}</Text>
       </View>
     );
@@ -81,7 +85,7 @@ export function FavoritesScreen({ navigation }: Props) {
         style={styles.container}
         contentContainerStyle={styles.emptyContainer}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0066CC']} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
         }
       >
         <Text style={styles.emptyIcon}>⭐</Text>
@@ -98,7 +102,7 @@ export function FavoritesScreen({ navigation }: Props) {
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0066CC']} />
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
       }
     >
       {/* Favorite Stops */}
@@ -186,91 +190,92 @@ export function FavoritesScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 12,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardContent: {
-    flex: 1,
-    padding: 16,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  removeButton: {
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeButtonText: {
-    fontSize: 24,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    content: {
+      padding: 16,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    emptyContainer: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 40,
+    },
+    emptyIcon: {
+      fontSize: 64,
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    emptyText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    cardContent: {
+      flex: 1,
+      padding: 16,
+    },
+    cardInfo: {
+      flex: 1,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    cardSubtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    removeButton: {
+      padding: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    removeButtonText: {
+      fontSize: 24,
+    },
+  });

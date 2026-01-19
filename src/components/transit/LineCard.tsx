@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable, PressableProps, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useThemeColors } from '../../hooks/useThemeColors';
 
 export interface LineCardProps extends Omit<PressableProps, 'children'> {
   lineNumber: string;
@@ -31,6 +32,8 @@ export function LineCard({
   ...props
 }: LineCardProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const typeLabels = {
     metro: t('transit.metro'),
@@ -86,79 +89,80 @@ export function LineCard({
   );
 }
 
-const styles = StyleSheet.create({
-  pressable: {
-    marginBottom: 12,
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  leftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  badge: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  infoContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  lineName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-  },
-  direction: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  rightSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  typeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  typeBadgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  favoriteButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  favoriteButtonText: {
-    fontSize: 22,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    pressable: {
+      marginBottom: 12,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderLeftWidth: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    content: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+    },
+    leftSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    badge: {
+      width: 48,
+      height: 48,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    badgeText: {
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: 18,
+    },
+    infoContainer: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    lineName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    direction: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    rightSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    typeBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    typeBadgeText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    favoriteButton: {
+      width: 32,
+      height: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    favoriteButtonText: {
+      fontSize: 22,
+    },
+  });
