@@ -7,10 +7,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TransitMap } from '../components/map';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
 import { AlertBanner } from '../components/transit/AlertBanner';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useStops, useAlerts } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
 import type { Stop, Route } from '../core/types/models';
@@ -22,6 +24,7 @@ type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
 export function MapScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { stops, loading, error } = useStops();
   const { adapter } = useAdapter();
   const { alerts } = useAlerts();
@@ -186,53 +189,65 @@ export function MapScreen({ navigation }: Props) {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>{t('transit.loadingStops')}</Text>
-      </View>
+      <ScreenContainer edges={[]}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#0066CC" />
+          <Text style={styles.loadingText}>{t('transit.loadingStops')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
-        <Text style={styles.errorMessage}>{error.message}</Text>
-      </View>
+      <ScreenContainer edges={[]}>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
+          <Text style={styles.errorMessage}>{error.message}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   // Empty state
   if (stops.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyIcon}>🗺️</Text>
-        <Text style={styles.emptyText}>{t('transit.noStopsAvailable')}</Text>
-        <TouchableOpacity
-          style={styles.importButton}
-          onPress={handleImportData}
-          disabled={importing}
-        >
-          {importing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.importButtonText}>{t('common.importData')}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      <ScreenContainer edges={[]}>
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyIcon}>🗺️</Text>
+          <Text style={styles.emptyText}>{t('transit.noStopsAvailable')}</Text>
+          <TouchableOpacity
+            style={styles.importButton}
+            onPress={handleImportData}
+            disabled={importing}
+          >
+            {importing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.importButtonText}>{t('common.importData')}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScreenContainer>
     );
   }
 
   // Map view
   return (
-    <View style={styles.container}>
-      <TransitMap stops={stops} onStopPress={handleStopPress} />
+    <ScreenContainer edges={[]}>
+      <View style={styles.container}>
+        <TransitMap stops={stops} onStopPress={handleStopPress} />
+
+        {/* Floating Header */}
+        <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
+          <Text style={styles.headerTitle}>{t('tabs.map')}</Text>
+        </View>
 
       {/* Alerts Banner */}
       {alerts.length > 0 && (
-        <View style={styles.alertsContainer}>
+        <View style={[styles.alertsContainer, { top: insets.top + 68 }]}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -253,7 +268,7 @@ export function MapScreen({ navigation }: Props) {
 
       {/* Reimport button (floating) */}
       <TouchableOpacity
-        style={styles.reimportButton}
+        style={[styles.reimportButton, { top: insets.top + 68 }]}
         onPress={handleImportData}
         disabled={importing}
       >
@@ -267,7 +282,7 @@ export function MapScreen({ navigation }: Props) {
       {/* Alerts Badge */}
       {severeAlerts.length > 0 && (
         <TouchableOpacity
-          style={styles.alertsBadge}
+          style={[styles.alertsBadge, { top: insets.top + 68 }]}
           onPress={() => navigation.navigate('Alerts')}
         >
           <Text style={styles.alertsBadgeText}>⚠️ {severeAlerts.length}</Text>
@@ -289,13 +304,40 @@ export function MapScreen({ navigation }: Props) {
           onClose={handleSheetClose}
         />
       </BottomSheet>
-    </View>
+      </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  floatingHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+    zIndex: 1,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
   },
   centerContainer: {
     flex: 1,
@@ -348,7 +390,6 @@ const styles = StyleSheet.create({
   },
   reimportButton: {
     position: 'absolute',
-    top: 16,
     right: 16,
     width: 48,
     height: 48,
@@ -370,7 +411,6 @@ const styles = StyleSheet.create({
   },
   alertsBadge: {
     position: 'absolute',
-    top: 16,
     right: 72,
     backgroundColor: '#DC143C',
     borderRadius: 20,
@@ -392,7 +432,6 @@ const styles = StyleSheet.create({
   },
   alertsContainer: {
     position: 'absolute',
-    top: 80,
     left: 0,
     right: 0,
     zIndex: 10,
