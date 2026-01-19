@@ -57,9 +57,32 @@ export function StopDetailsSheet({
           <Text style={styles.stopName} numberOfLines={2}>
             {stop.name}
           </Text>
-          <Text style={styles.coordinates}>
-            {stop.lat.toFixed(4)}°, {stop.lon.toFixed(4)}°
-          </Text>
+          {/* Lines serving this stop */}
+          {routes.length > 0 && (
+            <View style={styles.headerLinesContainer}>
+              {routes.slice(0, 6).map((route) => (
+                <View
+                  key={route.id}
+                  style={[
+                    styles.headerLineBadge,
+                    { backgroundColor: `#${route.color}` },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.headerLineBadgeText,
+                      { color: `#${route.textColor || 'FFFFFF'}` },
+                    ]}
+                  >
+                    {route.shortName}
+                  </Text>
+                </View>
+              ))}
+              {routes.length > 6 && (
+                <Text style={styles.moreLines}>+{routes.length - 6}</Text>
+              )}
+            </View>
+          )}
         </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity
@@ -202,11 +225,29 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#000',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  coordinates: {
+  headerLinesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  headerLineBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  headerLineBadgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  moreLines: {
     fontSize: 12,
     color: '#666',
+    fontWeight: '600',
   },
   headerButtons: {
     flexDirection: 'row',

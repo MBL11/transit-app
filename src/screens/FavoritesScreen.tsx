@@ -113,9 +113,7 @@ export function FavoritesScreen({ navigation }: Props) {
                 >
                   <View style={styles.cardInfo}>
                     <Text style={styles.cardTitle}>{fav.data.name}</Text>
-                    <Text style={styles.cardSubtitle}>
-                      {fav.data.lat.toFixed(4)}°, {fav.data.lon.toFixed(4)}°
-                    </Text>
+                    <Text style={styles.cardSubtitle}>Arrêt de transport</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
