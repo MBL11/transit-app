@@ -6,6 +6,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { AlertBanner } from '../components/transit/AlertBanner';
 import { useAlerts } from '../hooks';
 import type { Alert } from '../core/types/adapter';
@@ -44,15 +46,20 @@ export function AlertsScreen() {
 
   if (loading && alerts.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('alerts.title')} showBack />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#0066CC" />
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
+      <ScreenHeader title={t('alerts.title')} showBack />
+      <View style={styles.container}>
       <FlatList
         data={alerts}
         keyExtractor={(item) => item.id}
@@ -122,7 +129,8 @@ export function AlertsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
+    </ScreenContainer>
   );
 }
 

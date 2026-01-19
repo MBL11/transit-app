@@ -7,6 +7,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { SearchBar } from '../components/transit/SearchBar';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
@@ -109,7 +111,9 @@ export function SearchScreen({ navigation }: Props) {
   const hasResults = currentResults.length > 0;
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
+      <ScreenHeader title={t('tabs.search')} />
+      <View style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <SearchBar
@@ -208,7 +212,8 @@ export function SearchScreen({ navigation }: Props) {
           )}
         </>
       )}
-    </View>
+      </View>
+    </ScreenContainer>
   );
 }
 

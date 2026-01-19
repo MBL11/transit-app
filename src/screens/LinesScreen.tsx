@@ -8,6 +8,8 @@ import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from '
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { LineCard } from '../components/transit/LineCard';
 import { SearchBar } from '../components/transit/SearchBar';
 import { useRoutes } from '../hooks';
@@ -80,43 +82,53 @@ export function LinesScreen() {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>{t('transit.loadingLines')}</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('tabs.lines')} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>{t('transit.loadingLines')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
-        <Text style={styles.errorMessage}>{error.message}</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('tabs.lines')} />
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
+          <Text style={styles.errorMessage}>{error.message}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   // Empty state
   if (routes.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyIcon}>🚇</Text>
-        <Text style={styles.emptyText}>{t('transit.noLinesAvailable')}</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('tabs.lines')} />
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyIcon}>🚇</Text>
+          <Text style={styles.emptyText}>{t('transit.noLinesAvailable')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('transit.transportLines')}</Text>
-        <Text style={styles.subtitle}>
-          {filteredRoutes.length} {t(filteredRoutes.length > 1 ? 'transit.line_plural' : 'transit.line')}
-        </Text>
-      </View>
+    <ScreenContainer>
+      <ScreenHeader title={t('tabs.lines')} />
+      <View style={styles.container}>
+        {/* Subtitle */}
+        <View style={styles.subtitleContainer}>
+          <Text style={styles.subtitle}>
+            {filteredRoutes.length} {t(filteredRoutes.length > 1 ? 'transit.line_plural' : 'transit.line')}
+          </Text>
+        </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -172,7 +184,8 @@ export function LinesScreen() {
           </View>
         }
       />
-    </View>
+      </View>
+    </ScreenContainer>
   );
 }
 
@@ -189,21 +202,16 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       backgroundColor: colors.backgroundSecondary,
       padding: 20,
     },
-    header: {
-      padding: 16,
+    subtitleContainer: {
+      padding: 12,
+      paddingTop: 8,
       backgroundColor: colors.background,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    title: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: colors.primary,
-    },
     subtitle: {
       fontSize: 14,
       color: colors.textSecondary,
-      marginTop: 4,
     },
     searchContainer: {
       padding: 12,

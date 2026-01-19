@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useFavorites } from '../hooks';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { StopCard } from '../components/transit/StopCard';
@@ -98,9 +100,11 @@ export function FavoritesScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+    <ScreenContainer>
+      <ScreenHeader title={t('tabs.favorites')} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
       }
@@ -186,7 +190,8 @@ export function FavoritesScreen({ navigation }: Props) {
           })}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </ScreenContainer>
   );
 }
 

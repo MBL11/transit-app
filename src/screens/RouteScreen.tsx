@@ -8,6 +8,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { RouteResult } from '../components/transit/RouteResult';
 import { findRoute } from '../core/routing';
@@ -165,20 +167,26 @@ export function RouteScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('tabs.route')} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   if (stops.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyIcon}>🗺️</Text>
-        <Text style={styles.emptyText}>{t('common.noResults')}</Text>
-        <Text style={styles.emptySubtext}>Import data from the Map screen</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('tabs.route')} />
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyIcon}>🗺️</Text>
+          <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+          <Text style={styles.emptySubtext}>Import data from the Map screen</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
@@ -187,7 +195,9 @@ export function RouteScreen() {
   const canSearch = fromStop !== null && toStop !== null && fromStop.id !== toStop.id;
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
+      <ScreenHeader title={t('tabs.route')} />
+      <View style={styles.container}>
       {/* Header with stop selection */}
       <View style={styles.searchContainer}>
         <Text style={styles.title}>{t('route.title')}</Text>
@@ -460,7 +470,8 @@ export function RouteScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
+    </ScreenContainer>
   );
 }
 

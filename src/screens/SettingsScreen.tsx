@@ -13,6 +13,8 @@ import {
   Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useTheme } from '../contexts/ThemeContext';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { changeLanguage } from '../i18n';
@@ -89,7 +91,9 @@ export function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScreenContainer>
+      <ScreenHeader title={t('settings.title')} />
+      <ScrollView style={styles.container}>
       {/* Language Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.language')}</Text>
@@ -180,7 +184,8 @@ export function SettingsScreen() {
           <Text style={styles.infoValue}>Île-de-France Mobilités</Text>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </ScreenContainer>
   );
 }
 
