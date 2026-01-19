@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { StopCard } from '../components/transit/StopCard';
 import { getRouteById, getStopsByRouteId } from '../core/database';
 import type { Route, Stop } from '../core/types/models';
@@ -68,28 +70,36 @@ export function LineDetailsScreen({ route, navigation }: Props) {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('common.loading')} showBack />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#0066CC" />
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   // Error state
   if (error || !lineRoute) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
-        <Text style={styles.errorMessage}>
-          {error?.message || t('transit.lineNotFound')}
-        </Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('transit.lines')} showBack />
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
+          <Text style={styles.errorMessage}>
+            {error?.message || t('transit.lineNotFound')}
+          </Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
+      <ScreenHeader title={lineRoute.shortName} showBack />
+      <View style={styles.container}>
       {/* Header with line badge */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -133,7 +143,8 @@ export function LineDetailsScreen({ route, navigation }: Props) {
           />
         )}
       </View>
-    </View>
+      </View>
+    </ScreenContainer>
   );
 }
 

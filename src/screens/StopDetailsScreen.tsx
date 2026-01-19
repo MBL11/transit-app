@@ -7,6 +7,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { DepartureRow, type Departure } from '../components/transit/DepartureRow';
 import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDeparture } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
@@ -125,28 +127,36 @@ export function StopDetailsScreen({ route, navigation }: Props) {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('common.loading')} showBack />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#0066CC" />
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   // Error state
   if (error || !stop) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
-        <Text style={styles.errorMessage}>
-          {error?.message || t('transit.stopNotFound')}
-        </Text>
-      </View>
+      <ScreenContainer>
+        <ScreenHeader title={t('transit.stops')} showBack />
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
+          <Text style={styles.errorMessage}>
+            {error?.message || t('transit.stopNotFound')}
+          </Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
+      <ScreenHeader title={stop.name} showBack />
+      <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -224,7 +234,8 @@ export function StopDetailsScreen({ route, navigation }: Props) {
           )}
         </View>
       </ScrollView>
-    </View>
+      </View>
+    </ScreenContainer>
   );
 }
 

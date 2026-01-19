@@ -9,6 +9,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
 import { deserializeJourney } from '../core/types/routing-serialization';
 import { useTranslation } from 'react-i18next';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { ScreenContainer } from '../components/ui/ScreenContainer';
 
 type Props = NativeStackScreenProps<RouteStackParamList, 'RouteDetails'>;
 
@@ -32,7 +34,9 @@ export function RouteDetailsScreen({ route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScreenContainer>
+      <ScreenHeader title={t('route.title')} showBack />
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Journey Summary */}
       <View style={styles.summaryCard}>
         <View style={styles.summaryRow}>
@@ -161,6 +165,7 @@ export function RouteDetailsScreen({ route }: Props) {
         </Text>
       </View>
     </ScrollView>
+  </ScreenContainer>
   );
 }
 
