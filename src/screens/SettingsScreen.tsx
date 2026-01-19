@@ -3,7 +3,7 @@
  * Configure language, theme, and other app settings
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,11 @@ import {
   Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { changeLanguage } from '../i18n';
 import * as favoritesStorage from '../core/favorites';
+import type { ThemeMode } from '../hooks/useColorScheme';
 
 const LANGUAGES = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -24,10 +27,20 @@ const LANGUAGES = [
   { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
 ];
 
+const THEMES: Array<{ mode: ThemeMode; icon: string }> = [
+  { mode: 'light', icon: '☀️' },
+  { mode: 'dark', icon: '🌙' },
+  { mode: 'system', icon: '⚙️' },
+];
+
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
+  const { mode: themeMode, setThemeMode } = useTheme();
+  const colors = useThemeColors();
 
   const currentLanguage = i18n.language;
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleLanguageChange = async (languageCode: string) => {
     try {
@@ -107,6 +120,36 @@ export function SettingsScreen() {
         ))}
       </View>
 
+      {/* Theme Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('settings.theme')}</Text>
+        {THEMES.map((theme) => (
+          <TouchableOpacity
+            key={theme.mode}
+            style={[
+              styles.languageItem,
+              themeMode === theme.mode && styles.languageItemActive,
+            ]}
+            onPress={() => setThemeMode(theme.mode)}
+          >
+            <View style={styles.languageLeft}>
+              <Text style={styles.flag}>{theme.icon}</Text>
+              <Text
+                style={[
+                  styles.languageName,
+                  themeMode === theme.mode && styles.languageNameActive,
+                ]}
+              >
+                {t(`settings.${theme.mode}Mode`)}
+              </Text>
+            </View>
+            {themeMode === theme.mode && (
+              <Text style={styles.checkmark}>✓</Text>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* Data Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
@@ -141,90 +184,91 @@ export function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  section: {
-    backgroundColor: '#fff',
-    marginTop: 20,
-    paddingVertical: 12,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    textTransform: 'uppercase',
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  languageItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  languageItemActive: {
-    backgroundColor: '#E6F2FF',
-  },
-  languageLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  flag: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  languageName: {
-    fontSize: 16,
-    color: '#333',
-  },
-  languageNameActive: {
-    color: '#0066CC',
-    fontWeight: '600',
-  },
-  checkmark: {
-    fontSize: 20,
-    color: '#0066CC',
-    fontWeight: 'bold',
-  },
-  button: {
-    backgroundColor: '#f9f9f9',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  buttonDanger: {
-    backgroundColor: '#FFF5F5',
-  },
-  buttonText: {
-    fontSize: 16,
-    color: '#0066CC',
-    fontWeight: '500',
-  },
-  buttonTextDanger: {
-    color: '#DC143C',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  infoLabel: {
-    fontSize: 16,
-    color: '#333',
-  },
-  infoValue: {
-    fontSize: 16,
-    color: '#666',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    section: {
+      backgroundColor: colors.card,
+      marginTop: 20,
+      paddingVertical: 12,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+      paddingHorizontal: 20,
+      paddingBottom: 8,
+    },
+    languageItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    languageItemActive: {
+      backgroundColor: colors.activeBackground,
+    },
+    languageLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    flag: {
+      fontSize: 24,
+      marginRight: 12,
+    },
+    languageName: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    languageNameActive: {
+      color: colors.activeText,
+      fontWeight: '600',
+    },
+    checkmark: {
+      fontSize: 20,
+      color: colors.activeText,
+      fontWeight: 'bold',
+    },
+    button: {
+      backgroundColor: colors.buttonBackground,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    buttonDanger: {
+      backgroundColor: colors.isDark ? '#3D1A1A' : '#FFF5F5',
+    },
+    buttonText: {
+      fontSize: 16,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    buttonTextDanger: {
+      color: colors.error,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    infoLabel: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    infoValue: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+  });

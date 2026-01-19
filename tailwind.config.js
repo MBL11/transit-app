@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './App.{js,jsx,ts,tsx}',
     './src/**/*.{js,jsx,ts,tsx}',
@@ -8,12 +9,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'transit-primary': '#0066CC',
-        'transit-metro': '#003366',
-        'transit-bus': '#00AA55',
-        'transit-tram': '#CC0000',
-        'transit-rer': '#7B68EE',
-        'transit-alert': '#FF6600',
+        // Transit colors (restent les mêmes en light/dark)
+        transit: {
+          primary: '#0066CC',
+          metro: '#003366',
+          bus: '#00AA55',
+          tram: '#CC0000',
+          rer: '#7B68EE',
+          alert: '#FF6600',
+        },
+        // Semantic colors pour light/dark
+        background: 'rgb(var(--background) / <alpha-value>)',
+        foreground: 'rgb(var(--foreground) / <alpha-value>)',
+        card: 'rgb(var(--card) / <alpha-value>)',
+        'card-foreground': 'rgb(var(--card-foreground) / <alpha-value>)',
+        muted: 'rgb(var(--muted) / <alpha-value>)',
+        'muted-foreground': 'rgb(var(--muted-foreground) / <alpha-value>)',
+        border: 'rgb(var(--border) / <alpha-value>)',
       },
     },
   },

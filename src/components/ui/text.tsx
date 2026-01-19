@@ -6,9 +6,9 @@ import { cn } from '@/utils/cn';
 const textVariants = cva('', {
   variants: {
     variant: {
-      default: 'text-gray-900',
-      muted: 'text-gray-600',
-      subtle: 'text-gray-500',
+      default: 'text-foreground',
+      muted: 'text-muted-foreground',
+      subtle: 'text-muted-foreground',
       primary: 'text-transit-primary',
       destructive: 'text-red-500',
     },

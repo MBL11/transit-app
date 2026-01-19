@@ -4,8 +4,24 @@
 
 import './global.css';
 import './src/i18n'; // Initialize i18n
+import { View } from 'react-native';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { RootNavigator } from './src/navigation';
 
+function AppContent() {
+  const { isDark } = useTheme();
+
+  return (
+    <View className={isDark ? 'dark' : ''} style={{ flex: 1 }}>
+      <RootNavigator />
+    </View>
+  );
+}
+
 export default function App() {
-  return <RootNavigator />;
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
 }

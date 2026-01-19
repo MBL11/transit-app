@@ -18,14 +18,13 @@ export function Input({
   return (
     <View className={cn('gap-1.5', containerClassName)}>
       {label && (
-        <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <Text className="text-sm font-medium text-foreground">
           {label}
         </Text>
       )}
       <TextInput
         className={cn(
-          'h-12 rounded-lg border border-gray-300 bg-white px-4 text-base text-gray-900',
-          'dark:border-gray-600 dark:bg-gray-800 dark:text-white',
+          'h-12 rounded-lg border border-border bg-card px-4 text-base text-foreground',
           error && 'border-red-500',
           className
         )}

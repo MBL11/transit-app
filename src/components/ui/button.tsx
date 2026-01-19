@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-transit-primary',
-        secondary: 'bg-gray-200',
+        secondary: 'bg-muted dark:bg-muted',
         destructive: 'bg-red-500',
         outline: 'border-2 border-transit-primary bg-transparent',
         ghost: 'bg-transparent',
@@ -32,7 +32,7 @@ const buttonTextVariants = cva('font-semibold', {
   variants: {
     variant: {
       default: 'text-white',
-      secondary: 'text-gray-900',
+      secondary: 'text-foreground',
       destructive: 'text-white',
       outline: 'text-transit-primary',
       ghost: 'text-transit-primary',
