@@ -13,8 +13,10 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
 import { AlertBanner } from '../components/transit/AlertBanner';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
+import { OfflineBanner } from '../components/ui/OfflineBanner';
 import { useStops, useAlerts } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
+import { useNetwork } from '../contexts/NetworkContext';
 import type { Stop, Route } from '../core/types/models';
 import type { NextDeparture } from '../core/types/adapter';
 import type { MapStackParamList } from '../navigation/MapStackNavigator';
@@ -28,6 +30,7 @@ export function MapScreen({ navigation }: Props) {
   const { stops, loading, error } = useStops();
   const { adapter } = useAdapter();
   const { alerts } = useAlerts();
+  const { isOffline } = useNetwork();
   const [importing, setImporting] = useState(false);
 
   // Filter severe/warning alerts for badge
@@ -245,6 +248,13 @@ export function MapScreen({ navigation }: Props) {
           <Text style={styles.headerTitle}>{t('tabs.map')}</Text>
         </View>
 
+        {/* Offline Banner */}
+        {isOffline && (
+          <View style={[styles.offlineBannerContainer, { top: insets.top + 60 }]}>
+            <OfflineBanner visible={isOffline} />
+          </View>
+        )}
+
       {/* Alerts Banner */}
       {alerts.length > 0 && (
         <View style={[styles.alertsContainer, { top: insets.top + 68 }]}>
@@ -338,6 +348,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#000',
+  },
+  offlineBannerContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 2,
   },
   centerContainer: {
     flex: 1,

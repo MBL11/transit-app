@@ -8,12 +8,15 @@ import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Mo
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
+import { OfflineBanner } from '../components/ui/OfflineBanner';
 import { AlertBanner } from '../components/transit/AlertBanner';
 import { useAlerts } from '../hooks';
+import { useNetwork } from '../contexts/NetworkContext';
 import type { Alert } from '../core/types/adapter';
 
 export function AlertsScreen() {
   const { t } = useTranslation();
+  const { isOffline } = useNetwork();
   const { alerts, loading, refresh } = useAlerts();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
@@ -59,6 +62,7 @@ export function AlertsScreen() {
   return (
     <ScreenContainer>
       <ScreenHeader title={t('alerts.title')} showBack />
+      <OfflineBanner visible={isOffline} />
       <View style={styles.container}>
       <FlatList
         data={alerts}

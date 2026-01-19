@@ -9,7 +9,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
+import { OfflineBanner } from '../components/ui/OfflineBanner';
 import { DepartureRow, type Departure } from '../components/transit/DepartureRow';
+import { useNetwork } from '../contexts/NetworkContext';
 import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDeparture } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
@@ -28,6 +30,7 @@ const getMockDepartures = (): Departure[] => [
 export function StopDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { stopId } = route.params;
+  const { isOffline } = useNetwork();
   const [stop, setStop] = useState<Stop | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
@@ -156,6 +159,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer>
       <ScreenHeader title={stop.name} showBack />
+      <OfflineBanner visible={isOffline} />
       <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
