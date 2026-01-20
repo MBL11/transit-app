@@ -17,12 +17,13 @@ import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { useGTFSData } from '../hooks/useGTFSData';
 import {
   downloadAndImportGTFS,
-  getGTFSImportStatus,
-  isGTFSDataAvailable,
+  GTFS_SOURCES,
+  type GTFSSourceKey,
 } from '../core/gtfs-downloader';
-import { clearAllData } from '../core/database';
+import { clearAllData, getAllStops, getAllRoutes } from '../core/database';
 
 type ImportStage =
   | 'downloading'
@@ -44,34 +45,33 @@ const STAGE_LABELS: Record<ImportStage, string> = {
 export function DataManagementScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const [hasData, setHasData] = useState(false);
-  const [dataCounts, setDataCounts] = useState({ stops: 0, routes: 0, trips: 0 });
-  const [loading, setLoading] = useState(true);
+  const { isLoaded, lastUpdate, source, checking, markAsLoaded, refresh } = useGTFSData();
+  const [dataCounts, setDataCounts] = useState({ stops: 0, routes: 0 });
   const [importing, setImporting] = useState(false);
   const [importStage, setImportStage] = useState<ImportStage>('downloading');
   const [importProgress, setImportProgress] = useState(0);
+  const [selectedSource, setSelectedSource] = useState<GTFSSourceKey>('IDFM');
 
   useEffect(() => {
-    checkDataStatus();
-  }, []);
+    if (isLoaded) {
+      loadDataCounts();
+    }
+  }, [isLoaded]);
 
-  const checkDataStatus = async () => {
+  const loadDataCounts = async () => {
     try {
-      setLoading(true);
-      const status = await getGTFSImportStatus();
-      setHasData(status.hasData);
-      setDataCounts(status.counts);
+      const [stops, routes] = await Promise.all([getAllStops(), getAllRoutes()]);
+      setDataCounts({ stops: stops.length, routes: routes.length });
     } catch (error) {
-      console.error('[DataManagement] Error checking status:', error);
-    } finally {
-      setLoading(false);
+      console.error('[DataManagement] Error loading counts:', error);
     }
   };
 
   const handleImportGTFS = async () => {
+    const sourceInfo = GTFS_SOURCES[selectedSource];
     Alert.alert(
       t('data.importRealData'),
-      t('data.importWarning'),
+      `${t('data.importWarning')}\n\nCity: ${sourceInfo.name}\nSize: ${sourceInfo.size}`,
       [
         {
           text: t('common.cancel'),
@@ -84,20 +84,21 @@ export function DataManagementScreen() {
               setImporting(true);
               setImportProgress(0);
 
-              const result = await downloadAndImportGTFS((stage, progress) => {
+              const result = await downloadAndImportGTFS(selectedSource, (stage, progress) => {
                 setImportStage(stage as ImportStage);
                 setImportProgress(progress);
               });
+
+              await markAsLoaded(sourceInfo.name);
 
               Alert.alert(
                 t('common.success'),
                 `${t('data.importSuccess')}\n\n` +
                   `${t('transit.stops')}: ${result.stops}\n` +
-                  `${t('transit.lines')}: ${result.routes}\n` +
-                  `${t('transit.trips')}: ${result.trips}`
+                  `${t('transit.lines')}: ${result.routes}`
               );
 
-              await checkDataStatus();
+              await loadDataCounts();
             } catch (error) {
               console.error('[DataManagement] Import error:', error);
               Alert.alert(
@@ -131,7 +132,7 @@ export function DataManagementScreen() {
             try {
               clearAllData();
               Alert.alert(t('common.success'), t('data.dataCleared'));
-              await checkDataStatus();
+              await refresh();
             } catch (error) {
               console.error('[DataManagement] Clear error:', error);
               Alert.alert(t('common.error'), t('data.clearFailed'));
@@ -143,7 +144,7 @@ export function DataManagementScreen() {
     );
   };
 
-  if (loading) {
+  if (checking) {
     return (
       <ScreenContainer>
         <ScreenHeader title={t('data.title')} showBack />
@@ -171,17 +172,39 @@ export function DataManagementScreen() {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: hasData ? colors.success : colors.destructive },
+                { backgroundColor: isLoaded ? colors.success : colors.destructive },
               ]}
             >
               <Text style={styles.statusBadgeText}>
-                {hasData ? t('data.dataLoaded') : t('data.noData')}
+                {isLoaded ? t('data.dataLoaded') : t('data.noData')}
               </Text>
             </View>
           </View>
 
-          {hasData && (
+          {isLoaded && (
             <>
+              {source && (
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>
+                    Source:
+                  </Text>
+                  <Text style={[styles.infoValue, { color: colors.foreground }]}>
+                    {source}
+                  </Text>
+                </View>
+              )}
+
+              {lastUpdate && (
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>
+                    Last update:
+                  </Text>
+                  <Text style={[styles.infoValue, { color: colors.foreground }]}>
+                    {lastUpdate.toLocaleDateString()}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.statsContainer}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.primary }]}>
@@ -240,12 +263,12 @@ export function DataManagementScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.actionButtonText}>
-                {hasData ? t('data.updateData') : t('data.importRealData')}
+                {isLoaded ? t('data.updateData') : t('data.importRealData')}
               </Text>
             )}
           </TouchableOpacity>
 
-          {hasData && !importing && (
+          {isLoaded && !importing && (
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: colors.destructive }]}
               onPress={handleClearData}
@@ -313,10 +336,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 8,
+    marginTop: 16,
   },
   statItem: {
     alignItems: 'center',

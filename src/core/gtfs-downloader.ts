@@ -1,29 +1,44 @@
 /**
  * GTFS Downloader
- * Downloads and extracts GTFS data from IDFM
+ * Downloads and extracts GTFS data from various cities
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import JSZip from 'jszip';
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
 
-// IDFM GTFS URL (public open data)
-const GTFS_URL = 'https://data.iledefrance-mobilites.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/files/b96344c7c21bf0efb1eb37f169e0a630/download/';
+// Available GTFS sources
+export const GTFS_SOURCES = {
+  IDFM: {
+    name: 'Île-de-France (Paris)',
+    url: 'https://data.iledefrance-mobilites.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/files/b96344c7c21bf0efb1eb37f169e0a630/download/',
+    size: '~800MB',
+  },
+  // Add more cities later
+  // IZMIR: {
+  //   name: 'İzmir',
+  //   url: 'https://example.com/izmir-gtfs.zip',
+  //   size: '~20-40MB',
+  // },
+} as const;
+
+export type GTFSSourceKey = keyof typeof GTFS_SOURCES;
 
 /**
- * Download GTFS ZIP file from IDFM
+ * Download GTFS ZIP file from URL
  */
 export async function downloadGTFSZip(
+  url: string,
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  console.log('[GTFSDownloader] Starting download from IDFM...');
+  console.log('[GTFSDownloader] Starting download from:', url);
 
-  const fileUri = `${FileSystem.cacheDirectory}gtfs-idfm.zip`;
+  const fileUri = `${FileSystem.cacheDirectory}gtfs-download.zip`;
 
   try {
     const downloadResumable = FileSystem.createDownloadResumable(
-      GTFS_URL,
+      url,
       fileUri,
       {},
       (downloadProgress) => {
@@ -111,14 +126,17 @@ export async function extractGTFSZip(zipUri: string): Promise<{
  * Download and import GTFS data into database
  */
 export async function downloadAndImportGTFS(
+  source: GTFSSourceKey = 'IDFM',
   onProgress?: (stage: string, progress: number) => void
 ): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
-  console.log('[GTFSDownloader] Starting full GTFS import...');
+  console.log(`[GTFSDownloader] Starting GTFS import from ${GTFS_SOURCES[source].name}...`);
 
   try {
+    const gtfsUrl = GTFS_SOURCES[source].url;
+
     // Step 1: Download ZIP
     onProgress?.('downloading', 0);
-    const zipUri = await downloadGTFSZip((progress) => {
+    const zipUri = await downloadGTFSZip(gtfsUrl, (progress) => {
       onProgress?.('downloading', progress);
     });
 
