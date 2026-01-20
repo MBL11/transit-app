@@ -221,6 +221,7 @@ export function MapScreen({ navigation }: Props) {
         <View style={styles.centerContainer}>
           <Text style={styles.emptyIcon}>🗺️</Text>
           <Text style={styles.emptyText}>{t('transit.noStopsAvailable')}</Text>
+          <Text style={styles.emptySubtext}>Import sample data to test the app</Text>
           <TouchableOpacity
             style={styles.importButton}
             onPress={handleImportData}
@@ -229,8 +230,19 @@ export function MapScreen({ navigation }: Props) {
             {importing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.importButtonText}>{t('common.importData')}</Text>
+              <>
+                <Text style={styles.importButtonText}>🔄 Load Sample Data</Text>
+                <Text style={styles.importButtonSubtext}>7 stops • 5 routes</Text>
+              </>
             )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dataManagementLink}
+            onPress={() => navigation.navigate('DataManagement')}
+          >
+            <Text style={styles.dataManagementLinkText}>
+              Or import real GTFS data →
+            </Text>
           </TouchableOpacity>
         </View>
       </ScreenContainer>
@@ -277,17 +289,22 @@ export function MapScreen({ navigation }: Props) {
       )}
 
       {/* Reimport button (floating) */}
-      <TouchableOpacity
-        style={[styles.reimportButton, { top: insets.top + 68 }]}
-        onPress={handleImportData}
-        disabled={importing}
-      >
-        {importing ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={styles.reimportButtonText}>🔄</Text>
-        )}
-      </TouchableOpacity>
+      <View style={[styles.reimportContainer, { top: insets.top + 68 }]}>
+        <TouchableOpacity
+          style={styles.reimportButton}
+          onPress={handleImportData}
+          disabled={importing}
+        >
+          {importing ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.reimportButtonText}>🔄</Text>
+          )}
+        </TouchableOpacity>
+        <View style={styles.reimportTooltip}>
+          <Text style={styles.reimportTooltipText}>Reload data</Text>
+        </View>
+      </View>
 
       {/* Alerts Badge */}
       {severeAlerts.length > 0 && (
@@ -387,26 +404,61 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
     color: '#666',
     marginBottom: 24,
+    textAlign: 'center',
   },
   importButton: {
     backgroundColor: '#0066CC',
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 200,
+    paddingVertical: 16,
+    borderRadius: 12,
+    minWidth: 240,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   importButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 4,
   },
-  reimportButton: {
+  importButtonSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  dataManagementLink: {
+    marginTop: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  dataManagementLinkText: {
+    color: '#0066CC',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  reimportContainer: {
     position: 'absolute',
     right: 16,
+    alignItems: 'center',
+  },
+  reimportButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -424,6 +476,18 @@ const styles = StyleSheet.create({
   },
   reimportButtonText: {
     fontSize: 24,
+  },
+  reimportTooltip: {
+    marginTop: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  reimportTooltipText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
   alertsBadge: {
     position: 'absolute',
