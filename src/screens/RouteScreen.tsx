@@ -430,7 +430,6 @@ export function RouteScreen() {
                 placeholder={t('search.placeholder')}
                 value={fromSearchQuery}
                 onChangeText={setFromSearchQuery}
-                autoFocus
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -491,7 +490,6 @@ export function RouteScreen() {
                 placeholder={t('search.placeholder')}
                 value={toSearchQuery}
                 onChangeText={setToSearchQuery}
-                autoFocus
                 autoCapitalize="none"
                 autoCorrect={false}
               />

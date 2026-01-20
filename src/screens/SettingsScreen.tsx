@@ -18,6 +18,8 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useTheme } from '../contexts/ThemeContext';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { useGTFSData } from '../hooks/useGTFSData';
+import { useNetwork } from '../contexts/NetworkContext';
 import { changeLanguage } from '../i18n';
 import * as favoritesStorage from '../core/favorites';
 import type { ThemeMode } from '../hooks/useColorScheme';
@@ -43,6 +45,8 @@ export function SettingsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const { mode: themeMode, setThemeMode } = useTheme();
   const colors = useThemeColors();
+  const { isLoaded, lastUpdate, source, needsUpdate } = useGTFSData();
+  const { isOffline } = useNetwork();
 
   const currentLanguage = i18n.language;
 
@@ -192,8 +196,29 @@ export function SettingsScreen({ navigation }: Props) {
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>{t('settings.dataSource')}</Text>
-          <Text style={styles.infoValue}>Île-de-France Mobilités</Text>
+          <Text style={styles.infoValue}>{source || 'Sample Data'}</Text>
         </View>
+        {lastUpdate && (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>{t('data.lastUpdate')}</Text>
+            <Text style={styles.infoValue}>
+              {lastUpdate.toLocaleDateString(i18n.language)}
+            </Text>
+          </View>
+        )}
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>{t('common.status')}</Text>
+          <Text style={[styles.infoValue, !isOffline && styles.statusOnline]}>
+            {isOffline ? '📡 ' + t('common.offline') : '✅ ' + t('common.online')}
+          </Text>
+        </View>
+        {needsUpdate && needsUpdate() && (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningText}>
+              ⚠️ {t('data.outdated')}
+            </Text>
+          </View>
+        )}
       </View>
       </ScrollView>
     </ScreenContainer>
@@ -286,5 +311,22 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     infoValue: {
       fontSize: 16,
       color: colors.textSecondary,
+    },
+    statusOnline: {
+      color: '#10B981',
+      fontWeight: '600',
+    },
+    warningBox: {
+      backgroundColor: colors.isDark ? '#92400E' : '#FEF3C7',
+      padding: 12,
+      marginHorizontal: 20,
+      marginTop: 8,
+      marginBottom: 8,
+      borderRadius: 6,
+    },
+    warningText: {
+      color: colors.isDark ? '#FCD34D' : '#92400E',
+      fontSize: 14,
+      textAlign: 'center',
     },
   });

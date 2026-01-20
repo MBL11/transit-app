@@ -21,7 +21,11 @@
     "selectStopOnMap": "Sélectionnez un arrêt sur la carte",
     "code": "Code",
     "result": "résultat",
-    "result_plural": "résultats"
+    "result_plural": "résultats",
+    "status": "Statut",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "retry": "Réessayer"
   },
   "tabs": {
     "map": "Carte",
@@ -34,6 +38,7 @@
     "stops": "Arrêts",
     "lines": "Lignes",
     "routes": "Itinéraires",
+    "trips": "Trajets",
     "nextDepartures": "Prochains passages",
     "direction": "Direction",
     "from": "De",
@@ -199,6 +204,8 @@
     "clearWarning": "Cela supprimera toutes les données de transport. Vous pourrez les réimporter plus tard.",
     "dataCleared": "Toutes les données ont été effacées",
     "clearFailed": "Échec de la suppression des données",
-    "infoMessage": "Les données GTFS réelles fournissent les horaires complets de toutes les lignes de transport d'Île-de-France. Le téléchargement est volumineux (~800Mo) mais ne doit être effectué qu'une seule fois."
+    "infoMessage": "Les données GTFS réelles fournissent les horaires complets de toutes les lignes de transport d'Île-de-France. Le téléchargement est volumineux (~800Mo) mais ne doit être effectué qu'une seule fois.",
+    "lastUpdate": "Dernière mise à jour",
+    "outdated": "Données obsolètes (> 7 jours). Veuillez mettre à jour."
   }
 }

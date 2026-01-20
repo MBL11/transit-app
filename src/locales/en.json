@@ -21,7 +21,11 @@
     "selectStopOnMap": "Select a stop on the map",
     "code": "Code",
     "result": "result",
-    "result_plural": "results"
+    "result_plural": "results",
+    "status": "Status",
+    "online": "Online",
+    "offline": "Offline",
+    "retry": "Retry"
   },
   "tabs": {
     "map": "Map",
@@ -34,6 +38,7 @@
     "stops": "Stops",
     "lines": "Lines",
     "routes": "Routes",
+    "trips": "Trips",
     "nextDepartures": "Next departures",
     "direction": "Direction",
     "from": "From",
@@ -199,6 +204,8 @@
     "clearWarning": "This will delete all transit data. You can re-import it later.",
     "dataCleared": "All data has been cleared",
     "clearFailed": "Failed to clear data",
-    "infoMessage": "Real GTFS data provides complete schedules for all Île-de-France transit lines. The download is large (~800MB) but only needs to be done once."
+    "infoMessage": "Real GTFS data provides complete schedules for all Île-de-France transit lines. The download is large (~800MB) but only needs to be done once.",
+    "lastUpdate": "Last updated",
+    "outdated": "Data is outdated (> 7 days). Please update."
   }
 }
