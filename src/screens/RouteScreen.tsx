@@ -342,6 +342,8 @@ export function RouteScreen() {
                     display="spinner"
                     onChange={handleTimeChange}
                     style={styles.picker}
+                    textColor={colors.text}
+                    themeVariant="dark"
                   />
                 </View>
               </View>
@@ -565,32 +567,32 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     searchContainer: {
       backgroundColor: colors.background,
-      padding: 16,
+      padding: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     title: {
-      fontSize: 24,
+      fontSize: 22,
       fontWeight: 'bold',
       color: colors.text,
-      marginBottom: 20,
-    },
-    inputContainer: {
       marginBottom: 12,
     },
+    inputContainer: {
+      marginBottom: 8,
+    },
     label: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     stopInput: {
       backgroundColor: colors.inputBackground,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 16,
-      minHeight: 50,
+      padding: 12,
+      minHeight: 44,
       justifyContent: 'center',
     },
     stopInputText: {
@@ -602,13 +604,13 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     swapButton: {
       alignSelf: 'center',
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
-      marginVertical: 8,
+      marginVertical: 4,
     },
     swapButtonDisabled: {
       opacity: 0.4,
@@ -618,14 +620,14 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     timeModeContainer: {
       flexDirection: 'row',
-      marginVertical: 12,
+      marginVertical: 8,
       backgroundColor: colors.buttonBackground,
       borderRadius: 8,
       padding: 2,
     },
     timeModeButton: {
       flex: 1,
-      paddingVertical: 10,
+      paddingVertical: 8,
       borderRadius: 6,
       alignItems: 'center',
     },
@@ -641,36 +643,36 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       color: '#fff',
     },
     timeContainer: {
-      marginBottom: 12,
-      marginTop: 8,
+      marginBottom: 8,
+      marginTop: 4,
     },
     timeControls: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 8,
+      marginBottom: 6,
     },
     timeButton: {
       backgroundColor: colors.buttonBackground,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 6,
     },
     timeButtonText: {
-      fontSize: 14,
+      fontSize: 13,
       color: colors.primary,
       fontWeight: '600',
     },
     timeDisplay: {
       backgroundColor: colors.primary,
-      paddingHorizontal: 24,
-      paddingVertical: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
       borderRadius: 8,
-      minWidth: 100,
+      minWidth: 90,
       alignItems: 'center',
     },
     timeDisplayText: {
-      fontSize: 24,
+      fontSize: 20,
       fontWeight: 'bold',
       color: '#fff',
     },
@@ -682,10 +684,10 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     calculateButton: {
       backgroundColor: colors.primary,
-      paddingVertical: 14,
+      paddingVertical: 12,
       borderRadius: 8,
       alignItems: 'center',
-      marginTop: 12,
+      marginTop: 8,
     },
     calculateButtonDisabled: {
       opacity: 0.4,
