@@ -428,6 +428,7 @@ export function RouteScreen() {
               <TextInput
                 style={styles.searchInput}
                 placeholder={t('search.placeholder')}
+                placeholderTextColor={colors.textMuted}
                 value={fromSearchQuery}
                 onChangeText={setFromSearchQuery}
                 autoCapitalize="none"
@@ -488,6 +489,7 @@ export function RouteScreen() {
               <TextInput
                 style={styles.searchInput}
                 placeholder={t('search.placeholder')}
+                placeholderTextColor={colors.textMuted}
                 value={toSearchQuery}
                 onChangeText={setToSearchQuery}
                 autoCapitalize="none"

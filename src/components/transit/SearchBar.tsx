@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, Pressable, TextInputProps } from 'react-native';
+import { View, Text, TextInput, Pressable, TextInputProps, useColorScheme } from 'react-native';
 import { cn } from '@/utils';
 
 export interface SearchBarProps extends TextInputProps {
@@ -16,7 +16,11 @@ export function SearchBar({
   ...props
 }: SearchBarProps) {
   const [isFocused, setIsFocused] = React.useState(false);
+  const colorScheme = useColorScheme();
   const hasValue = props.value && props.value.length > 0;
+
+  // Adaptive placeholder color for dark/light mode
+  const placeholderColor = colorScheme === 'dark' ? '#9CA3AF' : '#6B7280';
 
   return (
     <View
@@ -42,7 +46,7 @@ export function SearchBar({
           'flex-1 text-base text-foreground',
           className
         )}
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={placeholderColor}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         {...props}
