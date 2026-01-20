@@ -433,11 +433,13 @@ export function RouteScreen() {
                 onChangeText={setFromSearchQuery}
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoFocus={true}
               />
             </View>
             <FlatList
               data={filteredFromStops}
               keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
@@ -494,11 +496,13 @@ export function RouteScreen() {
                 onChangeText={setToSearchQuery}
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoFocus={true}
               />
             </View>
             <FlatList
               data={filteredToStops}
               keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
