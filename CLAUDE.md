@@ -13,8 +13,8 @@ Ce document contient **tous les prompts** à utiliser avec Claude Code pour cons
 | 0 | Fondations | 1-5 | ✅ Terminé |
 | 1 | Interface de Base | 6-9 | ✅ Terminé |
 | 2 | Temps Réel & Itinéraire | 10-13 | ✅ Terminé |
-| 3 | Polish & Features | 14-17 | 🔄 En cours |
-| 4 | Features Critiques | 18-22 | ⏳ À faire |
+| 3 | Polish & Features | 14-17 | ✅ Terminé |
+| 4 | Features Critiques | 18-22 | 🔄 En cours |
 | 5 | Polish & Growth | 23-27 | ⏳ À faire |
 | 6 | Expansion | 28-30 | ⏳ À faire |
 
@@ -48,16 +48,16 @@ Ce document contient **tous les prompts** à utiliser avec Claude Code pour cons
 
 ---
 
-## 🔄 PHASE 3 : POLISH & FEATURES (EN COURS)
+## ✅ PHASE 3 : POLISH & FEATURES (TERMINÉ)
 
 - [x] Étape 14 : Favoris (AsyncStorage)
 - [x] Étape 15 : Internationalisation i18n (FR/EN/TR)
 - [x] Étape 16 : Dark mode (NativeWind)
-- [ ] **Étape 17 : Header/Safe Area + Mode Hors Ligne** ← PROCHAINE
+- [x] Étape 17 : Header/Safe Area + Mode Hors Ligne + DateTimePicker + GTFS Management
 
 ---
 
-### Étape 17 : Header/Safe Area + Mode Hors Ligne
+### Étape 17 : Header/Safe Area + Mode Hors Ligne (TERMINÉ)
 
 ```
 Implémente un header propre avec Safe Area sur tous les écrans ET le mode hors ligne.
@@ -455,9 +455,17 @@ const { isOffline } = useNetwork();
 
 ---
 
-## ⏳ PHASE 4 : FEATURES CRITIQUES
+## 🔄 PHASE 4 : FEATURES CRITIQUES (EN COURS)
 
-### Étape 18 : Chargement Données GTFS Réelles
+- [x] Étape 18 : Chargement Données GTFS Réelles (infrastructure complète)
+- [ ] **Étape 19 : Routing Adresse → Adresse (Géocodage)** ← PROCHAINE
+- [ ] Étape 20 : Publicités AdMob
+- [ ] Étape 21 : Notifications Push
+- [ ] Étape 22 : Analytics + Crash Reporting
+
+---
+
+### Étape 18 : Chargement Données GTFS Réelles (TERMINÉ)
 
 ```
 Implémente le téléchargement et chargement des vraies données GTFS d'IDFM.
