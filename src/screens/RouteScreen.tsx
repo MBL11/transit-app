@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useThemeColors } from '../hooks/useThemeColors';
@@ -46,6 +47,7 @@ export function RouteScreen() {
 
   // Departure/Arrival time
   const [departureTime, setDepartureTime] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Results
   const [journeys, setJourneys] = useState<JourneyResult[]>([]);
@@ -163,6 +165,23 @@ export function RouteScreen() {
   const adjustDepartureTime = (minutes: number) => {
     const newTime = new Date(departureTime.getTime() + minutes * 60000);
     setDepartureTime(newTime);
+  };
+
+  const handleTimeChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (selectedDate) {
+      setDepartureTime(selectedDate);
+    }
+  };
+
+  const openTimePicker = () => {
+    setShowTimePicker(true);
+  };
+
+  const closeTimePicker = () => {
+    setShowTimePicker(false);
   };
 
   if (loading) {
@@ -287,7 +306,7 @@ export function RouteScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.timeDisplay}
-              onPress={setDepartureToNow}
+              onPress={openTimePicker}
             >
               <Text style={styles.timeDisplayText}>{formatTime(departureTime)}</Text>
             </TouchableOpacity>
@@ -301,6 +320,42 @@ export function RouteScreen() {
           <TouchableOpacity onPress={setDepartureToNow}>
             <Text style={styles.nowButton}>{t('time.now')}</Text>
           </TouchableOpacity>
+
+          {/* DateTimePicker - Platform specific */}
+          {showTimePicker && Platform.OS === 'ios' && (
+            <Modal
+              transparent
+              animationType="slide"
+              visible={showTimePicker}
+              onRequestClose={closeTimePicker}
+            >
+              <View style={styles.pickerModal}>
+                <View style={styles.pickerContainer}>
+                  <View style={styles.pickerHeader}>
+                    <TouchableOpacity onPress={closeTimePicker}>
+                      <Text style={styles.pickerDoneButton}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={departureTime}
+                    mode="time"
+                    display="spinner"
+                    onChange={handleTimeChange}
+                    style={styles.picker}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {showTimePicker && Platform.OS === 'android' && (
+            <DateTimePicker
+              value={departureTime}
+              mode="time"
+              display="default"
+              onChange={handleTimeChange}
+            />
+          )}
         </View>
 
         {/* Calculate Button */}
@@ -757,5 +812,33 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     emptySearchText: {
       fontSize: 16,
       color: colors.textMuted,
+    },
+    // Time picker modal styles (iOS)
+    pickerModal: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    pickerContainer: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: 20,
+    },
+    pickerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    pickerDoneButton: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    picker: {
+      width: '100%',
     },
   });
