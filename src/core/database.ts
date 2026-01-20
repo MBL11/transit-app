@@ -379,6 +379,29 @@ export async function getAllStops(): Promise<Stop[]> {
 }
 
 /**
+ * Get all routes
+ */
+export async function getAllRoutes(): Promise<Route[]> {
+  const db = openDatabase();
+
+  try {
+    const rows = db.getAllSync<any>('SELECT * FROM routes');
+
+    return rows.map((row) => ({
+      id: row.id,
+      shortName: row.short_name,
+      longName: row.long_name,
+      type: row.type,
+      color: row.color,
+      textColor: row.text_color,
+    }));
+  } catch (error) {
+    console.error('[Database] ❌ Failed to get all routes:', error);
+    throw error;
+  }
+}
+
+/**
  * Get stop by ID
  */
 export async function getStopById(id: string): Promise<Stop | null> {
