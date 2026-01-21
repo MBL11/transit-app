@@ -58,7 +58,8 @@ function NavigationContent() {
   const { t } = useTranslation();
 
   // Setup notification handlers (must be inside NavigationContainer)
-  useNotifications();
+  // TEMPORARILY DISABLED - Debugging navigation context issue
+  // useNotifications();
 
   // Start alert monitoring
   useEffect(() => {

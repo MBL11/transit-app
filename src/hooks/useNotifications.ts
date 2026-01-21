@@ -18,8 +18,18 @@ export function useNotifications() {
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
+  const [isReady, setIsReady] = useState(false);
+
+  // Mark as ready after mount
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
 
   useEffect(() => {
+    // Wait until navigation is ready
+    if (!isReady) {
+      return;
+    }
     // Clear badge when app opens
     clearBadge();
 
