@@ -25,7 +25,9 @@
     "status": "Statut",
     "online": "En ligne",
     "offline": "Hors ligne",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser"
   },
   "tabs": {
     "map": "Carte",
@@ -149,6 +151,34 @@
     "currentLocation": "Ma position",
     "enterAddressToSearch": "Entrez une adresse pour rechercher",
     "typeMoreCharacters": "Tapez au moins 3 caractères"
+  },
+  "routing": {
+    "filters": {
+      "title": "Préférences d'itinéraire",
+      "transportModes": "Moyens de transport",
+      "metro": "Métro",
+      "bus": "Bus",
+      "tram": "Tramway",
+      "train": "Train / RER",
+      "optimizeFor": "Optimiser pour",
+      "fastest": "Le plus rapide",
+      "leastTransfers": "Moins de changements",
+      "leastWalking": "Moins de marche",
+      "maxTransfers": "Changements maximum",
+      "unlimited": "Illimité",
+      "maxWalking": "Distance de marche maximum",
+      "accessibility": "Accessibilité",
+      "wheelchair": "Accessible en fauteuil roulant"
+    },
+    "tags": {
+      "fastest": "⚡ Plus rapide",
+      "least-transfers": "🔄 Moins de changements",
+      "least-walking": "🚶 Moins de marche",
+      "eco-friendly": "🌱 Écologique"
+    },
+    "transfers": "changement(s)",
+    "availableRoutes": "{{count}} itinéraire disponible",
+    "availableRoutes_plural": "{{count}} itinéraires disponibles"
   },
   "alerts": {
     "title": "Perturbations",

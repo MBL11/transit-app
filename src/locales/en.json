@@ -25,7 +25,9 @@
     "status": "Status",
     "online": "Online",
     "offline": "Offline",
-    "retry": "Retry"
+    "retry": "Retry",
+    "apply": "Apply",
+    "reset": "Reset"
   },
   "tabs": {
     "map": "Map",
@@ -149,6 +151,34 @@
     "currentLocation": "My location",
     "enterAddressToSearch": "Enter an address to search",
     "typeMoreCharacters": "Type at least 3 characters"
+  },
+  "routing": {
+    "filters": {
+      "title": "Route Preferences",
+      "transportModes": "Transport Modes",
+      "metro": "Metro",
+      "bus": "Bus",
+      "tram": "Tram",
+      "train": "Train / Rail",
+      "optimizeFor": "Optimize for",
+      "fastest": "Fastest",
+      "leastTransfers": "Fewest Transfers",
+      "leastWalking": "Least Walking",
+      "maxTransfers": "Maximum Transfers",
+      "unlimited": "Unlimited",
+      "maxWalking": "Maximum Walking Distance",
+      "accessibility": "Accessibility",
+      "wheelchair": "Wheelchair Accessible"
+    },
+    "tags": {
+      "fastest": "⚡ Fastest",
+      "least-transfers": "🔄 Fewest Transfers",
+      "least-walking": "🚶 Least Walking",
+      "eco-friendly": "🌱 Eco-friendly"
+    },
+    "transfers": "transfer(s)",
+    "availableRoutes": "{{count}} route available",
+    "availableRoutes_plural": "{{count}} routes available"
   },
   "alerts": {
     "title": "Disruptions",

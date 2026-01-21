@@ -21,7 +21,13 @@
     "selectStopOnMap": "Haritadan bir durak seçin",
     "code": "Kod",
     "result": "sonuç",
-    "result_plural": "sonuç"
+    "result_plural": "sonuç",
+    "status": "Durum",
+    "online": "Çevrimiçi",
+    "offline": "Çevrimdışı",
+    "retry": "Yeniden dene",
+    "apply": "Uygula",
+    "reset": "Sıfırla"
   },
   "tabs": {
     "map": "Harita",
@@ -144,6 +150,34 @@
     "currentLocation": "Konumum",
     "enterAddressToSearch": "Aramak için bir adres girin",
     "typeMoreCharacters": "En az 3 karakter yazın"
+  },
+  "routing": {
+    "filters": {
+      "title": "Rota Tercihleri",
+      "transportModes": "Ulaşım Araçları",
+      "metro": "Metro",
+      "bus": "Otobüs",
+      "tram": "Tramvay",
+      "train": "Tren / Banliyö",
+      "optimizeFor": "Optimize et",
+      "fastest": "En hızlı",
+      "leastTransfers": "En az aktarma",
+      "leastWalking": "En az yürüme",
+      "maxTransfers": "Maksimum aktarma",
+      "unlimited": "Sınırsız",
+      "maxWalking": "Maksimum yürüme mesafesi",
+      "accessibility": "Erişilebilirlik",
+      "wheelchair": "Tekerlekli sandalye erişimli"
+    },
+    "tags": {
+      "fastest": "⚡ En hızlı",
+      "least-transfers": "🔄 En az aktarma",
+      "least-walking": "🚶 En az yürüme",
+      "eco-friendly": "🌱 Çevre dostu"
+    },
+    "transfers": "aktarma",
+    "availableRoutes": "{{count}} rota mevcut",
+    "availableRoutes_plural": "{{count}} rota mevcut"
   },
   "alerts": {
     "title": "Aksaklıklar",

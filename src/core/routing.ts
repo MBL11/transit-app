@@ -4,6 +4,14 @@ import { Stop, Route } from './types/models';
 import { JourneyResult, RouteSegment } from './types/routing';
 import { geocodeAddress, GeocodingResult } from './geocoding';
 import { findBestNearbyStops, NearbyStop, getWalkingTime } from './nearby-stops';
+import {
+  RoutingPreferences,
+  DEFAULT_PREFERENCES,
+  isRouteTypeAllowed,
+  meetsPreferences,
+  scoreJourney,
+  getJourneyTags,
+} from '../types/routing-preferences';
 
 // Calcule la distance entre 2 points GPS (en mètres)
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -577,6 +585,130 @@ export async function findRouteFromCoordinates(
 
   } catch (error) {
     console.error('[Routing] Error finding route from coordinates:', error);
+    throw error;
+  }
+}
+
+/**
+ * Find multiple routes with filtering and preferences
+ * Returns diverse route options optimized according to user preferences
+ */
+export async function findMultipleRoutes(
+  from: GeocodingResult,
+  to: GeocodingResult,
+  departureTime: Date,
+  preferences: RoutingPreferences = DEFAULT_PREFERENCES,
+  maxRoutes: number = 3
+): Promise<JourneyResult[]> {
+  try {
+    console.log('[Routing] Finding multiple routes with preferences:', preferences.optimizeFor);
+
+    // 1. Get base routes using findRouteFromLocations
+    const baseRoutes = await findRouteFromLocations(from, to, departureTime);
+
+    if (baseRoutes.length === 0) {
+      return [];
+    }
+
+    console.log(`[Routing] Found ${baseRoutes.length} base routes`);
+
+    // 2. Filter routes based on preferences
+    let filteredRoutes = baseRoutes.filter((journey) => {
+      // Check if route meets basic preferences (transfers, walking distance)
+      if (!meetsPreferences(journey, preferences)) {
+        return false;
+      }
+
+      // Check if all transit segments use allowed modes
+      const hasDisallowedMode = journey.segments.some((segment) => {
+        if (segment.type === 'walk') {
+          return !preferences.allowedModes.walking;
+        }
+        if (segment.type === 'transit' && segment.route) {
+          return !isRouteTypeAllowed(segment.route.type, preferences);
+        }
+        return false;
+      });
+
+      return !hasDisallowedMode;
+    });
+
+    console.log(`[Routing] After filtering: ${filteredRoutes.length} routes`);
+
+    if (filteredRoutes.length === 0) {
+      // If no routes meet preferences, return the best base route anyway
+      // but warn the user
+      console.warn('[Routing] No routes meet preferences, returning best available route');
+      return baseRoutes.slice(0, 1);
+    }
+
+    // 3. Score routes based on optimization preference
+    const scoredRoutes = filteredRoutes.map((journey) => ({
+      journey,
+      score: scoreJourney(journey, preferences),
+    }));
+
+    // 4. Sort by score (higher is better)
+    scoredRoutes.sort((a, b) => b.score - a.score);
+
+    // 5. Take top routes
+    const topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
+
+    // 6. Add tags to routes
+    const routesWithTags = topRoutes.map((journey) => ({
+      ...journey,
+      tags: getJourneyTags(journey, topRoutes),
+    }));
+
+    console.log(`[Routing] Returning ${routesWithTags.length} optimized routes`);
+
+    return routesWithTags;
+  } catch (error) {
+    console.error('[Routing] Error finding multiple routes:', error);
+    throw error;
+  }
+}
+
+/**
+ * Find multiple routes from addresses (with geocoding)
+ */
+export async function findMultipleRoutesFromAddresses(
+  fromAddress: string,
+  toAddress: string,
+  departureTime: Date,
+  preferences: RoutingPreferences = DEFAULT_PREFERENCES,
+  countryCode?: string,
+  maxRoutes: number = 3
+): Promise<JourneyResult[]> {
+  try {
+    console.log('[Routing] Finding multiple routes from addresses with geocoding');
+
+    // 1. Geocode both addresses
+    const [fromResults, toResults] = await Promise.all([
+      geocodeAddress(fromAddress, countryCode, 1),
+      geocodeAddress(toAddress, countryCode, 1),
+    ]);
+
+    if (fromResults.length === 0) {
+      throw new Error('Could not find starting address');
+    }
+    if (toResults.length === 0) {
+      throw new Error('Could not find destination address');
+    }
+
+    const fromLocation = fromResults[0];
+    const toLocation = toResults[0];
+
+    // 2. Use findMultipleRoutes with the geocoded locations
+    return await findMultipleRoutes(
+      fromLocation,
+      toLocation,
+      departureTime,
+      preferences,
+      maxRoutes
+    );
+  } catch (error) {
+    console.error('[Routing] Error finding multiple routes from addresses:', error);
     throw error;
   }
 }

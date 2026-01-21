@@ -19,4 +19,5 @@ export interface JourneyResult {
   numberOfTransfers: number;
   departureTime: Date;
   arrivalTime: Date;
+  tags?: string[]; // Optional tags like 'fastest', 'least-transfers', 'eco-friendly'
 }

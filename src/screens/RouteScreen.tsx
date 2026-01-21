@@ -9,11 +9,14 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { RouteResult } from '../components/transit/RouteResult';
-import { findRoute, findRouteFromAddresses, findRouteFromCoordinates, findRouteFromLocations } from '../core/routing';
+import { RouteOptionCard } from '../components/routing/RouteOptionCard';
+import { RouteFiltersModal } from '../components/routing/RouteFiltersModal';
+import { findRoute, findRouteFromAddresses, findRouteFromCoordinates, findRouteFromLocations, findMultipleRoutes } from '../core/routing';
 import type { Stop } from '../core/types/models';
 import type { JourneyResult } from '../core/types/routing';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
@@ -22,6 +25,8 @@ import * as db from '../core/database';
 import { AddressSearchModal } from '../components/routing/AddressSearchModal';
 import type { GeocodingResult } from '../core/geocoding';
 import { useLocation } from '../hooks/useLocation';
+import type { RoutingPreferences } from '../types/routing-preferences';
+import { DEFAULT_PREFERENCES } from '../types/routing-preferences';
 
 type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalculation'>;
 
@@ -65,10 +70,16 @@ export function RouteScreen() {
   // Results
   const [journeys, setJourneys] = useState<JourneyResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<JourneyResult | null>(null);
 
-  // Load all stops on mount
+  // Routing preferences and filters
+  const [preferences, setPreferences] = useState<RoutingPreferences>(DEFAULT_PREFERENCES);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Load all stops and preferences on mount
   useEffect(() => {
     loadStops();
+    loadPreferences();
   }, []);
 
   const loadStops = async () => {
@@ -81,6 +92,29 @@ export function RouteScreen() {
       Alert.alert(t('common.error'), 'Unable to load stops');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPreferences = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('@routing_preferences');
+      if (saved) {
+        const parsedPrefs = JSON.parse(saved);
+        setPreferences(parsedPrefs);
+        console.log('[RouteScreen] Loaded saved preferences:', parsedPrefs.optimizeFor);
+      }
+    } catch (err) {
+      console.error('[RouteScreen] Error loading preferences:', err);
+    }
+  };
+
+  const savePreferences = async (prefs: RoutingPreferences) => {
+    try {
+      await AsyncStorage.setItem('@routing_preferences', JSON.stringify(prefs));
+      setPreferences(prefs);
+      console.log('[RouteScreen] Saved preferences:', prefs.optimizeFor);
+    } catch (err) {
+      console.error('[RouteScreen] Error saving preferences:', err);
     }
   };
 
@@ -106,82 +140,46 @@ export function RouteScreen() {
         console.log('[RouteScreen] Arrival mode: searching from', formatTime(searchTime));
       }
 
-      let results: JourneyResult[] = [];
+      // Prepare from and to locations as GeocodingResult
+      let fromLocation: GeocodingResult;
+      let toLocation: GeocodingResult;
 
-      // Determine which routing function to use based on from/to modes
-      if (fromMode === 'stop' && toMode === 'stop') {
-        // Stop to Stop
-        console.log('[RouteScreen] Calculating stop to stop route');
-        results = await findRoute(fromStop!.id, toStop!.id, searchTime);
-      } else if (fromMode === 'address' && toMode === 'address') {
-        // Address to Address
-        // If both addresses already have coordinates (e.g., "Ma position"), use them directly
-        // Otherwise, geocode the address strings
-        console.log('[RouteScreen] Calculating address to address route');
-
-        const fromHasCoords = fromAddress!.lat !== undefined && fromAddress!.lon !== undefined;
-        const toHasCoords = toAddress!.lat !== undefined && toAddress!.lon !== undefined;
-
-        if (fromHasCoords && toHasCoords) {
-          // Both have coordinates, skip geocoding
-          results = await findRouteFromLocations(
-            fromAddress!,
-            toAddress!,
-            searchTime
-          );
-        } else {
-          // Need to geocode at least one address
-          results = await findRouteFromAddresses(
-            fromAddress!.displayName,
-            toAddress!.displayName,
-            searchTime,
-            'fr' // Country code for France
-          );
-        }
-      } else if (fromMode === 'address' && toMode === 'stop') {
-        // Address to Stop
-        console.log('[RouteScreen] Calculating address to stop route');
-        results = await findRouteFromCoordinates(
-          fromAddress!.lat,
-          fromAddress!.lon,
-          toStop!.name, // Use stop name as address
-          searchTime,
-          'fr'
-        );
-      } else if (fromMode === 'stop' && toMode === 'address') {
-        // Stop to Address
-        console.log('[RouteScreen] Calculating stop to address route');
-
-        const toHasCoords = toAddress!.lat !== undefined && toAddress!.lon !== undefined;
-
-        if (toHasCoords) {
-          // Destination has coordinates (e.g., "Ma position"), use findRouteFromLocations
-          // Convert the stop to a GeocodingResult format
-          const fromStopAsLocation: GeocodingResult = {
-            lat: fromStop!.lat,
-            lon: fromStop!.lon,
-            displayName: fromStop!.name,
-            shortAddress: fromStop!.name,
-            type: 'stop',
-            importance: 1,
-          };
-
-          results = await findRouteFromLocations(
-            fromStopAsLocation,
-            toAddress!,
-            searchTime
-          );
-        } else {
-          // Need to geocode the destination address
-          results = await findRouteFromCoordinates(
-            fromStop!.lat,
-            fromStop!.lon,
-            toAddress!.displayName,
-            searchTime,
-            'fr'
-          );
-        }
+      if (fromMode === 'stop') {
+        fromLocation = {
+          lat: fromStop!.lat,
+          lon: fromStop!.lon,
+          displayName: fromStop!.name,
+          shortAddress: fromStop!.name,
+          type: 'stop',
+          importance: 1,
+        };
+      } else {
+        fromLocation = fromAddress!;
       }
+
+      if (toMode === 'stop') {
+        toLocation = {
+          lat: toStop!.lat,
+          lon: toStop!.lon,
+          displayName: toStop!.name,
+          shortAddress: toStop!.name,
+          type: 'stop',
+          importance: 1,
+        };
+      } else {
+        toLocation = toAddress!;
+      }
+
+      console.log('[RouteScreen] Calculating multiple routes with preferences:', preferences.optimizeFor);
+
+      // Use findMultipleRoutes to get optimized routes
+      const results = await findMultipleRoutes(
+        fromLocation,
+        toLocation,
+        searchTime,
+        preferences,
+        5 // Get up to 5 route options
+      );
 
       // Filter results for arrival mode
       const filteredResults = timeMode === 'arrival'
@@ -189,6 +187,7 @@ export function RouteScreen() {
         : results;
 
       setJourneys(filteredResults);
+      setSelectedRoute(filteredResults.length > 0 ? filteredResults[0] : null);
       setHasSearched(true);
       console.log('[RouteScreen] Found', filteredResults.length, 'journeys');
     } catch (err: any) {
@@ -370,7 +369,14 @@ export function RouteScreen() {
 
   return (
     <ScreenContainer>
-      <ScreenHeader title={t('tabs.route')} />
+      <ScreenHeader
+        title={t('tabs.route')}
+        rightElement={
+          <TouchableOpacity onPress={() => setShowFilters(true)}>
+            <Text style={{ fontSize: 24 }}>⚙️</Text>
+          </TouchableOpacity>
+        }
+      />
       <View style={styles.container}>
       {/* Header with stop selection */}
       <View style={styles.searchContainer}>
@@ -588,13 +594,17 @@ export function RouteScreen() {
         {!calculating && journeys.length > 0 && (
           <>
             <Text style={styles.resultsTitle}>
-              {journeys.length} {journeys.length > 1 ? 'routes found' : 'route found'}
+              {t('routing.availableRoutes', { count: journeys.length })}
             </Text>
             {journeys.map((journey, index) => (
-              <RouteResult
+              <RouteOptionCard
                 key={index}
-                journey={journey}
-                onPress={() => handleJourneyPress(journey)}
+                route={journey}
+                isSelected={selectedRoute === journey}
+                onPress={() => {
+                  setSelectedRoute(journey);
+                  handleJourneyPress(journey);
+                }}
               />
             ))}
           </>
@@ -741,6 +751,14 @@ export function RouteScreen() {
         onClose={() => setShowToAddressSearch(false)}
         onSelect={selectToAddress}
         title={`🎯 ${t('transit.to')}`}
+      />
+
+      {/* Route Filters Modal */}
+      <RouteFiltersModal
+        visible={showFilters}
+        preferences={preferences}
+        onClose={() => setShowFilters(false)}
+        onApply={savePreferences}
       />
       </View>
     </ScreenContainer>
