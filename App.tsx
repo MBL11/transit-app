@@ -5,7 +5,7 @@
 import './global.css';
 import './src/i18n'; // Initialize i18n
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
@@ -14,7 +14,20 @@ import { ErrorBoundary } from './src/components/error/ErrorBoundary';
 import { useNotifications } from './src/hooks/useNotifications';
 import { startAlertMonitoring, stopAlertMonitoring } from './src/services/alert-monitor';
 import { getAdapter } from './src/adapters';
+import { initAnalytics, trackAppOpened, trackEvent, AnalyticsEvents } from './src/services/analytics';
+import { initCrashReporting, captureException } from './src/services/crash-reporting';
+import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
+
+// Initialize crash reporting FIRST (before anything else can error)
+initCrashReporting();
+
+// Initialize analytics
+initAnalytics().then(() => {
+  console.log('[App] Analytics initialized');
+}).catch((error) => {
+  console.error('[App] Analytics initialization failed:', error);
+});
 
 // Initialize Google Mobile Ads SDK only if not in Expo Go
 // Expo Go doesn't support native modules like AdMob
@@ -44,6 +57,25 @@ function AppContent() {
   // Setup notification handlers
   useNotifications();
 
+  // Track app lifecycle
+  useEffect(() => {
+    // Track app opened
+    trackAppOpened();
+
+    // Listen to app state changes
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        trackEvent(AnalyticsEvents.APP_FOREGROUNDED);
+      } else if (nextAppState === 'background') {
+        trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   // Start alert monitoring
   useEffect(() => {
     const adapter = getAdapter();
@@ -69,9 +101,16 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function AppWrapper() {
   return (
-    <ErrorBoundary>
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        // Log to Sentry
+        captureException(error, {
+          errorInfo: errorInfo.componentStack,
+        });
+      }}
+    >
       <SafeAreaProvider>
         <ThemeProvider>
           <NetworkProvider>
@@ -82,3 +121,6 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+// Wrap the entire app with Sentry's ErrorBoundary
+export default Sentry.wrap(AppWrapper);
