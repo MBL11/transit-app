@@ -13,16 +13,25 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Cette application utilise votre position pour trouver les arrêts de transport à proximité et calculer des itinéraires depuis votre position actuelle.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cette application utilise votre position pour trouver les arrêts de transport à proximité et calculer des itinéraires depuis votre position actuelle."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-sqlite",
-      "expo-localization"
+      "expo-localization",
+      "expo-location"
     ]
   }
 }
