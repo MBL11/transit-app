@@ -13,7 +13,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { RouteResult } from '../components/transit/RouteResult';
-import { findRoute, findRouteFromAddresses, findRouteFromCoordinates } from '../core/routing';
+import { findRoute, findRouteFromAddresses, findRouteFromCoordinates, findRouteFromLocations } from '../core/routing';
 import type { Stop } from '../core/types/models';
 import type { JourneyResult } from '../core/types/routing';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
@@ -115,13 +115,29 @@ export function RouteScreen() {
         results = await findRoute(fromStop!.id, toStop!.id, searchTime);
       } else if (fromMode === 'address' && toMode === 'address') {
         // Address to Address
+        // If both addresses already have coordinates (e.g., "Ma position"), use them directly
+        // Otherwise, geocode the address strings
         console.log('[RouteScreen] Calculating address to address route');
-        results = await findRouteFromAddresses(
-          fromAddress!.displayName,
-          toAddress!.displayName,
-          searchTime,
-          'fr' // Country code for France
-        );
+
+        const fromHasCoords = fromAddress!.lat !== undefined && fromAddress!.lon !== undefined;
+        const toHasCoords = toAddress!.lat !== undefined && toAddress!.lon !== undefined;
+
+        if (fromHasCoords && toHasCoords) {
+          // Both have coordinates, skip geocoding
+          results = await findRouteFromLocations(
+            fromAddress!,
+            toAddress!,
+            searchTime
+          );
+        } else {
+          // Need to geocode at least one address
+          results = await findRouteFromAddresses(
+            fromAddress!.displayName,
+            toAddress!.displayName,
+            searchTime,
+            'fr' // Country code for France
+          );
+        }
       } else if (fromMode === 'address' && toMode === 'stop') {
         // Address to Stop
         console.log('[RouteScreen] Calculating address to stop route');
@@ -135,15 +151,36 @@ export function RouteScreen() {
       } else if (fromMode === 'stop' && toMode === 'address') {
         // Stop to Address
         console.log('[RouteScreen] Calculating stop to address route');
-        // For stop to address, we can reverse: find route from toAddress to fromStop
-        // and then reverse the journey. For now, use coordinates approach.
-        results = await findRouteFromCoordinates(
-          fromStop!.lat,
-          fromStop!.lon,
-          toAddress!.displayName,
-          searchTime,
-          'fr'
-        );
+
+        const toHasCoords = toAddress!.lat !== undefined && toAddress!.lon !== undefined;
+
+        if (toHasCoords) {
+          // Destination has coordinates (e.g., "Ma position"), use findRouteFromLocations
+          // Convert the stop to a GeocodingResult format
+          const fromStopAsLocation: GeocodingResult = {
+            lat: fromStop!.lat,
+            lon: fromStop!.lon,
+            displayName: fromStop!.name,
+            shortAddress: fromStop!.name,
+            type: 'stop',
+            importance: 1,
+          };
+
+          results = await findRouteFromLocations(
+            fromStopAsLocation,
+            toAddress!,
+            searchTime
+          );
+        } else {
+          // Need to geocode the destination address
+          results = await findRouteFromCoordinates(
+            fromStop!.lat,
+            fromStop!.lon,
+            toAddress!.displayName,
+            searchTime,
+            'fr'
+          );
+        }
       }
 
       // Filter results for arrival mode
