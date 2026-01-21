@@ -49,14 +49,19 @@ export const AdMobConfig = {
  * Check if ads should be disabled
  * Ads are disabled if:
  * - User has premium subscription (TODO: implement)
- * - Running in Expo Go (can't show ads)
+ * - Running in Expo Go (can't show ads - native modules not available)
+ * - Running in development mode (TEMPORARY: until we use expo-dev-client)
  */
 export function shouldDisableAds(): boolean {
   // Check if running in Expo Go
   const isExpoGo = Constants.appOwnership === 'expo';
 
+  // TEMPORARY: Disable in dev mode to work with Expo Go
+  // Remove this line when using expo-dev-client or production builds
+  const isDevMode = IS_DEV;
+
   // TODO: Check if user has premium subscription
   // const hasPremium = await checkPremiumStatus();
 
-  return isExpoGo;
+  return isExpoGo || isDevMode;
 }

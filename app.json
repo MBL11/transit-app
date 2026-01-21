@@ -31,14 +31,21 @@
     "plugins": [
       "expo-sqlite",
       "expo-localization",
-      "expo-location",
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
-        }
-      ]
+      "expo-location"
     ]
+  },
+  "_comment_admob": "AdMob plugin commented out for Expo Go compatibility. Uncomment for production builds or dev client testing.",
+  "_admob_plugin_disabled": {
+    "plugin": [
+      "react-native-google-mobile-ads",
+      {
+        "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+        "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+      }
+    ],
+    "note": "To enable AdMob: 1) Move this plugin array back to 'plugins' array above, 2) Run 'npx expo prebuild --clean', 3) Use expo-dev-client or production build (not Expo Go)"
+  },
+  "extra": {
+    "adsDisabled": true
   }
 }
