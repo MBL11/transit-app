@@ -3,7 +3,7 @@
  * Main navigation structure with bottom tabs
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -16,6 +16,9 @@ import { SearchStackNavigator } from './SearchStackNavigator';
 import { RouteStackNavigator } from './RouteStackNavigator';
 import { FavoritesStackNavigator } from './FavoritesStackNavigator';
 import { SettingsStackNavigator } from './SettingsStackNavigator';
+import { useNotifications } from '../hooks/useNotifications';
+import { startAlertMonitoring, stopAlertMonitoring } from '../services/alert-monitor';
+import { getAdapter } from '../adapters';
 
 const Tab = createBottomTabNavigator();
 
@@ -47,88 +50,115 @@ const DarkNavigationTheme = {
   },
 };
 
-export function RootNavigator() {
+/**
+ * NavigationContent component - handles navigation setup inside NavigationContainer
+ * This component must be inside NavigationContainer to use navigation hooks
+ */
+function NavigationContent() {
   const { t } = useTranslation();
+
+  // Setup notification handlers (must be inside NavigationContainer)
+  useNotifications();
+
+  // Start alert monitoring
+  useEffect(() => {
+    const adapter = getAdapter();
+
+    // Start monitoring for alerts on favorite lines
+    startAlertMonitoring((routeIds) => adapter.getAlerts(routeIds));
+
+    // Cleanup on unmount
+    return () => {
+      stopAlertMonitoring();
+    };
+  }, []);
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#0066CC',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        tabBarActiveTintColor: '#0066CC',
+      }}
+    >
+      <Tab.Screen
+        name="Map"
+        component={MapStackNavigator}
+        options={{
+          title: t('tabs.map'),
+          tabBarLabel: t('tabs.map'),
+          tabBarIcon: ({ color }) => <TabIcon icon="🗺️" color={color} />,
+          headerShown: false, // Let the stack handle its own headers
+        }}
+      />
+      <Tab.Screen
+        name="Lines"
+        component={LinesStackNavigator}
+        options={{
+          title: t('tabs.lines'),
+          tabBarLabel: t('tabs.lines'),
+          tabBarIcon: ({ color }) => <TabIcon icon="🚇" color={color} />,
+          headerShown: false, // Let the stack handle its own headers
+        }}
+      />
+      <Tab.Screen
+        name="SearchTab"
+        component={SearchStackNavigator}
+        options={{
+          title: t('tabs.search'),
+          tabBarLabel: t('tabs.search'),
+          tabBarIcon: ({ color }) => <TabIcon icon="🔍" color={color} />,
+          headerShown: false, // Let the stack handle its own headers
+        }}
+      />
+      <Tab.Screen
+        name="Route"
+        component={RouteStackNavigator}
+        options={{
+          title: t('tabs.route'),
+          tabBarLabel: t('tabs.route'),
+          tabBarIcon: ({ color }) => <TabIcon icon="🚏" color={color} />,
+          headerShown: false, // Let the stack handle its own headers
+        }}
+      />
+      <Tab.Screen
+        name="Favorites"
+        component={FavoritesStackNavigator}
+        options={{
+          title: t('tabs.favorites'),
+          tabBarLabel: t('tabs.favorites'),
+          tabBarIcon: ({ color }) => <TabIcon icon="⭐" color={color} />,
+          headerShown: false, // Let the stack handle its own headers
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsStackNavigator}
+        options={{
+          title: t('settings.title'),
+          tabBarLabel: t('settings.title'),
+          tabBarIcon: ({ color }) => <TabIcon icon="⚙️" color={color} />,
+          headerShown: false, // Let the stack handle its own headers
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+export function RootNavigator() {
   const { isDark } = useTheme();
 
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme}>
-      <Tab.Navigator
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: '#0066CC',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          tabBarActiveTintColor: '#0066CC',
-        }}
-      >
-        <Tab.Screen
-          name="Map"
-          component={MapStackNavigator}
-          options={{
-            title: t('tabs.map'),
-            tabBarLabel: t('tabs.map'),
-            tabBarIcon: ({ color }) => <TabIcon icon="🗺️" color={color} />,
-            headerShown: false, // Let the stack handle its own headers
-          }}
-        />
-        <Tab.Screen
-          name="Lines"
-          component={LinesStackNavigator}
-          options={{
-            title: t('tabs.lines'),
-            tabBarLabel: t('tabs.lines'),
-            tabBarIcon: ({ color }) => <TabIcon icon="🚇" color={color} />,
-            headerShown: false, // Let the stack handle its own headers
-          }}
-        />
-        <Tab.Screen
-          name="SearchTab"
-          component={SearchStackNavigator}
-          options={{
-            title: t('tabs.search'),
-            tabBarLabel: t('tabs.search'),
-            tabBarIcon: ({ color }) => <TabIcon icon="🔍" color={color} />,
-            headerShown: false, // Let the stack handle its own headers
-          }}
-        />
-        <Tab.Screen
-          name="Route"
-          component={RouteStackNavigator}
-          options={{
-            title: t('tabs.route'),
-            tabBarLabel: t('tabs.route'),
-            tabBarIcon: ({ color }) => <TabIcon icon="🚏" color={color} />,
-            headerShown: false, // Let the stack handle its own headers
-          }}
-        />
-        <Tab.Screen
-          name="Favorites"
-          component={FavoritesStackNavigator}
-          options={{
-            title: t('tabs.favorites'),
-            tabBarLabel: t('tabs.favorites'),
-            tabBarIcon: ({ color }) => <TabIcon icon="⭐" color={color} />,
-            headerShown: false, // Let the stack handle its own headers
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={SettingsStackNavigator}
-          options={{
-            title: t('settings.title'),
-            tabBarLabel: t('settings.title'),
-            tabBarIcon: ({ color }) => <TabIcon icon="⚙️" color={color} />,
-            headerShown: false, // Let the stack handle its own headers
-          }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
+        <NavigationContent />
+      </NavigationContainer>
     </>
   );
 }

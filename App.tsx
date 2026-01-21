@@ -11,9 +11,6 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { RootNavigator } from './src/navigation';
 import { ErrorBoundary } from './src/components/error/ErrorBoundary';
-import { useNotifications } from './src/hooks/useNotifications';
-import { startAlertMonitoring, stopAlertMonitoring } from './src/services/alert-monitor';
-import { getAdapter } from './src/adapters';
 import { initAnalytics, trackAppOpened, trackEvent, AnalyticsEvents } from './src/services/analytics';
 import { initCrashReporting, captureException } from './src/services/crash-reporting';
 import * as Sentry from '@sentry/react-native';
@@ -54,9 +51,6 @@ if (!isExpoGo && !__DEV__) {
 function AppContent() {
   const { isDark, loaded } = useTheme();
 
-  // Setup notification handlers
-  useNotifications();
-
   // Track app lifecycle
   useEffect(() => {
     // Track app opened
@@ -73,19 +67,6 @@ function AppContent() {
 
     return () => {
       subscription.remove();
-    };
-  }, []);
-
-  // Start alert monitoring
-  useEffect(() => {
-    const adapter = getAdapter();
-
-    // Start monitoring for alerts on favorite lines
-    startAlertMonitoring((routeIds) => adapter.getAlerts(routeIds));
-
-    // Cleanup on unmount
-    return () => {
-      stopAlertMonitoring();
     };
   }, []);
 
