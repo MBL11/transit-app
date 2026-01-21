@@ -275,9 +275,12 @@ export async function searchPlaces(
         importance: item.importance || 0,
       }))
       .filter((result: GeocodingResult) => {
-        // Prioritize useful types for transit
-        const goodTypes = ['house', 'building', 'street', 'road', 'amenity', 'shop', 'office'];
-        return goodTypes.includes(result.type) || result.importance > 0.3;
+        // Filter out very low quality results (importance < 0.2)
+        // But allow most types to pass through for better search results
+        return result.importance > 0.2 ||
+               ['house', 'building', 'street', 'road', 'amenity', 'shop', 'office',
+                'residential', 'pedestrian', 'path', 'suburb', 'neighbourhood',
+                'city', 'town', 'village'].includes(result.type);
       })
       .sort((a: GeocodingResult, b: GeocodingResult) => b.importance - a.importance);
 
