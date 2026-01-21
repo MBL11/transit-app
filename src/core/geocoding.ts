@@ -6,7 +6,25 @@
 const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
 
 // User agent required by Nominatim usage policy
-const USER_AGENT = 'TransitApp/1.0';
+// Must include app name and contact info
+const USER_AGENT = 'TransitApp/1.0 (transit-app-mobile; contact@transit-app.dev)';
+
+// Rate limiting: max 1 request per second
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 1000; // 1 second
+
+async function throttledFetch(url: string, options: RequestInit): Promise<Response> {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+
+  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+    // Wait for the remaining time
+    await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+  }
+
+  lastRequestTime = Date.now();
+  return fetch(url, options);
+}
 
 export interface GeocodingResult {
   lat: number;
@@ -42,7 +60,7 @@ export async function geocodeAddress(
       ...(countryCode && { countrycodes: countryCode }),
     });
 
-    const response = await fetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
+    const response = await throttledFetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
       headers: {
         'User-Agent': USER_AGENT,
         'Accept-Language': 'fr,en', // Prefer French, fallback to English
@@ -94,7 +112,7 @@ export async function reverseGeocode(
       addressdetails: '1',
     });
 
-    const response = await fetch(`${NOMINATIM_BASE_URL}/reverse?${params}`, {
+    const response = await throttledFetch(`${NOMINATIM_BASE_URL}/reverse?${params}`, {
       headers: {
         'User-Agent': USER_AGENT,
         'Accept-Language': 'fr,en',
@@ -168,7 +186,7 @@ export async function searchPlaces(
       }),
     });
 
-    const response = await fetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
+    const response = await throttledFetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
       headers: {
         'User-Agent': USER_AGENT,
         'Accept-Language': 'fr,en',
