@@ -319,7 +319,7 @@ export function RouteScreen() {
     if (fromMode === 'stop') {
       return fromStop ? fromStop.name : t('search.placeholder');
     } else {
-      return fromAddress ? fromAddress.displayName : t('route.enterAddress');
+      return fromAddress ? (fromAddress.shortAddress || fromAddress.displayName) : t('route.enterAddress');
     }
   };
 
@@ -327,7 +327,7 @@ export function RouteScreen() {
     if (toMode === 'stop') {
       return toStop ? toStop.name : t('search.placeholder');
     } else {
-      return toAddress ? toAddress.displayName : t('route.enterAddress');
+      return toAddress ? (toAddress.shortAddress || toAddress.displayName) : t('route.enterAddress');
     }
   };
 

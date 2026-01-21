@@ -121,9 +121,13 @@ export function AddressSearchModal({
       </View>
       <View style={styles.resultTextContainer}>
         <Text style={styles.resultText} numberOfLines={2}>
-          {item.displayName}
+          {item.shortAddress || item.displayName}
         </Text>
-        <Text style={styles.resultType}>{item.type}</Text>
+        {item.shortAddress && item.shortAddress !== item.displayName && (
+          <Text style={styles.resultSubtext} numberOfLines={1}>
+            {item.displayName}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -334,6 +338,12 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       fontSize: 16,
       color: colors.text,
       marginBottom: 4,
+      fontWeight: '500',
+    },
+    resultSubtext: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 2,
     },
     resultType: {
       fontSize: 12,

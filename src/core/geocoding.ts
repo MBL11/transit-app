@@ -12,6 +12,10 @@ const USER_AGENT = 'TransitApp/1.0 (+https://github.com/transit-app; contact@tra
 // Referer header (required by some Nominatim instances)
 const REFERER = 'https://transit-app.dev';
 
+// Bounding box for Île-de-France region (to limit search area)
+// Format: [west, north, east, south]
+const ILE_DE_FRANCE_BBOX = [1.45, 49.24, 3.56, 48.12];
+
 // Rate limiting: max 1 request per second (Nominatim usage policy)
 // Using 1.5 seconds to be conservative and avoid blocks
 let lastRequestTime = 0;
@@ -39,9 +43,44 @@ export interface GeocodingResult {
   lat: number;
   lon: number;
   displayName: string;
+  shortAddress?: string; // Short format: "rue, ville"
   type: string; // 'house', 'street', 'city', etc.
   importance: number; // 0-1, relevance score
   boundingBox?: [number, number, number, number]; // [south, north, west, east]
+}
+
+/**
+ * Format address to short version: "street, city"
+ */
+function formatShortAddress(item: any): string {
+  const addr = item.address;
+  if (!addr) return item.display_name;
+
+  const parts: string[] = [];
+
+  // Street with number if available
+  if (addr.house_number && addr.road) {
+    parts.push(`${addr.house_number} ${addr.road}`);
+  } else if (addr.road) {
+    parts.push(addr.road);
+  } else if (addr.pedestrian) {
+    parts.push(addr.pedestrian);
+  } else if (addr.amenity) {
+    parts.push(addr.amenity);
+  }
+
+  // City/town
+  if (addr.city) {
+    parts.push(addr.city);
+  } else if (addr.town) {
+    parts.push(addr.town);
+  } else if (addr.village) {
+    parts.push(addr.village);
+  } else if (addr.municipality) {
+    parts.push(addr.municipality);
+  }
+
+  return parts.length > 0 ? parts.join(', ') : item.display_name;
 }
 
 /**
@@ -66,6 +105,8 @@ export async function geocodeAddress(
       format: 'json',
       limit: limit.toString(),
       addressdetails: '1',
+      viewbox: ILE_DE_FRANCE_BBOX.join(','), // Limit to Île-de-France
+      bounded: '1', // Only return results within viewbox
       ...(countryCode && { countrycodes: countryCode }),
     });
 
@@ -90,6 +131,7 @@ export async function geocodeAddress(
       lat: parseFloat(item.lat),
       lon: parseFloat(item.lon),
       displayName: item.display_name,
+      shortAddress: formatShortAddress(item),
       type: item.type,
       importance: item.importance || 0,
       boundingBox: item.boundingbox
@@ -196,6 +238,8 @@ export async function searchPlaces(
       format: 'json',
       limit: '10',
       addressdetails: '1',
+      viewbox: ILE_DE_FRANCE_BBOX.join(','),
+      bounded: '1', // Only return results within Île-de-France
       ...(lat && lon && {
         lat: lat.toString(),
         lon: lon.toString(),
@@ -226,6 +270,7 @@ export async function searchPlaces(
         lat: parseFloat(item.lat),
         lon: parseFloat(item.lon),
         displayName: item.display_name,
+        shortAddress: formatShortAddress(item),
         type: item.type,
         importance: item.importance || 0,
       }))

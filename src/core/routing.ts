@@ -170,7 +170,7 @@ export async function findRouteFromAddresses(
       // Create virtual stops for the addresses
       const fromVirtualStop: Stop = {
         id: 'virtual_from',
-        name: fromLocation.displayName,
+        name: fromLocation.shortAddress || fromLocation.displayName,
         lat: fromLocation.lat,
         lon: fromLocation.lon,
         locationType: 0,
@@ -178,7 +178,7 @@ export async function findRouteFromAddresses(
 
       const toVirtualStop: Stop = {
         id: 'virtual_to',
-        name: toLocation.displayName,
+        name: toLocation.shortAddress || toLocation.displayName,
         lat: toLocation.lat,
         lon: toLocation.lon,
         locationType: 0,
@@ -203,8 +203,8 @@ export async function findRouteFromAddresses(
     // 3. Find nearby stops for both locations
     console.log('[Routing] Finding nearby stops...');
     const [fromStops, toStops] = await Promise.all([
-      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 5, 800),
-      findBestNearbyStops(toLocation.lat, toLocation.lon, 5, 800),
+      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 10, 1500), // 1.5km radius, up to 10 stops
+      findBestNearbyStops(toLocation.lat, toLocation.lon, 10, 1500),
     ]);
 
     if (fromStops.length === 0) {
@@ -237,7 +237,7 @@ export async function findRouteFromAddresses(
             // Create virtual stops for the addresses
             const fromVirtualStop: Stop = {
               id: 'virtual_from',
-              name: fromLocation.displayName,
+              name: fromLocation.shortAddress || fromLocation.displayName,
               lat: fromLocation.lat,
               lon: fromLocation.lon,
               locationType: 0,
@@ -245,7 +245,7 @@ export async function findRouteFromAddresses(
 
             const toVirtualStop: Stop = {
               id: 'virtual_to',
-              name: toLocation.displayName,
+              name: toLocation.shortAddress || toLocation.displayName,
               lat: toLocation.lat,
               lon: toLocation.lon,
               locationType: 0,
@@ -325,13 +325,13 @@ export async function findRouteFromCoordinates(
     const toLocation = toResults[0];
 
     // 2. Find nearby stops from starting coordinates
-    const fromStops = await findBestNearbyStops(fromLat, fromLon, 5, 800);
+    const fromStops = await findBestNearbyStops(fromLat, fromLon, 10, 1500);
     if (fromStops.length === 0) {
       throw new Error('No transit stops found near starting location');
     }
 
     // 3. Find nearby stops for destination
-    const toStops = await findBestNearbyStops(toLocation.lat, toLocation.lon, 5, 800);
+    const toStops = await findBestNearbyStops(toLocation.lat, toLocation.lon, 10, 1500);
     if (toStops.length === 0) {
       throw new Error('No transit stops found near destination');
     }
@@ -358,7 +358,7 @@ export async function findRouteFromCoordinates(
 
             const toVirtualStop: Stop = {
               id: 'virtual_to',
-              name: toLocation.displayName,
+              name: toLocation.shortAddress || toLocation.displayName,
               lat: toLocation.lat,
               lon: toLocation.lon,
               locationType: 0,
