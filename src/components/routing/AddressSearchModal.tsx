@@ -139,15 +139,14 @@ export function AddressSearchModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={styles.modalOverlayTouchable}
-        activeOpacity={1}
-        onPress={onClose}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoidingView}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        <TouchableOpacity
+          style={styles.modalOverlayTouchable}
+          activeOpacity={1}
+          onPress={onClose}
         >
           <TouchableOpacity
             activeOpacity={1}
@@ -222,29 +221,29 @@ export function AddressSearchModal({
               }
             />
           </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
   StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
     modalOverlayTouchable: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end',
     },
-    keyboardAvoidingView: {
-      maxHeight: '90%',
-      width: '100%',
-    },
     modalContent: {
       backgroundColor: colors.background,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      flex: 1,
-      paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+      maxHeight: '80%',
+      paddingBottom: 20,
     },
     modalHeader: {
       flexDirection: 'row',
