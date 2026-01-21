@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
@@ -134,77 +135,90 @@ export function AddressSearchModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Search Input */}
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={t('route.enterAddress')}
-              placeholderTextColor={colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus={true}
-            />
-            {isSearching && (
-              <ActivityIndicator
-                style={styles.searchingIndicator}
-                size="small"
-                color={colors.primary}
-              />
-            )}
-          </View>
-
-          {/* Use Current Location Button */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlayTouchable}
+          activeOpacity={1}
+          onPress={onClose}
+        >
           <TouchableOpacity
-            style={styles.currentLocationButton}
-            onPress={handleUseCurrentLocation}
-            disabled={isGettingLocation}
+            activeOpacity={1}
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
           >
-            {isGettingLocation ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <>
-                <Text style={styles.currentLocationIcon}>📍</Text>
-                <Text style={styles.currentLocationText}>
-                  {t('route.useCurrentLocation')}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{title}</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
-          {/* Results List */}
-          <FlatList
-            data={results}
-            keyExtractor={(item, index) => `${item.lat}-${item.lon}-${index}`}
-            renderItem={renderResultItem}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                {searchQuery.length === 0 ? (
-                  <Text style={styles.emptyText}>{t('route.enterAddressToSearch')}</Text>
-                ) : searchQuery.length < 3 ? (
-                  <Text style={styles.emptyText}>{t('route.typeMoreCharacters')}</Text>
-                ) : searchError ? (
-                  <Text style={styles.emptyText}>{searchError}</Text>
-                ) : isSearching ? (
-                  <ActivityIndicator size="large" color={colors.primary} />
-                ) : null}
-              </View>
-            }
-          />
-        </View>
-      </View>
+            {/* Search Input */}
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder={t('route.enterAddress')}
+                placeholderTextColor={colors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus={true}
+              />
+              {isSearching && (
+                <ActivityIndicator
+                  style={styles.searchingIndicator}
+                  size="small"
+                  color={colors.primary}
+                />
+              )}
+            </View>
+
+            {/* Use Current Location Button */}
+            <TouchableOpacity
+              style={styles.currentLocationButton}
+              onPress={handleUseCurrentLocation}
+              disabled={isGettingLocation}
+            >
+              {isGettingLocation ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <Text style={styles.currentLocationIcon}>📍</Text>
+                  <Text style={styles.currentLocationText}>
+                    {t('route.useCurrentLocation')}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Results List */}
+            <FlatList
+              data={results}
+              keyExtractor={(item, index) => `${item.lat}-${item.lon}-${index}`}
+              renderItem={renderResultItem}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  {searchQuery.length === 0 ? (
+                    <Text style={styles.emptyText}>{t('route.enterAddressToSearch')}</Text>
+                  ) : searchQuery.length < 3 ? (
+                    <Text style={styles.emptyText}>{t('route.typeMoreCharacters')}</Text>
+                  ) : searchError ? (
+                    <Text style={styles.emptyText}>{searchError}</Text>
+                  ) : isSearching ? (
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  ) : null}
+                </View>
+              }
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -212,6 +226,10 @@ export function AddressSearchModal({
 const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
   StyleSheet.create({
     modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalOverlayTouchable: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end',
