@@ -3,9 +3,9 @@
  */
 
 import './global.css';
-import './src/i18n'; // Initialize i18n
-import { useEffect } from 'react';
-import { View, AppState } from 'react-native';
+import { i18nInitPromise } from './src/i18n'; // Initialize i18n
+import { useEffect, useState } from 'react';
+import { View, AppState, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
@@ -50,6 +50,19 @@ if (!isExpoGo && !__DEV__) {
 
 function AppContent() {
   const { isDark, loaded } = useTheme();
+  const [i18nReady, setI18nReady] = useState(false);
+
+  // Wait for i18n to initialize
+  useEffect(() => {
+    i18nInitPromise.then(() => {
+      console.log('[App] i18n initialized');
+      setI18nReady(true);
+    }).catch((error) => {
+      console.error('[App] i18n initialization failed:', error);
+      // Set ready anyway to prevent blocking the app
+      setI18nReady(true);
+    });
+  }, []);
 
   // Track app lifecycle
   useEffect(() => {
@@ -70,9 +83,13 @@ function AppContent() {
     };
   }, []);
 
-  // Wait for theme to load to prevent flash
-  if (!loaded) {
-    return null;
+  // Wait for theme and i18n to load to prevent flash
+  if (!loaded || !i18nReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#121212' : '#FFFFFF' }}>
+        <ActivityIndicator size="large" color="#0066CC" />
+      </View>
+    );
   }
 
   return (

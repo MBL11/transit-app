@@ -58,7 +58,7 @@ export const changeLanguage = async (languageCode: string) => {
   await i18n.changeLanguage(languageCode);
 };
 
-// Initialize on import
-initI18n();
+// Export initialization promise so app can wait for it
+export const i18nInitPromise = initI18n();
 
 export default i18n;
