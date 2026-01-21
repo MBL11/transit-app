@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, FlatList, TextInput, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -377,9 +377,18 @@ export function RouteScreen() {
           </TouchableOpacity>
         }
       />
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
       {/* Header with stop selection */}
-      <View style={styles.searchContainer}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.searchContainer}>
         <Text style={styles.title}>{t('route.title')}</Text>
 
         {/* From Location */}
@@ -573,7 +582,8 @@ export function RouteScreen() {
             <Text style={styles.calculateButtonText}>{t('route.searchRoute')}</Text>
           )}
         </TouchableOpacity>
-      </View>
+        </View>
+      </ScrollView>
 
       {/* Results */}
       <ScrollView style={styles.resultsContainer} contentContainerStyle={styles.resultsContent}>
@@ -760,7 +770,7 @@ export function RouteScreen() {
         onClose={() => setShowFilters(false)}
         onApply={savePreferences}
       />
-      </View>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
