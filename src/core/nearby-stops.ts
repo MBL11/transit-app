@@ -27,6 +27,8 @@ export async function findNearbyStops(
   const db = openDatabase();
 
   try {
+    console.log(`[NearbyStops] Searching for stops within ${radiusMeters}m of (${lat}, ${lon})`);
+
     // Calculate approximate bounding box (rough estimation)
     // 1 degree latitude ≈ 111km
     // 1 degree longitude ≈ 111km * cos(latitude)
@@ -38,6 +40,14 @@ export async function findNearbyStops(
     const minLon = lon - lonDelta;
     const maxLon = lon + lonDelta;
 
+    console.log(`[NearbyStops] Bounding box: lat [${minLat}, ${maxLat}], lon [${minLon}, ${maxLon}]`);
+
+    // First, check how many stops exist in database
+    const totalStops = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM stops WHERE location_type = 0'
+    );
+    console.log(`[NearbyStops] Total stops in database: ${totalStops?.count || 0}`);
+
     // Query stops within bounding box
     const rows = db.getAllSync<any>(
       `SELECT * FROM stops
@@ -46,6 +56,8 @@ export async function findNearbyStops(
        AND location_type = 0`,
       [minLat, maxLat, minLon, maxLon]
     );
+
+    console.log(`[NearbyStops] Found ${rows.length} stops in bounding box`);
 
     // Calculate exact distances and filter by radius
     const stopsWithDistance: NearbyStop[] = rows
@@ -66,9 +78,14 @@ export async function findNearbyStops(
       .sort((a, b) => a.distance - b.distance)
       .slice(0, limit);
 
+    console.log(`[NearbyStops] After distance filtering: ${stopsWithDistance.length} stops`);
+    if (stopsWithDistance.length > 0) {
+      console.log(`[NearbyStops] Closest stop: ${stopsWithDistance[0].name} at ${Math.round(stopsWithDistance[0].distance)}m`);
+    }
+
     return stopsWithDistance;
   } catch (error) {
-    console.error('Failed to find nearby stops:', error);
+    console.error('[NearbyStops] Failed to find nearby stops:', error);
     throw error;
   }
 }

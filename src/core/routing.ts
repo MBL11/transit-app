@@ -203,25 +203,27 @@ export async function findRouteFromAddresses(
     // 3. Find nearby stops for both locations
     console.log('[Routing] Finding nearby stops...');
     const [fromStops, toStops] = await Promise.all([
-      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 10, 1500), // 1.5km radius, up to 10 stops
-      findBestNearbyStops(toLocation.lat, toLocation.lon, 10, 1500),
+      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 15, 2500), // 2.5km radius, up to 15 stops
+      findBestNearbyStops(toLocation.lat, toLocation.lon, 15, 2500),
     ]);
 
     if (fromStops.length === 0) {
-      throw new Error('No transit stops found near starting address');
+      throw new Error(`Aucun arrêt trouvé près de ${fromLocation.shortAddress || fromLocation.displayName}. Rayon de recherche: 2.5km. Vérifiez que les données GTFS sont chargées.`);
     }
     if (toStops.length === 0) {
-      throw new Error('No transit stops found near destination address');
+      throw new Error(`Aucun arrêt trouvé près de ${toLocation.shortAddress || toLocation.displayName}. Rayon de recherche: 2.5km. Vérifiez que les données GTFS sont chargées.`);
     }
 
     console.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
+    console.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
+    console.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
     // 4. Try to find routes between nearby stops
     const allJourneys: JourneyResult[] = [];
 
-    // Try combinations of nearby stops (max 3x3 = 9 combinations)
-    for (const fromStop of fromStops.slice(0, 3)) {
-      for (const toStop of toStops.slice(0, 3)) {
+    // Try combinations of nearby stops (max 5x5 = 25 combinations)
+    for (const fromStop of fromStops.slice(0, 5)) {
+      for (const toStop of toStops.slice(0, 5)) {
         try {
           // Find routes between these stops
           const routes = await findRoute(fromStop.id, toStop.id, departureTime);
@@ -292,12 +294,12 @@ export async function findRouteFromAddresses(
       throw new Error('No transit routes found between these addresses');
     }
 
-    // Sort by total duration and return top 3
+    // Sort by total duration and return top 5
     allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
 
-    console.log(`[Routing] Found ${allJourneys.length} journeys, returning top 3`);
+    console.log(`[Routing] Found ${allJourneys.length} journeys, returning top 5`);
 
-    return allJourneys.slice(0, 3);
+    return allJourneys.slice(0, 5);
 
   } catch (error) {
     console.error('[Routing] Error finding route from addresses:', error);
@@ -325,13 +327,13 @@ export async function findRouteFromCoordinates(
     const toLocation = toResults[0];
 
     // 2. Find nearby stops from starting coordinates
-    const fromStops = await findBestNearbyStops(fromLat, fromLon, 10, 1500);
+    const fromStops = await findBestNearbyStops(fromLat, fromLon, 15, 2500);
     if (fromStops.length === 0) {
-      throw new Error('No transit stops found near starting location');
+      throw new Error('Aucun arrêt trouvé près de votre position. Rayon de recherche: 2.5km.');
     }
 
     // 3. Find nearby stops for destination
-    const toStops = await findBestNearbyStops(toLocation.lat, toLocation.lon, 10, 1500);
+    const toStops = await findBestNearbyStops(toLocation.lat, toLocation.lon, 15, 2500);
     if (toStops.length === 0) {
       throw new Error('No transit stops found near destination');
     }
@@ -339,8 +341,8 @@ export async function findRouteFromCoordinates(
     // 4. Find routes and add walking segments
     const allJourneys: JourneyResult[] = [];
 
-    for (const fromStop of fromStops.slice(0, 3)) {
-      for (const toStop of toStops.slice(0, 3)) {
+    for (const fromStop of fromStops.slice(0, 5)) {
+      for (const toStop of toStops.slice(0, 5)) {
         try {
           const routes = await findRoute(fromStop.id, toStop.id, departureTime);
 
@@ -398,11 +400,12 @@ export async function findRouteFromCoordinates(
     }
 
     if (allJourneys.length === 0) {
-      throw new Error('No transit routes found');
+      throw new Error('Aucun itinéraire trouvé');
     }
 
     allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    return allJourneys.slice(0, 3);
+    console.log(`[Routing] Found ${allJourneys.length} journeys, returning top 5`);
+    return allJourneys.slice(0, 5);
 
   } catch (error) {
     console.error('[Routing] Error finding route from coordinates:', error);
