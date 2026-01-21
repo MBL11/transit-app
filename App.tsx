@@ -10,17 +10,29 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { RootNavigator } from './src/navigation';
 import { ErrorBoundary } from './src/components/error/ErrorBoundary';
-import mobileAds from 'react-native-google-mobile-ads';
+import Constants from 'expo-constants';
 
-// Initialize Google Mobile Ads SDK
-mobileAds()
-  .initialize()
-  .then(adapterStatuses => {
-    console.log('[AdMob] Initialization complete:', adapterStatuses);
-  })
-  .catch(error => {
-    console.error('[AdMob] Initialization failed:', error);
-  });
+// Initialize Google Mobile Ads SDK only if not in Expo Go
+// Expo Go doesn't support native modules like AdMob
+const isExpoGo = Constants.appOwnership === 'expo';
+if (!isExpoGo && !__DEV__) {
+  // Only import and initialize in production builds or dev client
+  try {
+    const mobileAds = require('react-native-google-mobile-ads').default;
+    mobileAds()
+      .initialize()
+      .then((adapterStatuses: any) => {
+        console.log('[AdMob] Initialization complete:', adapterStatuses);
+      })
+      .catch((error: any) => {
+        console.error('[AdMob] Initialization failed:', error);
+      });
+  } catch (error) {
+    console.warn('[AdMob] Module not available (expected in Expo Go):', error);
+  }
+} else {
+  console.log('[AdMob] Skipped initialization (Expo Go or dev mode)');
+}
 
 function AppContent() {
   const { isDark, loaded } = useTheme();
