@@ -141,7 +141,14 @@
     "selectDepartureArrival": "Please select a departure and arrival stop",
     "differentStops": "Departure and arrival must be different",
     "unableToCalculate": "Unable to calculate route",
-    "importDataFromMap": "Import data from the Map screen"
+    "importDataFromMap": "Import data from the Map screen",
+    "stop": "Stop",
+    "address": "Address",
+    "enterAddress": "Enter an address",
+    "useCurrentLocation": "Use my location",
+    "currentLocation": "My location",
+    "enterAddressToSearch": "Enter an address to search",
+    "typeMoreCharacters": "Type at least 3 characters"
   },
   "alerts": {
     "title": "Disruptions",

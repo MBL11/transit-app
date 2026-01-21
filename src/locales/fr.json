@@ -141,7 +141,14 @@
     "selectDepartureArrival": "Veuillez sélectionner un départ et une arrivée",
     "differentStops": "Le départ et l'arrivée doivent être différents",
     "unableToCalculate": "Impossible de calculer l'itinéraire",
-    "importDataFromMap": "Importez des données depuis l'écran Carte"
+    "importDataFromMap": "Importez des données depuis l'écran Carte",
+    "stop": "Arrêt",
+    "address": "Adresse",
+    "enterAddress": "Entrez une adresse",
+    "useCurrentLocation": "Utiliser ma position",
+    "currentLocation": "Ma position",
+    "enterAddressToSearch": "Entrez une adresse pour rechercher",
+    "typeMoreCharacters": "Tapez au moins 3 caractères"
   },
   "alerts": {
     "title": "Perturbations",

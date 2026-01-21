@@ -13,12 +13,15 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { RouteResult } from '../components/transit/RouteResult';
-import { findRoute } from '../core/routing';
+import { findRoute, findRouteFromAddresses, findRouteFromCoordinates } from '../core/routing';
 import type { Stop } from '../core/types/models';
 import type { JourneyResult } from '../core/types/routing';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
 import { serializeJourney } from '../core/types/routing-serialization';
 import * as db from '../core/database';
+import { AddressSearchModal } from '../components/routing/AddressSearchModal';
+import type { GeocodingResult } from '../core/geocoding';
+import { useLocation } from '../hooks/useLocation';
 
 type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalculation'>;
 
@@ -32,13 +35,23 @@ export function RouteScreen() {
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // Search mode: 'stop' or 'address'
+  const [fromMode, setFromMode] = useState<'stop' | 'address'>('stop');
+  const [toMode, setToMode] = useState<'stop' | 'address'>('stop');
+
   // Selected stops
   const [fromStop, setFromStop] = useState<Stop | null>(null);
   const [toStop, setToStop] = useState<Stop | null>(null);
 
+  // Selected addresses
+  const [fromAddress, setFromAddress] = useState<GeocodingResult | null>(null);
+  const [toAddress, setToAddress] = useState<GeocodingResult | null>(null);
+
   // Search states
   const [showFromSearch, setShowFromSearch] = useState(false);
   const [showToSearch, setShowToSearch] = useState(false);
+  const [showFromAddressSearch, setShowFromAddressSearch] = useState(false);
+  const [showToAddressSearch, setShowToAddressSearch] = useState(false);
   const [fromSearchQuery, setFromSearchQuery] = useState('');
   const [toSearchQuery, setToSearchQuery] = useState('');
 
@@ -72,33 +85,68 @@ export function RouteScreen() {
   };
 
   const handleCalculateRoute = async () => {
-    if (!fromStop || !toStop) {
-      Alert.alert(t('common.error'), 'Please select a departure and arrival stop');
-      return;
-    }
+    // Validate inputs
+    const hasFromLocation = fromMode === 'stop' ? fromStop !== null : fromAddress !== null;
+    const hasToLocation = toMode === 'stop' ? toStop !== null : toAddress !== null;
 
-    if (fromStop.id === toStop.id) {
-      Alert.alert(t('common.error'), 'Departure and arrival must be different');
+    if (!hasFromLocation || !hasToLocation) {
+      Alert.alert(t('common.error'), 'Please select departure and arrival locations');
       return;
     }
 
     try {
       setCalculating(true);
       setHasSearched(false);
-      console.log('[RouteScreen] Calculating route from', fromStop.id, 'to', toStop.id, 'mode:', timeMode);
 
       // Calculate departure time based on mode
       let searchTime = departureTime;
       if (timeMode === 'arrival') {
         // For arrival mode, subtract estimated journey time (30 min by default)
-        // This is a simplified approach - in reality we'd need reverse pathfinding
         searchTime = new Date(departureTime.getTime() - 30 * 60000);
         console.log('[RouteScreen] Arrival mode: searching from', formatTime(searchTime));
       }
 
-      const results = await findRoute(fromStop.id, toStop.id, searchTime);
+      let results: JourneyResult[] = [];
 
-      // Filter results for arrival mode (keep only journeys arriving before target time)
+      // Determine which routing function to use based on from/to modes
+      if (fromMode === 'stop' && toMode === 'stop') {
+        // Stop to Stop
+        console.log('[RouteScreen] Calculating stop to stop route');
+        results = await findRoute(fromStop!.id, toStop!.id, searchTime);
+      } else if (fromMode === 'address' && toMode === 'address') {
+        // Address to Address
+        console.log('[RouteScreen] Calculating address to address route');
+        results = await findRouteFromAddresses(
+          fromAddress!.displayName,
+          toAddress!.displayName,
+          searchTime,
+          'fr' // Country code for France
+        );
+      } else if (fromMode === 'address' && toMode === 'stop') {
+        // Address to Stop
+        console.log('[RouteScreen] Calculating address to stop route');
+        results = await findRouteFromCoordinates(
+          fromAddress!.lat,
+          fromAddress!.lon,
+          toStop!.name, // Use stop name as address
+          searchTime,
+          'fr'
+        );
+      } else if (fromMode === 'stop' && toMode === 'address') {
+        // Stop to Address
+        console.log('[RouteScreen] Calculating stop to address route');
+        // For stop to address, we can reverse: find route from toAddress to fromStop
+        // and then reverse the journey. For now, use coordinates approach.
+        results = await findRouteFromCoordinates(
+          fromStop!.lat,
+          fromStop!.lon,
+          toAddress!.displayName,
+          searchTime,
+          'fr'
+        );
+      }
+
+      // Filter results for arrival mode
       const filteredResults = timeMode === 'arrival'
         ? results.filter(j => j.arrivalTime <= departureTime)
         : results;
@@ -106,18 +154,29 @@ export function RouteScreen() {
       setJourneys(filteredResults);
       setHasSearched(true);
       console.log('[RouteScreen] Found', filteredResults.length, 'journeys');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[RouteScreen] Error calculating route:', err);
-      Alert.alert(t('common.error'), 'Unable to calculate route');
+      Alert.alert(t('common.error'), err.message || 'Unable to calculate route');
     } finally {
       setCalculating(false);
     }
   };
 
   const handleSwapStops = () => {
+    // Swap modes
+    const tempMode = fromMode;
+    setFromMode(toMode);
+    setToMode(tempMode);
+
+    // Swap stops
     const tempStop = fromStop;
     setFromStop(toStop);
     setToStop(tempStop);
+
+    // Swap addresses
+    const tempAddress = fromAddress;
+    setFromAddress(toAddress);
+    setToAddress(tempAddress);
   };
 
   const handleJourneyPress = (journey: JourneyResult) => {
@@ -125,13 +184,21 @@ export function RouteScreen() {
   };
 
   const openFromSearch = () => {
-    setFromSearchQuery('');
-    setShowFromSearch(true);
+    if (fromMode === 'stop') {
+      setFromSearchQuery('');
+      setShowFromSearch(true);
+    } else {
+      setShowFromAddressSearch(true);
+    }
   };
 
   const openToSearch = () => {
-    setToSearchQuery('');
-    setShowToSearch(true);
+    if (toMode === 'stop') {
+      setToSearchQuery('');
+      setShowToSearch(true);
+    } else {
+      setShowToAddressSearch(true);
+    }
   };
 
   const selectFromStop = (stop: Stop) => {
@@ -142,6 +209,38 @@ export function RouteScreen() {
   const selectToStop = (stop: Stop) => {
     setToStop(stop);
     setShowToSearch(false);
+  };
+
+  const selectFromAddress = (address: GeocodingResult) => {
+    setFromAddress(address);
+    setShowFromAddressSearch(false);
+  };
+
+  const selectToAddress = (address: GeocodingResult) => {
+    setToAddress(address);
+    setShowToAddressSearch(false);
+  };
+
+  const toggleFromMode = () => {
+    const newMode = fromMode === 'stop' ? 'address' : 'stop';
+    setFromMode(newMode);
+    // Clear selection when switching modes
+    if (newMode === 'stop') {
+      setFromAddress(null);
+    } else {
+      setFromStop(null);
+    }
+  };
+
+  const toggleToMode = () => {
+    const newMode = toMode === 'stop' ? 'address' : 'stop';
+    setToMode(newMode);
+    // Clear selection when switching modes
+    if (newMode === 'stop') {
+      setToAddress(null);
+    } else {
+      setToStop(null);
+    }
   };
 
   const filterStops = (query: string) => {
@@ -211,7 +310,26 @@ export function RouteScreen() {
 
   const filteredFromStops = filterStops(fromSearchQuery);
   const filteredToStops = filterStops(toSearchQuery);
-  const canSearch = fromStop !== null && toStop !== null && fromStop.id !== toStop.id;
+
+  const hasFromLocation = fromMode === 'stop' ? fromStop !== null : fromAddress !== null;
+  const hasToLocation = toMode === 'stop' ? toStop !== null : toAddress !== null;
+  const canSearch = hasFromLocation && hasToLocation;
+
+  const getFromDisplayText = () => {
+    if (fromMode === 'stop') {
+      return fromStop ? fromStop.name : t('search.placeholder');
+    } else {
+      return fromAddress ? fromAddress.displayName : t('route.enterAddress');
+    }
+  };
+
+  const getToDisplayText = () => {
+    if (toMode === 'stop') {
+      return toStop ? toStop.name : t('search.placeholder');
+    } else {
+      return toAddress ? toAddress.displayName : t('route.enterAddress');
+    }
+  };
 
   return (
     <ScreenContainer>
@@ -221,15 +339,35 @@ export function RouteScreen() {
       <View style={styles.searchContainer}>
         <Text style={styles.title}>{t('route.title')}</Text>
 
-        {/* From Stop */}
+        {/* From Location */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>📍 {t('transit.from')}</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>📍 {t('transit.from')}</Text>
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[styles.modeButton, fromMode === 'stop' && styles.modeButtonActive]}
+                onPress={() => fromMode !== 'stop' && toggleFromMode()}
+              >
+                <Text style={[styles.modeButtonText, fromMode === 'stop' && styles.modeButtonTextActive]}>
+                  🚏 {t('route.stop')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, fromMode === 'address' && styles.modeButtonActive]}
+                onPress={() => fromMode !== 'address' && toggleFromMode()}
+              >
+                <Text style={[styles.modeButtonText, fromMode === 'address' && styles.modeButtonTextActive]}>
+                  📍 {t('route.address')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           <TouchableOpacity
             style={styles.stopInput}
             onPress={openFromSearch}
           >
-            <Text style={[styles.stopInputText, !fromStop && styles.stopInputPlaceholder]}>
-              {fromStop ? fromStop.name : t('search.placeholder')}
+            <Text style={[styles.stopInputText, !hasFromLocation && styles.stopInputPlaceholder]}>
+              {getFromDisplayText()}
             </Text>
           </TouchableOpacity>
         </View>
@@ -243,15 +381,35 @@ export function RouteScreen() {
           <Text style={styles.swapIcon}>↕️</Text>
         </TouchableOpacity>
 
-        {/* To Stop */}
+        {/* To Location */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>🎯 {t('transit.to')}</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>🎯 {t('transit.to')}</Text>
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[styles.modeButton, toMode === 'stop' && styles.modeButtonActive]}
+                onPress={() => toMode !== 'stop' && toggleToMode()}
+              >
+                <Text style={[styles.modeButtonText, toMode === 'stop' && styles.modeButtonTextActive]}>
+                  🚏 {t('route.stop')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, toMode === 'address' && styles.modeButtonActive]}
+                onPress={() => toMode !== 'address' && toggleToMode()}
+              >
+                <Text style={[styles.modeButtonText, toMode === 'address' && styles.modeButtonTextActive]}>
+                  📍 {t('route.address')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           <TouchableOpacity
             style={styles.stopInput}
             onPress={openToSearch}
           >
-            <Text style={[styles.stopInputText, !toStop && styles.stopInputPlaceholder]}>
-              {toStop ? toStop.name : t('search.placeholder')}
+            <Text style={[styles.stopInputText, !hasToLocation && styles.stopInputPlaceholder]}>
+              {getToDisplayText()}
             </Text>
           </TouchableOpacity>
         </View>
@@ -531,6 +689,22 @@ export function RouteScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* From Address Search Modal */}
+      <AddressSearchModal
+        visible={showFromAddressSearch}
+        onClose={() => setShowFromAddressSearch(false)}
+        onSelect={selectFromAddress}
+        title={`📍 ${t('transit.from')}`}
+      />
+
+      {/* To Address Search Modal */}
+      <AddressSearchModal
+        visible={showToAddressSearch}
+        onClose={() => setShowToAddressSearch(false)}
+        onSelect={selectToAddress}
+        title={`🎯 ${t('transit.to')}`}
+      />
       </View>
     </ScreenContainer>
   );
@@ -584,11 +758,38 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     inputContainer: {
       marginBottom: 8,
     },
+    labelRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
     label: {
       fontSize: 13,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 6,
+    },
+    modeToggle: {
+      flexDirection: 'row',
+      backgroundColor: colors.buttonBackground,
+      borderRadius: 6,
+      padding: 2,
+    },
+    modeButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+    },
+    modeButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    modeButtonText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    modeButtonTextActive: {
+      color: '#fff',
     },
     stopInput: {
       backgroundColor: colors.inputBackground,

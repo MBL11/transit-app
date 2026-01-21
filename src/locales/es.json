@@ -136,7 +136,14 @@
     "selectDepartureArrival": "Por favor selecciona una parada de salida y llegada",
     "differentStops": "La salida y llegada deben ser diferentes",
     "unableToCalculate": "No se puede calcular la ruta",
-    "importDataFromMap": "Importa datos desde la pantalla Mapa"
+    "importDataFromMap": "Importa datos desde la pantalla Mapa",
+    "stop": "Parada",
+    "address": "Dirección",
+    "enterAddress": "Ingresa una dirección",
+    "useCurrentLocation": "Usar mi ubicación",
+    "currentLocation": "Mi ubicación",
+    "enterAddressToSearch": "Ingresa una dirección para buscar",
+    "typeMoreCharacters": "Escribe al menos 3 caracteres"
   },
   "alerts": {
     "title": "Interrupciones",

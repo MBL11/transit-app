@@ -136,7 +136,14 @@
     "selectDepartureArrival": "Пожалуйста, выберите остановки отправления и прибытия",
     "differentStops": "Отправление и прибытие должны быть разными",
     "unableToCalculate": "Не удается рассчитать маршрут",
-    "importDataFromMap": "Импортируйте данные с экрана Карта"
+    "importDataFromMap": "Импортируйте данные с экрана Карта",
+    "stop": "Остановка",
+    "address": "Адрес",
+    "enterAddress": "Введите адрес",
+    "useCurrentLocation": "Использовать моё местоположение",
+    "currentLocation": "Моё местоположение",
+    "enterAddressToSearch": "Введите адрес для поиска",
+    "typeMoreCharacters": "Введите не менее 3 символов"
   },
   "alerts": {
     "title": "Сбои",

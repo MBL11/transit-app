@@ -2,6 +2,8 @@ import Heap from 'heap-js';
 import * as db from './database';
 import { Stop, Route } from './types/models';
 import { JourneyResult, RouteSegment } from './types/routing';
+import { geocodeAddress, GeocodingResult } from './geocoding';
+import { findBestNearbyStops, NearbyStop, getWalkingTime } from './nearby-stops';
 
 // Calcule la distance entre 2 points GPS (en mètres)
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -116,4 +118,294 @@ export async function findRoute(
   }
 
   return journeys;
+}
+
+/**
+ * Find routes from address to address (with geocoding)
+ * @param fromAddress - Starting address as string
+ * @param toAddress - Destination address as string
+ * @param departureTime - Departure time
+ * @param countryCode - Optional country code for geocoding (e.g., 'fr')
+ * @returns Array of journey results with walking segments to/from stops
+ */
+export async function findRouteFromAddresses(
+  fromAddress: string,
+  toAddress: string,
+  departureTime: Date,
+  countryCode?: string
+): Promise<JourneyResult[]> {
+  try {
+    // 1. Geocode both addresses
+    console.log('[Routing] Geocoding addresses...');
+    const [fromResults, toResults] = await Promise.all([
+      geocodeAddress(fromAddress, countryCode, 1),
+      geocodeAddress(toAddress, countryCode, 1),
+    ]);
+
+    if (fromResults.length === 0) {
+      throw new Error('Could not find starting address');
+    }
+    if (toResults.length === 0) {
+      throw new Error('Could not find destination address');
+    }
+
+    const fromLocation = fromResults[0];
+    const toLocation = toResults[0];
+
+    console.log('[Routing] From:', fromLocation.displayName);
+    console.log('[Routing] To:', toLocation.displayName);
+
+    // 2. Check if walking distance is reasonable (< 2km)
+    const directDistance = haversineDistance(
+      fromLocation.lat,
+      fromLocation.lon,
+      toLocation.lat,
+      toLocation.lon
+    );
+
+    // If very close (< 500m), just walk
+    if (directDistance < 500) {
+      const walkTime = walkingTime(directDistance);
+
+      // Create virtual stops for the addresses
+      const fromVirtualStop: Stop = {
+        id: 'virtual_from',
+        name: fromLocation.displayName,
+        lat: fromLocation.lat,
+        lon: fromLocation.lon,
+        locationType: 0,
+      };
+
+      const toVirtualStop: Stop = {
+        id: 'virtual_to',
+        name: toLocation.displayName,
+        lat: toLocation.lat,
+        lon: toLocation.lon,
+        locationType: 0,
+      };
+
+      return [{
+        segments: [{
+          type: 'walk',
+          from: fromVirtualStop,
+          to: toVirtualStop,
+          duration: Math.round(walkTime),
+          distance: Math.round(directDistance),
+        }],
+        totalDuration: Math.round(walkTime),
+        totalWalkDistance: Math.round(directDistance),
+        numberOfTransfers: 0,
+        departureTime: departureTime,
+        arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
+      }];
+    }
+
+    // 3. Find nearby stops for both locations
+    console.log('[Routing] Finding nearby stops...');
+    const [fromStops, toStops] = await Promise.all([
+      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 5, 800),
+      findBestNearbyStops(toLocation.lat, toLocation.lon, 5, 800),
+    ]);
+
+    if (fromStops.length === 0) {
+      throw new Error('No transit stops found near starting address');
+    }
+    if (toStops.length === 0) {
+      throw new Error('No transit stops found near destination address');
+    }
+
+    console.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
+
+    // 4. Try to find routes between nearby stops
+    const allJourneys: JourneyResult[] = [];
+
+    // Try combinations of nearby stops (max 3x3 = 9 combinations)
+    for (const fromStop of fromStops.slice(0, 3)) {
+      for (const toStop of toStops.slice(0, 3)) {
+        try {
+          // Find routes between these stops
+          const routes = await findRoute(fromStop.id, toStop.id, departureTime);
+
+          // Add walking segments to the beginning and end
+          for (const route of routes) {
+            // Calculate walking time to first stop
+            const walkToStop = getWalkingTime(fromStop.distance);
+
+            // Calculate walking time from last stop
+            const walkFromStop = getWalkingTime(toStop.distance);
+
+            // Create virtual stops for the addresses
+            const fromVirtualStop: Stop = {
+              id: 'virtual_from',
+              name: fromLocation.displayName,
+              lat: fromLocation.lat,
+              lon: fromLocation.lon,
+              locationType: 0,
+            };
+
+            const toVirtualStop: Stop = {
+              id: 'virtual_to',
+              name: toLocation.displayName,
+              lat: toLocation.lat,
+              lon: toLocation.lon,
+              locationType: 0,
+            };
+
+            // Prepend walking segment to first stop
+            const walkToSegment: RouteSegment = {
+              type: 'walk',
+              from: fromVirtualStop,
+              to: fromStop,
+              duration: walkToStop,
+              distance: Math.round(fromStop.distance),
+            };
+
+            // Append walking segment from last stop
+            const walkFromSegment: RouteSegment = {
+              type: 'walk',
+              from: toStop,
+              to: toVirtualStop,
+              duration: walkFromStop,
+              distance: Math.round(toStop.distance),
+            };
+
+            // Create new journey with walking segments
+            const newJourney: JourneyResult = {
+              segments: [walkToSegment, ...route.segments, walkFromSegment],
+              totalDuration: route.totalDuration + walkToStop + walkFromStop,
+              totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
+              numberOfTransfers: route.numberOfTransfers,
+              departureTime: departureTime,
+              arrivalTime: new Date(departureTime.getTime() + (route.totalDuration + walkToStop + walkFromStop) * 60000),
+            };
+
+            allJourneys.push(newJourney);
+          }
+        } catch (error) {
+          // Skip this combination if route finding fails
+          console.warn(`[Routing] Failed to find route between ${fromStop.name} and ${toStop.name}`);
+        }
+      }
+    }
+
+    if (allJourneys.length === 0) {
+      throw new Error('No transit routes found between these addresses');
+    }
+
+    // Sort by total duration and return top 3
+    allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+
+    console.log(`[Routing] Found ${allJourneys.length} journeys, returning top 3`);
+
+    return allJourneys.slice(0, 3);
+
+  } catch (error) {
+    console.error('[Routing] Error finding route from addresses:', error);
+    throw error;
+  }
+}
+
+/**
+ * Find route from coordinates to address
+ */
+export async function findRouteFromCoordinates(
+  fromLat: number,
+  fromLon: number,
+  toAddress: string,
+  departureTime: Date,
+  countryCode?: string
+): Promise<JourneyResult[]> {
+  try {
+    // 1. Geocode destination address
+    const toResults = await geocodeAddress(toAddress, countryCode, 1);
+    if (toResults.length === 0) {
+      throw new Error('Could not find destination address');
+    }
+
+    const toLocation = toResults[0];
+
+    // 2. Find nearby stops from starting coordinates
+    const fromStops = await findBestNearbyStops(fromLat, fromLon, 5, 800);
+    if (fromStops.length === 0) {
+      throw new Error('No transit stops found near starting location');
+    }
+
+    // 3. Find nearby stops for destination
+    const toStops = await findBestNearbyStops(toLocation.lat, toLocation.lon, 5, 800);
+    if (toStops.length === 0) {
+      throw new Error('No transit stops found near destination');
+    }
+
+    // 4. Find routes and add walking segments
+    const allJourneys: JourneyResult[] = [];
+
+    for (const fromStop of fromStops.slice(0, 3)) {
+      for (const toStop of toStops.slice(0, 3)) {
+        try {
+          const routes = await findRoute(fromStop.id, toStop.id, departureTime);
+
+          for (const route of routes) {
+            const walkToStop = getWalkingTime(fromStop.distance);
+            const walkFromStop = getWalkingTime(toStop.distance);
+
+            const fromVirtualStop: Stop = {
+              id: 'virtual_from',
+              name: 'Current Location',
+              lat: fromLat,
+              lon: fromLon,
+              locationType: 0,
+            };
+
+            const toVirtualStop: Stop = {
+              id: 'virtual_to',
+              name: toLocation.displayName,
+              lat: toLocation.lat,
+              lon: toLocation.lon,
+              locationType: 0,
+            };
+
+            const walkToSegment: RouteSegment = {
+              type: 'walk',
+              from: fromVirtualStop,
+              to: fromStop,
+              duration: walkToStop,
+              distance: Math.round(fromStop.distance),
+            };
+
+            const walkFromSegment: RouteSegment = {
+              type: 'walk',
+              from: toStop,
+              to: toVirtualStop,
+              duration: walkFromStop,
+              distance: Math.round(toStop.distance),
+            };
+
+            const newJourney: JourneyResult = {
+              segments: [walkToSegment, ...route.segments, walkFromSegment],
+              totalDuration: route.totalDuration + walkToStop + walkFromStop,
+              totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
+              numberOfTransfers: route.numberOfTransfers,
+              departureTime: departureTime,
+              arrivalTime: new Date(departureTime.getTime() + (route.totalDuration + walkToStop + walkFromStop) * 60000),
+            };
+
+            allJourneys.push(newJourney);
+          }
+        } catch (error) {
+          console.warn(`[Routing] Failed to find route between stops`);
+        }
+      }
+    }
+
+    if (allJourneys.length === 0) {
+      throw new Error('No transit routes found');
+    }
+
+    allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+    return allJourneys.slice(0, 3);
+
+  } catch (error) {
+    console.error('[Routing] Error finding route from coordinates:', error);
+    throw error;
+  }
 }

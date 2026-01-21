@@ -136,7 +136,14 @@
     "selectDepartureArrival": "Lütfen bir kalkış ve varış durağı seçin",
     "differentStops": "Kalkış ve varış farklı olmalı",
     "unableToCalculate": "Rota hesaplanamıyor",
-    "importDataFromMap": "Harita ekranından veri içe aktarın"
+    "importDataFromMap": "Harita ekranından veri içe aktarın",
+    "stop": "Durak",
+    "address": "Adres",
+    "enterAddress": "Bir adres girin",
+    "useCurrentLocation": "Konumumu kullan",
+    "currentLocation": "Konumum",
+    "enterAddressToSearch": "Aramak için bir adres girin",
+    "typeMoreCharacters": "En az 3 karakter yazın"
   },
   "alerts": {
     "title": "Aksaklıklar",
