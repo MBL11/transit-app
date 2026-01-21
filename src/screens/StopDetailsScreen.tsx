@@ -39,6 +39,29 @@ export function StopDetailsScreen({ route, navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Refresh only departures (for pull-to-refresh and auto-refresh)
+  const refreshDepartures = useCallback(async () => {
+    try {
+      // Get departures from adapter (real-time or theoretical)
+      const departuresData = await parisAdapter.getNextDepartures(stopId);
+
+      // Convert to Departure format
+      const formattedDepartures: Departure[] = departuresData.map((dep) => ({
+        routeShortName: dep.routeShortName,
+        routeColor: dep.routeColor || '#CCCCCC',
+        headsign: dep.headsign,
+        departureTime: dep.departureTime,
+        isRealtime: dep.isRealtime,
+        delay: dep.delay,
+      }));
+
+      // Use mock data if no real data available (for testing)
+      setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
+    } catch (err) {
+      console.error('[StopDetailsScreen] Error refreshing departures:', err);
+    }
+  }, [stopId]);
+
   // Initial load
   useEffect(() => {
     loadStopData();
@@ -51,7 +74,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [stopId]);
+  }, [stopId, refreshDepartures]);
 
   const loadStopData = async () => {
     try {
@@ -93,35 +116,12 @@ export function StopDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  // Refresh only departures (for pull-to-refresh and auto-refresh)
-  const refreshDepartures = async () => {
-    try {
-      // Get departures from adapter (real-time or theoretical)
-      const departuresData = await parisAdapter.getNextDepartures(stopId);
-
-      // Convert to Departure format
-      const formattedDepartures: Departure[] = departuresData.map((dep) => ({
-        routeShortName: dep.routeShortName,
-        routeColor: dep.routeColor || '#CCCCCC',
-        headsign: dep.headsign,
-        departureTime: dep.departureTime,
-        isRealtime: dep.isRealtime,
-        delay: dep.delay,
-      }));
-
-      // Use mock data if no real data available (for testing)
-      setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
-    } catch (err) {
-      console.error('[StopDetailsScreen] Error refreshing departures:', err);
-    }
-  };
-
   // Pull to refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refreshDepartures();
     setRefreshing(false);
-  }, [stopId]);
+  }, [refreshDepartures]);
 
   // Navigate to line details
   const handleLinePress = (routeId: string) => {

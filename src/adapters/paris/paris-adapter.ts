@@ -15,6 +15,7 @@ import * as db from '../../core/database';
 import { parisConfig, parisDataSource } from './config';
 import { runMigrations } from '../../core/database-migration';
 import { fetchNextDepartures } from './siri-client';
+import { GTFSTimeSchema, parseGTFSTime, parseGTFSColor } from '../../core/validation/gtfs-schemas';
 
 /**
  * Paris adapter implementation
@@ -196,24 +197,55 @@ export class ParisAdapter implements TransitAdapter {
         [stopId, currentTime]
       );
 
-      const departures: NextDeparture[] = rows.map((row) => {
-        // Parse time string "HH:MM:SS"
-        const [hours, minutes, seconds] = row.departure_time.split(':').map(Number);
-        const departureDate = new Date();
-        departureDate.setHours(hours, minutes, seconds, 0);
+      const departures: NextDeparture[] = rows
+        .map((row) => {
+          // Validate time format
+          const timeValidation = GTFSTimeSchema.safeParse(row.departure_time);
+          if (!timeValidation.success) {
+            console.warn(
+              `[ParisAdapter] Invalid departure_time format: ${row.departure_time} for trip ${row.trip_id}`
+            );
+            return null;
+          }
 
-        return {
-          tripId: row.trip_id,
-          routeId: row.route_id,
-          routeShortName: row.route_short_name,
-          routeColor: row.route_color ? `#${row.route_color}` : undefined,
-          headsign: row.headsign || 'Unknown',
-          departureTime: departureDate,
-          scheduledTime: departureDate,
-          isRealtime: false, // Static schedule
-          delay: 0,
-        };
-      });
+          // Parse time string "HH:MM:SS" with validation
+          const timeParts = row.departure_time.split(':');
+          const hours = parseInt(timeParts[0], 10);
+          const minutes = parseInt(timeParts[1], 10);
+          const seconds = parseInt(timeParts[2], 10);
+
+          // Check for NaN after parsing
+          if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+            console.warn(
+              `[ParisAdapter] Invalid time values: ${row.departure_time} for trip ${row.trip_id}`
+            );
+            return null;
+          }
+
+          const departureDate = new Date();
+          departureDate.setHours(hours % 24, minutes, seconds, 0);
+
+          // Handle next-day trips (hours >= 24)
+          if (hours >= 24) {
+            departureDate.setDate(departureDate.getDate() + 1);
+          }
+
+          // Validate and parse color
+          const routeColor = parseGTFSColor(row.route_color);
+
+          return {
+            tripId: row.trip_id,
+            routeId: row.route_id,
+            routeShortName: row.route_short_name,
+            routeColor,
+            headsign: row.headsign || 'Unknown',
+            departureTime: departureDate,
+            scheduledTime: departureDate,
+            isRealtime: false, // Static schedule
+            delay: 0,
+          };
+        })
+        .filter((dep): dep is NextDeparture => dep !== null);
 
       console.log(`[ParisAdapter] ✅ Found ${departures.length} theoretical departures`);
       return departures;

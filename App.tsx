@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { RootNavigator } from './src/navigation';
+import { ErrorBoundary } from './src/components/error/ErrorBoundary';
 import mobileAds from 'react-native-google-mobile-ads';
 
 // Initialize Google Mobile Ads SDK
@@ -38,12 +39,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <NetworkProvider>
-          <AppContent />
-        </NetworkProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <NetworkProvider>
+            <AppContent />
+          </NetworkProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
