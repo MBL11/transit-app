@@ -5,12 +5,12 @@ import { useNavigation } from '@react-navigation/native';
 interface ScreenHeaderProps {
   title: string;
   showBack?: boolean;
+  onBack?: () => void;
   rightElement?: React.ReactNode;
 }
 
-export function ScreenHeader({ title, showBack = false, rightElement }: ScreenHeaderProps) {
+export function ScreenHeader({ title, showBack = false, onBack, rightElement }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
 
   return (
     <View
@@ -21,9 +21,7 @@ export function ScreenHeader({ title, showBack = false, rightElement }: ScreenHe
         {/* Left - Back button */}
         <View className="w-10">
           {showBack && (
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text className="text-2xl text-transit-primary">←</Text>
-            </TouchableOpacity>
+            <BackButton onPress={onBack} />
           )}
         </View>
 
@@ -38,5 +36,24 @@ export function ScreenHeader({ title, showBack = false, rightElement }: ScreenHe
         </View>
       </View>
     </View>
+  );
+}
+
+// Separate component that uses navigation hook only when needed
+function BackButton({ onPress }: { onPress?: () => void }) {
+  const navigation = useNavigation();
+
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      navigation.goBack();
+    }
+  };
+
+  return (
+    <TouchableOpacity onPress={handlePress}>
+      <Text className="text-2xl text-transit-primary">←</Text>
+    </TouchableOpacity>
   );
 }
