@@ -4,12 +4,16 @@
 
 import './global.css';
 import './src/i18n'; // Initialize i18n
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { RootNavigator } from './src/navigation';
 import { ErrorBoundary } from './src/components/error/ErrorBoundary';
+import { useNotifications } from './src/hooks/useNotifications';
+import { startAlertMonitoring, stopAlertMonitoring } from './src/services/alert-monitor';
+import { getAdapter } from './src/adapters';
 import Constants from 'expo-constants';
 
 // Initialize Google Mobile Ads SDK only if not in Expo Go
@@ -36,6 +40,22 @@ if (!isExpoGo && !__DEV__) {
 
 function AppContent() {
   const { isDark, loaded } = useTheme();
+
+  // Setup notification handlers
+  useNotifications();
+
+  // Start alert monitoring
+  useEffect(() => {
+    const adapter = getAdapter();
+
+    // Start monitoring for alerts on favorite lines
+    startAlertMonitoring((routeIds) => adapter.getAlerts(routeIds));
+
+    // Cleanup on unmount
+    return () => {
+      stopAlertMonitoring();
+    };
+  }, []);
 
   // Wait for theme to load to prevent flash
   if (!loaded) {

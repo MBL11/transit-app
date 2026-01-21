@@ -3,7 +3,7 @@
  * Configure language, theme, and other app settings
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Switch,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -20,8 +21,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useGTFSData } from '../hooks/useGTFSData';
 import { useNetwork } from '../contexts/NetworkContext';
+import { useNotificationPermissions } from '../hooks/useNotifications';
 import { changeLanguage } from '../i18n';
 import * as favoritesStorage from '../core/favorites';
+import * as notificationService from '../services/notifications';
 import type { ThemeMode } from '../hooks/useColorScheme';
 import type { SettingsStackParamList } from '../navigation/SettingsStackNavigator';
 
@@ -47,10 +50,23 @@ export function SettingsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const { isLoaded, lastUpdate, source, needsUpdate } = useGTFSData();
   const { isOffline } = useNetwork();
+  const { isGranted, requestPermissions } = useNotificationPermissions();
 
   const currentLanguage = i18n.language;
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Load notification settings on mount
+  useEffect(() => {
+    loadNotificationSettings();
+  }, []);
+
+  const loadNotificationSettings = async () => {
+    const enabled = await notificationService.areNotificationsEnabled();
+    setNotificationsEnabled(enabled);
+  };
 
   const handleLanguageChange = async (languageCode: string) => {
     try {
@@ -96,6 +112,51 @@ export function SettingsScreen({ navigation }: Props) {
         },
       ]
     );
+  };
+
+  const handleNotificationToggle = async (value: boolean) => {
+    setIsLoadingNotifications(true);
+
+    try {
+      if (value) {
+        // Enabling notifications
+        if (!isGranted) {
+          const granted = await requestPermissions();
+          if (!granted) {
+            Alert.alert(
+              t('settings.notificationsPermissionDenied'),
+              t('settings.notificationsPermissionDeniedMessage')
+            );
+            setIsLoadingNotifications(false);
+            return;
+          }
+        }
+
+        const success = await notificationService.enableNotifications();
+        if (success) {
+          setNotificationsEnabled(true);
+          Alert.alert(
+            t('settings.notificationsEnabled'),
+            t('settings.notificationsEnabledMessage')
+          );
+        } else {
+          Alert.alert(t('common.error'), t('settings.notificationsEnableFailed'));
+        }
+      } else {
+        // Disabling notifications
+        await notificationService.disableNotifications();
+        setNotificationsEnabled(false);
+        Alert.alert(
+          t('settings.notificationsDisabled'),
+          t('settings.notificationsDisabledMessage')
+        );
+      }
+    } catch (error) {
+      console.error('[Settings] Failed to toggle notifications:', error);
+      Alert.alert(t('common.error'), t('common.error'));
+    } finally {
+      setIsLoadingNotifications(false);
+    }
   };
 
   return (
@@ -160,6 +221,40 @@ export function SettingsScreen({ navigation }: Props) {
             )}
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* Notifications Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('settings.notifications')}</Text>
+
+        <View style={styles.notificationItem}>
+          <View style={styles.notificationLeft}>
+            <Text style={styles.flag}>🔔</Text>
+            <View style={styles.notificationTextContainer}>
+              <Text style={styles.notificationTitle}>
+                {t('settings.enableNotifications')}
+              </Text>
+              <Text style={styles.notificationDescription}>
+                {t('settings.notificationsDescription')}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={handleNotificationToggle}
+            disabled={isLoadingNotifications}
+            trackColor={{ false: colors.borderLight, true: colors.primary }}
+            thumbColor={notificationsEnabled ? colors.activeText : colors.textSecondary}
+          />
+        </View>
+
+        {notificationsEnabled && (
+          <View style={styles.notificationInfo}>
+            <Text style={styles.notificationInfoText}>
+              ℹ️ {t('settings.notificationsInfo')}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Data Section */}
@@ -328,5 +423,45 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       color: colors.isDark ? '#FCD34D' : '#92400E',
       fontSize: 14,
       textAlign: 'center',
+    },
+    notificationItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    notificationLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      marginRight: 12,
+    },
+    notificationTextContainer: {
+      flex: 1,
+    },
+    notificationTitle: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    notificationDescription: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    notificationInfo: {
+      backgroundColor: colors.isDark ? '#1E3A8A' : '#DBEAFE',
+      padding: 12,
+      marginHorizontal: 20,
+      marginTop: 8,
+      marginBottom: 8,
+      borderRadius: 6,
+    },
+    notificationInfoText: {
+      color: colors.isDark ? '#93C5FD' : '#1E40AF',
+      fontSize: 13,
     },
   });
