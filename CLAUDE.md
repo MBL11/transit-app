@@ -14,8 +14,8 @@ Ce document contient **tous les prompts** à utiliser avec Claude Code pour cons
 | 1 | Interface de Base | 6-9 | ✅ Terminé |
 | 2 | Temps Réel & Itinéraire | 10-13 | ✅ Terminé |
 | 3 | Polish & Features | 14-17 | ✅ Terminé |
-| 4 | Features Critiques | 18-22 | 🔄 En cours |
-| 5 | Polish & Growth | 23-27 | ⏳ À faire |
+| 4 | Features Critiques | 18-22 | ✅ Terminé |
+| 5 | Polish & Growth | 23-27 | 🔄 En cours |
 | 6 | Expansion | 28-30 | ⏳ À faire |
 
 ---
@@ -455,14 +455,14 @@ const { isOffline } = useNetwork();
 
 ---
 
-## 🔄 PHASE 4 : FEATURES CRITIQUES (EN COURS)
+## ✅ PHASE 4 : FEATURES CRITIQUES (TERMINÉ)
 
 - [x] Étape 18 : Chargement Données GTFS Réelles (infrastructure complète)
-- [ ] **Étape 19 : Routing Adresse → Adresse (Géocodage)** ← PROCHAINE
-- [ ] Étape 19b : Filtres de Routing & Itinéraires Multiples
-- [ ] Étape 20 : Publicités AdMob
-- [ ] Étape 21 : Notifications Push
-- [ ] Étape 22 : Analytics + Crash Reporting
+- [x] Étape 19 : Routing Adresse → Adresse (Géocodage)
+- [x] Étape 19b : Filtres de Routing & Itinéraires Multiples
+- [x] Étape 20 : Publicités AdMob
+- [x] Étape 21 : Notifications Push
+- [x] Étape 22 : Analytics + Crash Reporting
 
 ---
 
@@ -1081,9 +1081,9 @@ npm install @sentry/react-native
 
 ---
 
-## ⏳ PHASE 5 : POLISH & GROWTH
+## 🔄 PHASE 5 : POLISH & GROWTH (EN COURS)
 
-### Étape 23 : Onboarding / Tutorial
+### Étape 23 : Onboarding / Tutorial ← PROCHAINE
 
 ```
 Crée un écran d'onboarding pour les nouveaux utilisateurs.
@@ -1245,4 +1245,4 @@ EXPO_PUBLIC_DEEPL_KEY=xxx              # Traduction alertes
 ---
 
 **Dernière mise à jour** : Janvier 2025
-**Status** : Phase 4 en cours (Étape 19)
+**Status** : Phase 5 en cours (Étape 23 - Onboarding)
