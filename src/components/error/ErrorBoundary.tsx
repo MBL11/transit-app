@@ -9,6 +9,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 interface Props {
   children: ReactNode;
   fallback?: (error: Error, resetError: () => void) => ReactNode;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
 interface State {
@@ -44,6 +45,11 @@ export class ErrorBoundary extends Component<Props, State> {
       error,
       errorInfo,
     });
+
+    // Call custom error handler if provided
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo);
+    }
 
     // TODO: Send to error tracking service (Sentry, etc.)
     // logErrorToService(error, errorInfo);

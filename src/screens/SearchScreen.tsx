@@ -3,7 +3,7 @@
  * Search for stops and lines with real-time filtering and tabs
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { SearchBar } from '../components/transit/SearchBar';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
 import { useDebounce } from '../hooks/useDebounce';
+import { usePagination } from '../hooks/usePagination';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { searchStops, searchRoutes, getRoutesByStopId } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
@@ -50,6 +51,11 @@ export function SearchScreen({ navigation }: Props) {
   const debouncedQuery = useDebounce(query, 300);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // Pagination for stops
+  const stopPagination = usePagination(stopResults, { pageSize: 20 });
+  // Pagination for lines
+  const linePagination = usePagination(lineResults, { pageSize: 20 });
+
   // Search when debounced query changes or tab changes
   useEffect(() => {
     const performSearch = async () => {
@@ -62,12 +68,12 @@ export function SearchScreen({ navigation }: Props) {
       setLoading(true);
       try {
         if (activeTab === 'stops') {
-          // Search stops
+          // Search stops (no limit, we'll paginate)
           const stops = await searchStops(debouncedQuery);
 
-          // Fetch routes for each stop (limit to 20)
+          // Fetch routes for each stop
           const stopsWithRoutes = await Promise.all(
-            stops.slice(0, 20).map(async (stop) => {
+            stops.map(async (stop) => {
               const routes = await getRoutesByStopId(stop.id);
               return { ...stop, routes };
             })
@@ -75,9 +81,9 @@ export function SearchScreen({ navigation }: Props) {
 
           setStopResults(stopsWithRoutes);
         } else {
-          // Search lines
+          // Search lines (no limit, we'll paginate)
           const routes = await searchRoutes(debouncedQuery);
-          setLineResults(routes.slice(0, 20));
+          setLineResults(routes);
         }
       } catch (error) {
         console.error('[SearchScreen] Search error:', error);
@@ -91,21 +97,59 @@ export function SearchScreen({ navigation }: Props) {
     performSearch();
   }, [debouncedQuery, activeTab]);
 
-  const handleStopPress = (stop: Stop) => {
-    navigation.navigate('StopDetails', { stopId: stop.id });
-  };
+  // Reset pagination when tab or query changes
+  useEffect(() => {
+    stopPagination.reset();
+    linePagination.reset();
+  }, [activeTab, debouncedQuery]);
 
-  const handleLinePress = (route: Route) => {
+  const handleStopPress = useCallback((stop: Stop) => {
+    navigation.navigate('StopDetails', { stopId: stop.id });
+  }, [navigation]);
+
+  const handleLinePress = useCallback((route: Route) => {
     // Navigate to LineDetailsScreen (assuming it's in the navigation)
     // @ts-ignore - Navigation might not have this route in SearchStack
     navigation.navigate('LineDetails', { routeId: route.id });
-  };
+  }, [navigation]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setQuery('');
     setStopResults([]);
     setLineResults([]);
-  };
+  }, []);
+
+  const renderStopItem = useCallback(({ item }: { item: StopWithRoutes }) => (
+    <StopCard
+      stopName={item.name}
+      lines={item.routes.map((r) => r.shortName)}
+      onPress={() => handleStopPress(item)}
+    />
+  ), [handleStopPress]);
+
+  const renderLineItem = useCallback(({ item }: { item: Route }) => (
+    <LineCard
+      lineNumber={item.shortName}
+      lineName={item.longName}
+      lineColor={item.color}
+      type={getRouteType(item.type)}
+      onPress={() => handleLinePress(item)}
+    />
+  ), [handleLinePress]);
+
+  const keyExtractor = useCallback((item: Stop | Route) => item.id, []);
+
+  const onEndReachedStops = useCallback(() => {
+    if (stopPagination.hasMore && !loading) {
+      stopPagination.loadMore();
+    }
+  }, [stopPagination, loading]);
+
+  const onEndReachedLines = useCallback(() => {
+    if (linePagination.hasMore && !loading) {
+      linePagination.loadMore();
+    }
+  }, [linePagination, loading]);
 
   const currentResults = activeTab === 'stops' ? stopResults : lineResults;
   const hasResults = currentResults.length > 0;
@@ -173,40 +217,54 @@ export function SearchScreen({ navigation }: Props) {
         <>
           {activeTab === 'stops' ? (
             <FlatList
-              data={stopResults}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <StopCard
-                  stopName={item.name}
-                  lines={item.routes.map((r) => r.shortName)}
-                  onPress={() => handleStopPress(item)}
-                />
-              )}
+              data={stopPagination.paginatedData}
+              keyExtractor={keyExtractor}
+              renderItem={renderStopItem}
               contentContainerStyle={styles.listContent}
               ListHeaderComponent={
                 <Text style={styles.resultCount}>
                   {stopResults.length} {t(stopResults.length === 1 ? 'common.result' : 'common.result_plural')}
                 </Text>
               }
+              // Performance optimizations
+              onEndReached={onEndReachedStops}
+              onEndReachedThreshold={0.5}
+              maxToRenderPerBatch={10}
+              initialNumToRender={15}
+              windowSize={5}
+              removeClippedSubviews={true}
+              ListFooterComponent={
+                stopPagination.hasMore ? (
+                  <View style={styles.footerLoader}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : null
+              }
             />
           ) : (
             <FlatList
-              data={lineResults}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <LineCard
-                  lineNumber={item.shortName}
-                  lineName={item.longName}
-                  lineColor={item.color}
-                  type={getRouteType(item.type)}
-                  onPress={() => handleLinePress(item)}
-                />
-              )}
+              data={linePagination.paginatedData}
+              keyExtractor={keyExtractor}
+              renderItem={renderLineItem}
               contentContainerStyle={styles.listContent}
               ListHeaderComponent={
                 <Text style={styles.resultCount}>
                   {lineResults.length} {t(lineResults.length === 1 ? 'common.result' : 'common.result_plural')}
                 </Text>
+              }
+              // Performance optimizations
+              onEndReached={onEndReachedLines}
+              onEndReachedThreshold={0.5}
+              maxToRenderPerBatch={10}
+              initialNumToRender={15}
+              windowSize={5}
+              removeClippedSubviews={true}
+              ListFooterComponent={
+                linePagination.hasMore ? (
+                  <View style={styles.footerLoader}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : null
               }
             />
           )}
@@ -288,5 +346,9 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       color: colors.textSecondary,
       marginBottom: 12,
       fontWeight: '500',
+    },
+    footerLoader: {
+      paddingVertical: 20,
+      alignItems: 'center',
     },
   });

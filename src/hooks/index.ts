@@ -15,3 +15,4 @@ export { useFavorites } from './useFavorites';
 export { useThemeColors } from './useThemeColors';
 export { useNetworkStatus } from './useNetworkStatus';
 export { useGTFSData } from './useGTFSData';
+export { usePagination } from './usePagination';

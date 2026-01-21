@@ -3,7 +3,7 @@
  * Displays all available transit lines with filters
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,7 +12,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { LineCard } from '../components/transit/LineCard';
 import { SearchBar } from '../components/transit/SearchBar';
-import { useRoutes } from '../hooks';
+import { useRoutes, usePagination } from '../hooks';
 import { useThemeColors } from '../hooks/useThemeColors';
 import type { Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
@@ -75,9 +75,37 @@ export function LinesScreen() {
     return filtered;
   }, [routes, selectedType, searchQuery]);
 
-  const handleLinePress = (route: Route) => {
+  // Pagination for large lists
+  const { paginatedData, hasMore, loadMore, reset } = usePagination(filteredRoutes, {
+    pageSize: 30,
+  });
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    reset();
+  }, [selectedType, searchQuery, reset]);
+
+  const handleLinePress = useCallback((route: Route) => {
     navigation.navigate('LineDetails', { routeId: route.id });
-  };
+  }, [navigation]);
+
+  const renderItem = useCallback(({ item }: { item: Route }) => (
+    <LineCard
+      lineNumber={item.shortName}
+      lineName={item.longName}
+      lineColor={item.color || '#FF6600'}
+      type={getTransitType(item.type)}
+      onPress={() => handleLinePress(item)}
+    />
+  ), [handleLinePress]);
+
+  const keyExtractor = useCallback((item: Route) => item.id, []);
+
+  const onEndReached = useCallback(() => {
+    if (hasMore && !loading) {
+      loadMore();
+    }
+  }, [hasMore, loading, loadMore]);
 
   // Loading state
   if (loading) {
@@ -164,17 +192,9 @@ export function LinesScreen() {
 
       {/* Lines List */}
       <FlatList
-        data={filteredRoutes}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <LineCard
-            lineNumber={item.shortName}
-            lineName={item.longName}
-            lineColor={item.color || '#FF6600'}
-            type={getTransitType(item.type)}
-            onPress={() => handleLinePress(item)}
-          />
-        )}
+        data={paginatedData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyFilterContainer}>
@@ -182,6 +202,20 @@ export function LinesScreen() {
               {t('transit.noLinesOfType')} "{typeLabels[selectedType]}"
             </Text>
           </View>
+        }
+        // Performance optimizations
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
+        maxToRenderPerBatch={10}
+        initialNumToRender={15}
+        windowSize={5}
+        removeClippedSubviews={true}
+        ListFooterComponent={
+          hasMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : null
         }
       />
       </View>
@@ -282,5 +316,9 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     emptyFilterText: {
       fontSize: 16,
       color: colors.textSecondary,
+    },
+    footerLoader: {
+      paddingVertical: 20,
+      alignItems: 'center',
     },
   });
