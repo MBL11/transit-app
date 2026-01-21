@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
+import { BannerAdComponent } from '../components/ads/BannerAd';
 import { DepartureRow, type Departure } from '../components/transit/DepartureRow';
 import { useNetwork } from '../contexts/NetworkContext';
 import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDeparture } from '../core/database';
@@ -238,6 +239,9 @@ export function StopDetailsScreen({ route, navigation }: Props) {
           )}
         </View>
       </ScrollView>
+
+      {/* Banner Ad */}
+      <BannerAdComponent />
       </View>
     </ScreenContainer>
   );

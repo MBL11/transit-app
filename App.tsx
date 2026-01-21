@@ -9,6 +9,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { RootNavigator } from './src/navigation';
+import mobileAds from 'react-native-google-mobile-ads';
+
+// Initialize Google Mobile Ads SDK
+mobileAds()
+  .initialize()
+  .then(adapterStatuses => {
+    console.log('[AdMob] Initialization complete:', adapterStatuses);
+  })
+  .catch(error => {
+    console.error('[AdMob] Initialization failed:', error);
+  });
 
 function AppContent() {
   const { isDark, loaded } = useTheme();

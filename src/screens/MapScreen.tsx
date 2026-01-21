@@ -14,6 +14,7 @@ import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
 import { AlertBanner } from '../components/transit/AlertBanner';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
+import { BannerAdComponent } from '../components/ads/BannerAd';
 import { useStops, useAlerts } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -278,6 +279,11 @@ export function MapScreen({ navigation }: Props) {
           onClose={handleSheetClose}
         />
       </BottomSheet>
+
+      {/* Banner Ad */}
+      <View style={styles.bannerAdContainer}>
+        <BannerAdComponent />
+      </View>
       </View>
     </ScreenContainer>
   );
@@ -469,5 +475,14 @@ const styles = StyleSheet.create({
   alertItem: {
     width: 300,
     marginRight: 12,
+  },
+  bannerAdContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    zIndex: 5,
   },
 });

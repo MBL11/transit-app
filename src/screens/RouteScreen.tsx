@@ -12,6 +12,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
+import { BannerAdComponent } from '../components/ads/BannerAd';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { RouteResult } from '../components/transit/RouteResult';
 import { RouteOptionCard } from '../components/routing/RouteOptionCard';
@@ -25,6 +26,7 @@ import * as db from '../core/database';
 import { AddressSearchModal } from '../components/routing/AddressSearchModal';
 import type { GeocodingResult } from '../core/geocoding';
 import { useLocation } from '../hooks/useLocation';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import type { RoutingPreferences } from '../types/routing-preferences';
 import { DEFAULT_PREFERENCES } from '../types/routing-preferences';
 
@@ -75,6 +77,9 @@ export function RouteScreen() {
   // Routing preferences and filters
   const [preferences, setPreferences] = useState<RoutingPreferences>(DEFAULT_PREFERENCES);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Interstitial ads
+  const { showAdIfNeeded } = useInterstitialAd();
 
   // Load all stops and preferences on mount
   useEffect(() => {
@@ -190,6 +195,9 @@ export function RouteScreen() {
       setSelectedRoute(filteredResults.length > 0 ? filteredResults[0] : null);
       setHasSearched(true);
       console.log('[RouteScreen] Found', filteredResults.length, 'journeys');
+
+      // Show interstitial ad if needed (every 3 route calculations)
+      await showAdIfNeeded();
     } catch (err: any) {
       console.error('[RouteScreen] Error calculating route:', err);
       Alert.alert(t('common.error'), err.message || 'Unable to calculate route');
@@ -770,6 +778,9 @@ export function RouteScreen() {
         onClose={() => setShowFilters(false)}
         onApply={savePreferences}
       />
+
+      {/* Banner Ad */}
+      <BannerAdComponent />
       </KeyboardAvoidingView>
     </ScreenContainer>
   );
