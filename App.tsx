@@ -85,12 +85,15 @@ function AppContent() {
 
   // Wait for theme and i18n to load to prevent flash
   if (!loaded || !i18nReady) {
+    console.log('[App] Waiting... loaded:', loaded, 'i18nReady:', i18nReady);
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#121212' : '#FFFFFF' }}>
         <ActivityIndicator size="large" color="#0066CC" />
       </View>
     );
   }
+
+  console.log('[App] All ready, rendering RootNavigator');
 
   return (
     <View className={isDark ? 'dark' : ''} style={{ flex: 1 }}>

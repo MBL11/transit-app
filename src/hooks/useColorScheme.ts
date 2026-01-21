@@ -13,12 +13,20 @@ export function useColorScheme() {
 
   // Charge le thème sauvegardé
   useEffect(() => {
-    AsyncStorage.getItem(THEME_KEY).then((saved) => {
-      if (saved && ['light', 'dark', 'system'].includes(saved)) {
-        setMode(saved as ThemeMode);
-      }
-      setLoaded(true);
-    });
+    console.log('[useColorScheme] Loading theme from storage...');
+    AsyncStorage.getItem(THEME_KEY)
+      .then((saved) => {
+        console.log('[useColorScheme] Theme loaded:', saved);
+        if (saved && ['light', 'dark', 'system'].includes(saved)) {
+          setMode(saved as ThemeMode);
+        }
+        setLoaded(true);
+        console.log('[useColorScheme] Theme ready');
+      })
+      .catch((error) => {
+        console.error('[useColorScheme] Error loading theme:', error);
+        setLoaded(true); // Set loaded anyway to prevent blocking
+      });
   }, []);
 
   // Sauvegarde le thème quand il change
