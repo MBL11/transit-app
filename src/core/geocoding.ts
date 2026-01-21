@@ -7,11 +7,15 @@ const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
 
 // User agent required by Nominatim usage policy
 // Must include app name and contact info
-const USER_AGENT = 'TransitApp/1.0 (transit-app-mobile; contact@transit-app.dev)';
+const USER_AGENT = 'TransitApp/1.0 (+https://github.com/transit-app; contact@transit-app.dev)';
 
-// Rate limiting: max 1 request per second
+// Referer header (required by some Nominatim instances)
+const REFERER = 'https://transit-app.dev';
+
+// Rate limiting: max 1 request per second (Nominatim usage policy)
+// Using 1.5 seconds to be conservative and avoid blocks
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 1000; // 1 second
+const MIN_REQUEST_INTERVAL = 1500; // 1.5 seconds
 
 async function throttledFetch(url: string, options: RequestInit): Promise<Response> {
   const now = Date.now();
@@ -19,11 +23,16 @@ async function throttledFetch(url: string, options: RequestInit): Promise<Respon
 
   if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
     // Wait for the remaining time
-    await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+    const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+    console.log(`[Geocoding] Throttling request, waiting ${waitTime}ms`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
   }
 
   lastRequestTime = Date.now();
-  return fetch(url, options);
+  console.log(`[Geocoding] Making request to: ${url}`);
+  const response = await fetch(url, options);
+  console.log(`[Geocoding] Response status: ${response.status}`);
+  return response;
 }
 
 export interface GeocodingResult {
@@ -63,15 +72,19 @@ export async function geocodeAddress(
     const response = await throttledFetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
       headers: {
         'User-Agent': USER_AGENT,
+        'Referer': REFERER,
         'Accept-Language': 'fr,en', // Prefer French, fallback to English
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.status}`);
+      const errorText = await response.text().catch(() => 'No error body');
+      console.error(`[Geocoding] Nominatim error response:`, errorText);
+      throw new Error(`Nominatim API error: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log(`[Geocoding] Received ${data.length || 0} results`);
 
     return data.map((item: any) => ({
       lat: parseFloat(item.lat),
@@ -115,15 +128,19 @@ export async function reverseGeocode(
     const response = await throttledFetch(`${NOMINATIM_BASE_URL}/reverse?${params}`, {
       headers: {
         'User-Agent': USER_AGENT,
+        'Referer': REFERER,
         'Accept-Language': 'fr,en',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.status}`);
+      const errorText = await response.text().catch(() => 'No error body');
+      console.error(`[Geocoding] Nominatim error response:`, errorText);
+      throw new Error(`Nominatim API error: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log(`[Geocoding] Received ${data.length || 0} results`);
 
     // Build a readable address from components
     const address = data.address;
@@ -189,15 +206,19 @@ export async function searchPlaces(
     const response = await throttledFetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
       headers: {
         'User-Agent': USER_AGENT,
+        'Referer': REFERER,
         'Accept-Language': 'fr,en',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.status}`);
+      const errorText = await response.text().catch(() => 'No error body');
+      console.error(`[Geocoding] Nominatim error response:`, errorText);
+      throw new Error(`Nominatim API error: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log(`[Geocoding] Received ${data.length || 0} results`);
 
     // Filter and sort results
     const results = data
@@ -217,7 +238,11 @@ export async function searchPlaces(
 
     return results;
   } catch (error) {
-    console.error('Place search error:', error);
+    console.error('[Geocoding] Place search error:', error);
+    if (error instanceof Error) {
+      console.error('[Geocoding] Error message:', error.message);
+      console.error('[Geocoding] Error stack:', error.stack);
+    }
     return [];
   }
 }
