@@ -926,7 +926,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     calculateButton: {
       backgroundColor: colors.primary,
-      paddingVertical: 12,
+      paddingVertical: 16,
       borderRadius: 8,
       alignItems: 'center',
       marginTop: 8,
@@ -936,7 +936,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     calculateButtonText: {
       color: '#fff',
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: 'bold',
     },
     resultsContainer: {
