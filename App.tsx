@@ -68,7 +68,7 @@ function AppContent() {
   }, [loaded]);
 
   // Wait for theme and i18n to load to prevent flash
-  if (!loaded || !i18nReady) {
+  if (false) {
     console.log('[App] Waiting for initialization... loaded:', loaded, 'i18nReady:', i18nReady);
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#121212' : '#FFFFFF' }}>
