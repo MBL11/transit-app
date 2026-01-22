@@ -66,8 +66,9 @@ function NavigationContent() {
 
   // Setup notification handlers (must be inside NavigationContainer)
   // Hook will handle Expo Go detection internally
-  useNotifications();
-  console.log('[NavigationContent] useNotifications ENABLED');
+  // TODO: Re-enable when app is stable - currently disabled to avoid potential crashes
+  // useNotifications();
+  console.log('[NavigationContent] useNotifications DISABLED (for stability)');
 
   // Start alert monitoring
   // TEMPORARILY DISABLED FOR DEBUG
