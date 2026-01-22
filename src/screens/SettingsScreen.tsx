@@ -25,7 +25,6 @@ import { useNotificationPermissions } from '../hooks/useNotifications';
 import { changeLanguage } from '../i18n';
 import * as favoritesStorage from '../core/favorites';
 import * as notificationService from '../services/notifications';
-import { trackSettingsChange, trackScreenView } from '../services/analytics';
 import type { ThemeMode } from '../hooks/useColorScheme';
 import type { SettingsStackParamList } from '../navigation/SettingsStackNavigator';
 
@@ -62,7 +61,6 @@ export function SettingsScreen({ navigation }: Props) {
   // Load notification settings on mount
   useEffect(() => {
     loadNotificationSettings();
-    trackScreenView('Settings');
   }, []);
 
   const loadNotificationSettings = async () => {
@@ -73,7 +71,6 @@ export function SettingsScreen({ navigation }: Props) {
   const handleLanguageChange = async (languageCode: string) => {
     try {
       await changeLanguage(languageCode);
-      trackSettingsChange('language', languageCode);
       console.log('[Settings] Language changed to:', languageCode);
     } catch (error) {
       console.error('[Settings] Error changing language:', error);
@@ -138,7 +135,6 @@ export function SettingsScreen({ navigation }: Props) {
         const success = await notificationService.enableNotifications();
         if (success) {
           setNotificationsEnabled(true);
-          trackSettingsChange('notifications', true);
           Alert.alert(
             t('settings.notificationsEnabled'),
             t('settings.notificationsEnabledMessage')
@@ -150,7 +146,6 @@ export function SettingsScreen({ navigation }: Props) {
         // Disabling notifications
         await notificationService.disableNotifications();
         setNotificationsEnabled(false);
-        trackSettingsChange('notifications', false);
         Alert.alert(
           t('settings.notificationsDisabled'),
           t('settings.notificationsDisabledMessage')
@@ -210,7 +205,6 @@ export function SettingsScreen({ navigation }: Props) {
             ]}
             onPress={() => {
               setThemeMode(theme.mode);
-              trackSettingsChange('theme', theme.mode);
             }}
           >
             <View style={styles.languageLeft}>
