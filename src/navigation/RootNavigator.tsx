@@ -58,15 +58,25 @@ const DarkNavigationTheme = {
 function NavigationContent() {
   const { t } = useTranslation();
 
+  console.log('[NavigationContent] Rendering...');
+
   // Check if running in Expo Go
   const isExpoGo = Constants.appOwnership === 'expo';
+  console.log('[NavigationContent] isExpoGo:', isExpoGo);
 
   // Setup notification handlers (must be inside NavigationContainer)
   // Hook will handle Expo Go detection internally
-  useNotifications();
+  try {
+    useNotifications();
+    console.log('[NavigationContent] useNotifications initialized');
+  } catch (error) {
+    console.error('[NavigationContent] useNotifications failed:', error);
+  }
 
   // Start alert monitoring
   useEffect(() => {
+    console.log('[NavigationContent] Setting up alert monitoring...');
+
     // Skip alert monitoring in Expo Go since it depends on notifications
     if (isExpoGo) {
       console.log('[NavigationContent] Skipping alert monitoring (Expo Go)');
@@ -76,6 +86,7 @@ function NavigationContent() {
     // Delay alert monitoring to not block initial render
     const timer = setTimeout(() => {
       try {
+        console.log('[NavigationContent] Starting alert monitoring...');
         const adapter = getAdapter();
 
         // Start monitoring for alerts on favorite lines
@@ -84,7 +95,7 @@ function NavigationContent() {
       } catch (error) {
         console.warn('[NavigationContent] Failed to start alert monitoring:', error);
       }
-    }, 2000); // Wait 2 seconds after app loads
+    }, 5000); // Wait 5 seconds after app loads to avoid blocking
 
     // Cleanup on unmount
     return () => {
@@ -92,6 +103,8 @@ function NavigationContent() {
       stopAlertMonitoring();
     };
   }, [isExpoGo]);
+
+  console.log('[NavigationContent] Rendering Tab.Navigator...');
 
   return (
     <Tab.Navigator
@@ -104,7 +117,7 @@ function NavigationContent() {
           fontWeight: 'bold',
         },
         tabBarActiveTintColor: '#0066CC',
-        lazy: true, // Only render the active tab to prevent all screens loading at once
+        lazy: false, // Disable lazy loading to prevent initial load issues
       }}
     >
       <Tab.Screen

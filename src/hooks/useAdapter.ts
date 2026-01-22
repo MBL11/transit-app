@@ -27,24 +27,34 @@ let adapterInstance: ParisAdapter | null = null;
  * ```
  */
 export function useAdapter() {
+  console.log('[useAdapter] Hook called');
+
   const [adapter, setAdapter] = useState<ParisAdapter | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    console.log('[useAdapter] useEffect running...');
+
     async function init() {
       try {
+        console.log('[useAdapter] Starting initialization...');
+
         // Initialize database if not already done
         if (!adapterInstance) {
           console.log('[useAdapter] Initializing database and adapter...');
           await db.initializeDatabase();
+          console.log('[useAdapter] Database initialized, setting up adapter...');
           adapterInstance = parisAdapter;
           await adapterInstance.initialize();
           console.log('[useAdapter] ✅ Adapter ready');
+        } else {
+          console.log('[useAdapter] Using existing adapter instance');
         }
 
         setAdapter(adapterInstance);
         setLoading(false);
+        console.log('[useAdapter] State updated, loading=false');
       } catch (err) {
         console.error('[useAdapter] ❌ Failed to initialize:', err);
         setError(err instanceof Error ? err : new Error('Unknown error'));
@@ -55,6 +65,7 @@ export function useAdapter() {
     init();
   }, []);
 
+  console.log('[useAdapter] Returning - loading:', loading, 'adapter:', !!adapter, 'error:', error);
   return { adapter, loading, error };
 }
 

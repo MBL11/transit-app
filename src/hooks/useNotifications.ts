@@ -15,13 +15,18 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
  * - Manages notification badge
  */
 export function useNotifications() {
+  console.log('[useNotifications] Hook called');
+
+  // Always call useNavigation (hooks must be called unconditionally)
   const navigation = useNavigation<NavigationProp>();
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
 
   // Check if running in Expo Go
   const isExpoGo = Constants.appOwnership === 'expo';
+  console.log('[useNotifications] isExpoGo:', isExpoGo);
+
+  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const notificationListener = useRef<Notifications.Subscription>();
+  const responseListener = useRef<Notifications.Subscription>();
 
   useEffect(() => {
     // Skip notifications setup in Expo Go
@@ -29,6 +34,8 @@ export function useNotifications() {
       console.log('[useNotifications] Skipping setup (Expo Go)');
       return;
     }
+
+    console.log('[useNotifications] Setting up notifications...');
     // Clear badge when app opens
     clearBadge().catch((error) => {
       console.warn('[useNotifications] Failed to clear badge:', error);
@@ -72,6 +79,12 @@ export function useNotifications() {
    * Handle user tapping on a notification
    */
   const handleNotificationTap = (response: Notifications.NotificationResponse) => {
+    // Skip if in Expo Go
+    if (isExpoGo) {
+      console.log('[useNotifications] Skipping notification tap (Expo Go)');
+      return;
+    }
+
     try {
       const data = response.notification.request.content.data;
 

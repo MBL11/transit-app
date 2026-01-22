@@ -26,12 +26,23 @@ import * as db from '../core/database';
 type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
 export function MapScreen({ navigation }: Props) {
+  console.log('[MapScreen] Component mounting...');
+
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+
+  console.log('[MapScreen] Calling useStops...');
   const { stops, loading, error } = useStops();
+
+  console.log('[MapScreen] Calling useAdapter...');
   const { adapter } = useAdapter();
+
+  console.log('[MapScreen] Calling useAlerts...');
   const { alerts } = useAlerts();
+
+  console.log('[MapScreen] Calling useNetwork...');
   const { isOffline } = useNetwork();
+
   const [importing, setImporting] = useState(false);
 
   // Filter severe/warning alerts for badge
