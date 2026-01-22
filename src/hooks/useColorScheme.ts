@@ -9,7 +9,7 @@ const THEME_KEY = '@transit_theme';
 export function useColorScheme() {
   const systemScheme = useNativeColorScheme();
   const [mode, setMode] = useState<ThemeMode>('system');
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(true);
 
   // Charge le thème sauvegardé
   useEffect(() => {

@@ -38,7 +38,7 @@ if (!isExpoGo && !__DEV__) {
 
 function AppContent() {
   const { isDark, loaded } = useTheme();
-  const [i18nReady, setI18nReady] = useState(false);
+  const [i18nReady, setI18nReady] = useState(true);
   const [debugInfo, setDebugInfo] = useState<string>('Initializing...');
 
   // Timeout fallback
