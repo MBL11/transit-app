@@ -66,10 +66,13 @@ function NavigationContent() {
 
   // Setup notification handlers (must be inside NavigationContainer)
   // Hook will handle Expo Go detection internally
-  useNotifications();
-  console.log('[NavigationContent] useNotifications initialized');
+  // TEMPORARILY DISABLED FOR DEBUG
+  // useNotifications();
+  console.log('[NavigationContent] useNotifications DISABLED (debug)');
 
   // Start alert monitoring
+  // TEMPORARILY DISABLED FOR DEBUG
+  /*
   useEffect(() => {
     console.log('[NavigationContent] Setting up alert monitoring...');
 
@@ -99,6 +102,7 @@ function NavigationContent() {
       stopAlertMonitoring();
     };
   }, [isExpoGo]);
+  */
 
   console.log('[NavigationContent] Rendering Tab.Navigator...');
 

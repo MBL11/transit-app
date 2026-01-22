@@ -6,7 +6,7 @@
 import './global.css';
 import { i18nInitPromise } from './src/i18n';
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
@@ -39,21 +39,33 @@ if (!isExpoGo && !__DEV__) {
 function AppContent() {
   const { isDark, loaded } = useTheme();
   const [i18nReady, setI18nReady] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('Initializing...');
 
   // Wait for i18n to initialize
   useEffect(() => {
     console.log('[App] Starting i18n initialization...');
+    setDebugInfo('Loading i18n...');
     i18nInitPromise
       .then(() => {
         console.log('[App] i18n initialized successfully');
+        setDebugInfo('i18n ready!');
         setI18nReady(true);
       })
       .catch((error) => {
         console.error('[App] i18n initialization failed:', error);
+        setDebugInfo(`i18n error: ${error.message}`);
         // Set ready anyway to prevent blocking the app
         setI18nReady(true);
       });
   }, []);
+
+  // Update debug info when theme loads
+  useEffect(() => {
+    if (loaded) {
+      console.log('[App] Theme loaded');
+      setDebugInfo(prev => prev + ' | Theme loaded');
+    }
+  }, [loaded]);
 
   // Wait for theme and i18n to load to prevent flash
   if (!loaded || !i18nReady) {
@@ -61,11 +73,18 @@ function AppContent() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#121212' : '#FFFFFF' }}>
         <ActivityIndicator size="large" color="#0066CC" />
+        <Text style={{ marginTop: 20, color: isDark ? '#FFF' : '#000' }}>
+          {debugInfo}
+        </Text>
+        <Text style={{ marginTop: 10, color: isDark ? '#AAA' : '#666', fontSize: 12 }}>
+          Theme: {loaded ? '✅' : '⏳'} | i18n: {i18nReady ? '✅' : '⏳'}
+        </Text>
       </View>
     );
   }
 
   console.log('[App] All ready, rendering RootNavigator');
+  setDebugInfo('Loading navigation...');
 
   return (
     <View className={isDark ? 'dark' : ''} style={{ flex: 1 }}>
