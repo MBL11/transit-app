@@ -84,7 +84,6 @@ function AppContent() {
   }
 
   console.log('[App] All ready, rendering RootNavigator');
-  setDebugInfo('Loading navigation...');
 
   return (
     <View className={isDark ? 'dark' : ''} style={{ flex: 1 }}>
