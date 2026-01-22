@@ -41,6 +41,11 @@ function AppContent() {
   const [i18nReady, setI18nReady] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>('Initializing...');
 
+  // Timeout fallback
+  useEffect(() => {
+    const timeout = setTimeout(() => setI18nReady(true), 2000);
+    return () => clearTimeout(timeout);
+  }, []);
   // Wait for i18n to initialize
   useEffect(() => {
     console.log('[App] Starting i18n initialization...');
@@ -68,7 +73,7 @@ function AppContent() {
   }, [loaded]);
 
   // Wait for theme and i18n to load to prevent flash
-  if (false) {
+  if (!loaded || !i18nReady) {
     console.log('[App] Waiting for initialization... loaded:', loaded, 'i18nReady:', i18nReady);
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#121212' : '#FFFFFF' }}>
