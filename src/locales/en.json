@@ -237,6 +237,27 @@
     "showingCachedData": "Showing cached data",
     "noRealTimeData": "Real-time data unavailable offline"
   },
+  "onboarding": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Get Started",
+    "welcome": {
+      "title": "Welcome to Transit App",
+      "description": "Your public transit companion for easy navigation around the city"
+    },
+    "route": {
+      "title": "Find your route",
+      "description": "Calculate the best journey from point A to point B using public transit"
+    },
+    "realtime": {
+      "title": "Real-time & alerts",
+      "description": "Check real-time schedules and stay informed about service disruptions"
+    },
+    "favorites": {
+      "title": "Add your favorites",
+      "description": "Save your preferred stops and lines for quick access"
+    }
+  },
   "data": {
     "title": "Data Management",
     "currentData": "Current Data",

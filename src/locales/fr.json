@@ -237,6 +237,27 @@
     "showingCachedData": "Affichage des données en cache",
     "noRealTimeData": "Données en temps réel indisponibles hors ligne"
   },
+  "onboarding": {
+    "skip": "Passer",
+    "next": "Suivant",
+    "start": "Commencer",
+    "welcome": {
+      "title": "Bienvenue sur Transit App",
+      "description": "Votre compagnon de transport en commun pour vous déplacer facilement dans la ville"
+    },
+    "route": {
+      "title": "Trouvez votre itinéraire",
+      "description": "Calculez le meilleur trajet d'un point A à un point B avec les transports en commun"
+    },
+    "realtime": {
+      "title": "Temps réel et alertes",
+      "description": "Consultez les horaires en temps réel et soyez informé des perturbations"
+    },
+    "favorites": {
+      "title": "Ajoutez vos favoris",
+      "description": "Sauvegardez vos arrêts et lignes préférés pour un accès rapide"
+    }
+  },
   "data": {
     "title": "Gestion des données",
     "currentData": "Données actuelles",
