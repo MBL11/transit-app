@@ -204,7 +204,7 @@ export function RootNavigator() {
     return (
       <>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme}>
+        <NavigationContainer linking={undefined} theme={isDark ? DarkNavigationTheme : LightNavigationTheme}>
           <NavigationContent />
         </NavigationContainer>
       </>
