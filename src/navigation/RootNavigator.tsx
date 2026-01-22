@@ -73,13 +73,22 @@ function NavigationContent() {
       return;
     }
 
-    const adapter = getAdapter();
+    // Delay alert monitoring to not block initial render
+    const timer = setTimeout(() => {
+      try {
+        const adapter = getAdapter();
 
-    // Start monitoring for alerts on favorite lines
-    startAlertMonitoring((routeIds) => adapter.getAlerts(routeIds));
+        // Start monitoring for alerts on favorite lines
+        startAlertMonitoring((routeIds) => adapter.getAlerts(routeIds));
+        console.log('[NavigationContent] Alert monitoring started');
+      } catch (error) {
+        console.warn('[NavigationContent] Failed to start alert monitoring:', error);
+      }
+    }, 2000); // Wait 2 seconds after app loads
 
     // Cleanup on unmount
     return () => {
+      clearTimeout(timer);
       stopAlertMonitoring();
     };
   }, [isExpoGo]);
@@ -95,6 +104,7 @@ function NavigationContent() {
           fontWeight: 'bold',
         },
         tabBarActiveTintColor: '#0066CC',
+        lazy: true, // Only render the active tab to prevent all screens loading at once
       }}
     >
       <Tab.Screen
