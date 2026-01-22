@@ -6,7 +6,7 @@ interface ScreenContainerProps {
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
 }
 
-export function ScreenContainer({ children, edges = ['bottom'] }: ScreenContainerProps) {
+export function ScreenContainer({ children, edges = [] }: ScreenContainerProps) {
   const insets = useSafeAreaInsets();
 
   return (
