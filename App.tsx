@@ -95,6 +95,8 @@ function AppContent() {
 
   console.log('[App] All ready, rendering RootNavigator');
 
+  console.log('[App] About to return JSX...');
+
   return (
     <View className={isDark ? 'dark' : ''} style={{ flex: 1 }}>
       <RootNavigator />

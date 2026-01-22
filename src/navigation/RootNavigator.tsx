@@ -66,12 +66,8 @@ function NavigationContent() {
 
   // Setup notification handlers (must be inside NavigationContainer)
   // Hook will handle Expo Go detection internally
-  try {
-    useNotifications();
-    console.log('[NavigationContent] useNotifications initialized');
-  } catch (error) {
-    console.error('[NavigationContent] useNotifications failed:', error);
-  }
+  useNotifications();
+  console.log('[NavigationContent] useNotifications initialized');
 
   // Start alert monitoring
   useEffect(() => {
@@ -185,16 +181,34 @@ function NavigationContent() {
 }
 
 export function RootNavigator() {
-  const { isDark } = useTheme();
+  console.log('[RootNavigator] Component called');
 
-  return (
-    <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme}>
-        <NavigationContent />
-      </NavigationContainer>
-    </>
-  );
+  let isDark = false;
+  try {
+    const theme = useTheme();
+    isDark = theme.isDark;
+    console.log('[RootNavigator] isDark:', isDark);
+    console.log('[RootNavigator] useTheme succeeded');
+  } catch (error) {
+    console.error('[RootNavigator] useTheme failed:', error);
+    throw error;
+  }
+
+  console.log('[RootNavigator] Rendering NavigationContainer...');
+
+  try {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme}>
+          <NavigationContent />
+        </NavigationContainer>
+      </>
+    );
+  } catch (error) {
+    console.error('[RootNavigator] Rendering failed:', error);
+    throw error;
+  }
 }
 
 // Simple tab icon component using emoji
