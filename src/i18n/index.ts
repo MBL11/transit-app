@@ -41,14 +41,12 @@ const initI18n = async () => {
   await i18n
     .use(initReactI18next)
     .init({
-      compatibilityJSON: 'v3',
       resources,
       lng: initialLanguage,
       fallbackLng: 'en',
       interpolation: {
         escapeValue: false, // React already escapes
       },
-      pluralSeparator: '_',
     });
 };
 
