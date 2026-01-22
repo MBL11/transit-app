@@ -9,6 +9,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import { StatusBar } from 'expo-status-bar';
+import Constants from 'expo-constants';
 import { useTheme } from '../contexts/ThemeContext';
 import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
@@ -57,11 +58,21 @@ const DarkNavigationTheme = {
 function NavigationContent() {
   const { t } = useTranslation();
 
+  // Check if running in Expo Go
+  const isExpoGo = Constants.appOwnership === 'expo';
+
   // Setup notification handlers (must be inside NavigationContainer)
+  // Hook will handle Expo Go detection internally
   useNotifications();
 
   // Start alert monitoring
   useEffect(() => {
+    // Skip alert monitoring in Expo Go since it depends on notifications
+    if (isExpoGo) {
+      console.log('[NavigationContent] Skipping alert monitoring (Expo Go)');
+      return;
+    }
+
     const adapter = getAdapter();
 
     // Start monitoring for alerts on favorite lines
@@ -71,7 +82,7 @@ function NavigationContent() {
     return () => {
       stopAlertMonitoring();
     };
-  }, []);
+  }, [isExpoGo]);
 
   return (
     <Tab.Navigator

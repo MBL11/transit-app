@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/types';
 import { clearBadge } from '../services/notifications';
+import Constants from 'expo-constants';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -19,9 +20,19 @@ export function useNotifications() {
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
 
+  // Check if running in Expo Go
+  const isExpoGo = Constants.appOwnership === 'expo';
+
   useEffect(() => {
+    // Skip notifications setup in Expo Go
+    if (isExpoGo) {
+      console.log('[useNotifications] Skipping setup (Expo Go)');
+      return;
+    }
     // Clear badge when app opens
-    clearBadge();
+    clearBadge().catch((error) => {
+      console.warn('[useNotifications] Failed to clear badge:', error);
+    });
 
     // Listener for notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
@@ -36,12 +47,16 @@ export function useNotifications() {
     });
 
     // Check if app was opened from a notification
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) {
-        console.log('[useNotifications] App opened from notification');
-        handleNotificationTap(response);
-      }
-    });
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          console.log('[useNotifications] App opened from notification');
+          handleNotificationTap(response);
+        }
+      })
+      .catch((error) => {
+        console.warn('[useNotifications] Failed to get last notification:', error);
+      });
 
     return () => {
       if (notificationListener.current) {
@@ -51,30 +66,46 @@ export function useNotifications() {
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
-  }, []);
+  }, [isExpoGo]);
 
   /**
    * Handle user tapping on a notification
    */
   const handleNotificationTap = (response: Notifications.NotificationResponse) => {
-    const data = response.notification.request.content.data;
+    try {
+      const data = response.notification.request.content.data;
 
-    // Clear badge
-    clearBadge();
+      // Clear badge
+      clearBadge().catch((error) => {
+        console.warn('[useNotifications] Failed to clear badge:', error);
+      });
 
-    // Navigate based on notification type
-    if (data.type === 'alert') {
-      // Navigate to alerts screen or specific line
-      if (data.routeId) {
-        navigation.navigate('LineDetails', { routeId: data.routeId as string });
-      } else {
-        navigation.navigate('Alerts');
-      }
-    } else if (data.type === 'departure') {
-      // Navigate to stop details
-      if (data.stopId) {
-        navigation.navigate('StopDetails', { stopId: data.stopId as string });
-      }
+      // Navigate based on notification type
+      // Use setTimeout to ensure navigation is ready
+      setTimeout(() => {
+        try {
+          if (data.type === 'alert') {
+            // Navigate to alerts screen or specific line
+            if (data.routeId) {
+              // @ts-ignore - navigation types are complex with nested navigators
+              navigation.navigate('LineDetails', { routeId: data.routeId as string });
+            } else {
+              // @ts-ignore
+              navigation.navigate('Alerts');
+            }
+          } else if (data.type === 'departure') {
+            // Navigate to stop details
+            if (data.stopId) {
+              // @ts-ignore
+              navigation.navigate('StopDetails', { stopId: data.stopId as string });
+            }
+          }
+        } catch (navError) {
+          console.warn('[useNotifications] Navigation failed:', navError);
+        }
+      }, 500);
+    } catch (error) {
+      console.error('[useNotifications] Error handling notification tap:', error);
     }
   };
 
