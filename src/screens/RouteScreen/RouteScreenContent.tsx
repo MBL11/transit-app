@@ -288,6 +288,43 @@ export function RouteScreenContent({
             )}
           </View>
 
+          {/* Quick Optimize Options */}
+          <View style={styles.optimizeContainer}>
+            <Text style={styles.label}>⚡ {t('routing.filters.optimizeFor')}</Text>
+            <View style={styles.optimizeButtons}>
+              <TouchableOpacity
+                style={[styles.optimizeButton, state.preferences.optimizeFor === 'fastest' && styles.optimizeButtonActive]}
+                onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'fastest' })}
+              >
+                <Text style={[styles.optimizeButtonText, state.preferences.optimizeFor === 'fastest' && styles.optimizeButtonTextActive]}>
+                  ⚡ {t('routing.filters.fastest')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.optimizeButton, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeButtonActive]}
+                onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-transfers' })}
+              >
+                <Text style={[styles.optimizeButtonText, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeButtonTextActive]}>
+                  🔄 {t('routing.filters.leastTransfers')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.optimizeButton, state.preferences.optimizeFor === 'least-walking' && styles.optimizeButtonActive]}
+                onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-walking' })}
+              >
+                <Text style={[styles.optimizeButtonText, state.preferences.optimizeFor === 'least-walking' && styles.optimizeButtonTextActive]}>
+                  🚶 {t('routing.filters.leastWalking')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.moreOptionsButton}
+              onPress={() => dispatch({ type: 'SHOW_FILTERS', payload: true })}
+            >
+              <Text style={styles.moreOptionsText}>⚙️ {t('routing.filters.title')}</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Calculate Button */}
           <TouchableOpacity
             style={[styles.calculateButton, (!canSearch || state.calculating) && styles.calculateButtonDisabled]}
@@ -652,6 +689,45 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       fontSize: 14,
       color: colors.primary,
       textAlign: 'center',
+      textDecorationLine: 'underline',
+    },
+    optimizeContainer: {
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    optimizeButtons: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 8,
+    },
+    optimizeButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.buttonBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    optimizeButtonActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    optimizeButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    optimizeButtonTextActive: {
+      color: '#fff',
+    },
+    moreOptionsButton: {
+      marginTop: 10,
+      alignSelf: 'flex-start',
+    },
+    moreOptionsText: {
+      fontSize: 13,
+      color: colors.primary,
       textDecorationLine: 'underline',
     },
     calculateButton: {

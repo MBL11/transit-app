@@ -176,10 +176,7 @@ export function RouteScreen() {
   // Render using the separated content component
   return (
     <ScreenContainer>
-      <ScreenHeader
-        title={t('tabs.route')}
-        rightElement={<FilterButton onPress={() => dispatch({ type: 'SHOW_FILTERS', payload: true })} />}
-      />
+      <ScreenHeader title={t('tabs.route')} />
 
       <RouteScreenContent
         state={state}
@@ -195,12 +192,3 @@ export function RouteScreen() {
   );
 }
 
-// Filter button component
-function FilterButton({ onPress }: { onPress: () => void }) {
-  const { TouchableOpacity, Text } = require('react-native');
-  return (
-    <TouchableOpacity onPress={onPress}>
-      <Text style={{ fontSize: 24 }}>⚙️</Text>
-    </TouchableOpacity>
-  );
-}
