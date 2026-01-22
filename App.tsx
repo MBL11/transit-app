@@ -84,7 +84,7 @@ function AppContent() {
   }
 
   console.log('[App] All ready, rendering RootNavigator');
-  setDebugInfo('Loading navigation...');
+  // Note: setDebugInfo removed here - calling setState during render causes infinite loop
 
   return (
     <View className={isDark ? 'dark' : ''} style={{ flex: 1 }}>
