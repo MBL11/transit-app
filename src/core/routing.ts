@@ -612,8 +612,16 @@ export async function findMultipleRoutes(
 
     console.log(`[Routing] Found ${baseRoutes.length} base routes`);
 
-    // 2. Filter routes based on preferences
-    let filteredRoutes = baseRoutes.filter((journey) => {
+    // 2. Separate walking-only routes from transit routes
+    const walkingOnlyRoutes = baseRoutes.filter((journey) =>
+      journey.segments.every((seg) => seg.type === 'walk')
+    );
+    const transitRoutes = baseRoutes.filter((journey) =>
+      journey.segments.some((seg) => seg.type === 'transit')
+    );
+
+    // 3. Filter transit routes based on preferences
+    let filteredTransitRoutes = transitRoutes.filter((journey) => {
       // Check if route meets basic preferences (transfers, walking distance)
       if (!meetsPreferences(journey, preferences)) {
         return false;
@@ -621,9 +629,6 @@ export async function findMultipleRoutes(
 
       // Check if all transit segments use allowed modes
       const hasDisallowedMode = journey.segments.some((segment) => {
-        if (segment.type === 'walk') {
-          return !preferences.allowedModes.walking;
-        }
         if (segment.type === 'transit' && segment.route) {
           return !isRouteTypeAllowed(segment.route.type, preferences);
         }
@@ -633,28 +638,36 @@ export async function findMultipleRoutes(
       return !hasDisallowedMode;
     });
 
-    console.log(`[Routing] After filtering: ${filteredRoutes.length} routes`);
+    console.log(`[Routing] After filtering transit: ${filteredTransitRoutes.length} routes`);
 
-    if (filteredRoutes.length === 0) {
-      // If no routes meet preferences, return the best base route anyway
-      // but warn the user
+    // 4. Combine filtered transit routes with walking routes
+    // Always include walking option as it's a valid alternative
+    let allRoutes = [...filteredTransitRoutes];
+
+    // Add walking route if walking is allowed
+    if (preferences.allowedModes.walking && walkingOnlyRoutes.length > 0) {
+      allRoutes.push(walkingOnlyRoutes[0]);
+    }
+
+    // 5. If no routes after filtering, return the best base route anyway
+    if (allRoutes.length === 0) {
       console.warn('[Routing] No routes meet preferences, returning best available route');
       return baseRoutes.slice(0, 1);
     }
 
-    // 3. Score routes based on optimization preference
-    const scoredRoutes = filteredRoutes.map((journey) => ({
+    // 6. Score routes based on optimization preference
+    const scoredRoutes = allRoutes.map((journey) => ({
       journey,
       score: scoreJourney(journey, preferences),
     }));
 
-    // 4. Sort by score (higher is better)
+    // 7. Sort by score (higher is better)
     scoredRoutes.sort((a, b) => b.score - a.score);
 
-    // 5. Take top routes
+    // 8. Take top routes
     const topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
 
-    // 6. Add tags to routes
+    // 9. Add tags to routes
     const routesWithTags = topRoutes.map((journey) => ({
       ...journey,
       tags: getJourneyTags(journey, topRoutes),
