@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { trackEvent, AnalyticsEvents } from '../services/analytics';
 
 const { width } = Dimensions.get('window');
 const ONBOARDING_KEY = '@onboarding_done';
@@ -81,6 +82,7 @@ export function OnboardingScreen({ onComplete }: Props) {
   };
 
   const handleSkip = () => {
+    trackEvent(AnalyticsEvents.ONBOARDING_SKIPPED, { slide: currentIndex + 1 });
     handleComplete();
   };
 

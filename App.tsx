@@ -8,6 +8,11 @@ import { RootNavigator } from './src/navigation';
 import { ErrorBoundary } from './src/components/error/ErrorBoundary';
 import { OnboardingScreen, isOnboardingCompleted } from './src/screens/OnboardingScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
+import { initAnalytics, trackEvent, AnalyticsEvents } from './src/services/analytics';
+import { initCrashReporting, captureException } from './src/services/crash-reporting';
+
+// Initialize crash reporting as early as possible
+initCrashReporting();
 
 type AppState = 'loading' | 'onboarding' | 'ready';
 
@@ -17,6 +22,9 @@ function AppContent() {
   useEffect(() => {
     async function initialize() {
       try {
+        // Initialize analytics
+        await initAnalytics();
+
         // Wait for i18n to be ready
         await i18nInitPromise;
 
@@ -26,9 +34,15 @@ function AppContent() {
         // Small delay to show splash screen (min 1.5s)
         await new Promise(resolve => setTimeout(resolve, 1500));
 
+        // Track app opened
+        trackEvent(AnalyticsEvents.APP_OPENED, {
+          first_launch: !onboardingCompleted,
+        });
+
         setAppState(onboardingCompleted ? 'ready' : 'onboarding');
       } catch (error) {
         console.error('App initialization error:', error);
+        captureException(error, { tags: { location: 'app_init' } });
         // Still proceed to app even if there's an error
         setAppState('ready');
       }
@@ -37,6 +51,11 @@ function AppContent() {
     initialize();
   }, []);
 
+  const handleOnboardingComplete = () => {
+    trackEvent(AnalyticsEvents.ONBOARDING_COMPLETED);
+    setAppState('ready');
+  };
+
   // Show splash screen while loading
   if (appState === 'loading') {
     return <SplashScreen />;
@@ -44,9 +63,7 @@ function AppContent() {
 
   // Show onboarding for first-time users
   if (appState === 'onboarding') {
-    return (
-      <OnboardingScreen onComplete={() => setAppState('ready')} />
-    );
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
   }
 
   // Normal app flow
