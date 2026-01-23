@@ -170,7 +170,7 @@ export function OnboardingScreen({ onComplete }: Props) {
               isLastSlide && styles.startButton,
             ]}
           >
-            <Text style={styles.nextText}>
+            <Text style={[styles.nextText, isLastSlide && styles.startText]}>
               {isLastSlide ? t('onboarding.start') : t('onboarding.next')}
             </Text>
           </TouchableOpacity>
@@ -269,5 +269,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  startText: {
+    color: '#7B68EE',
   },
 });
