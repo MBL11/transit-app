@@ -120,12 +120,12 @@ export function AddressSearchModal({
         </Text>
       </View>
       <View style={styles.resultTextContainer}>
-        <Text style={styles.resultText} numberOfLines={2}>
+        <Text style={styles.resultText} numberOfLines={1}>
           {item.shortAddress || item.displayName}
         </Text>
-        {item.shortAddress && item.shortAddress !== item.displayName && (
+        {item.city && !item.shortAddress?.includes(item.city) && (
           <Text style={styles.resultSubtext} numberOfLines={1}>
-            {item.displayName}
+            {item.city}
           </Text>
         )}
       </View>

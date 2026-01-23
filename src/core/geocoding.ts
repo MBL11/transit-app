@@ -44,43 +44,45 @@ export interface GeocodingResult {
   lon: number;
   displayName: string;
   shortAddress?: string; // Short format: "rue, ville"
+  city?: string; // Just the city name
   type: string; // 'house', 'street', 'city', etc.
   importance: number; // 0-1, relevance score
   boundingBox?: [number, number, number, number]; // [south, north, west, east]
 }
 
 /**
- * Format address to short version: "street, city"
+ * Format address to short version: "Numéro Rue, Ville"
  */
-function formatShortAddress(item: any): string {
+function formatShortAddress(item: any): { short: string; city: string } {
   const addr = item.address;
-  if (!addr) return item.display_name;
+  if (!addr) return { short: item.display_name, city: '' };
 
-  const parts: string[] = [];
+  const streetParts: string[] = [];
 
   // Street with number if available
   if (addr.house_number && addr.road) {
-    parts.push(`${addr.house_number} ${addr.road}`);
+    streetParts.push(`${addr.house_number} ${addr.road}`);
   } else if (addr.road) {
-    parts.push(addr.road);
+    streetParts.push(addr.road);
   } else if (addr.pedestrian) {
-    parts.push(addr.pedestrian);
+    streetParts.push(addr.pedestrian);
   } else if (addr.amenity) {
-    parts.push(addr.amenity);
+    streetParts.push(addr.amenity);
+  } else if (addr.suburb) {
+    streetParts.push(addr.suburb);
   }
 
-  // City/town
-  if (addr.city) {
-    parts.push(addr.city);
-  } else if (addr.town) {
-    parts.push(addr.town);
-  } else if (addr.village) {
-    parts.push(addr.village);
-  } else if (addr.municipality) {
-    parts.push(addr.municipality);
-  }
+  // Get city
+  const city = addr.city || addr.town || addr.village || addr.municipality || '';
 
-  return parts.length > 0 ? parts.join(', ') : item.display_name;
+  // Build short address: "Rue, Ville"
+  const short = streetParts.length > 0 && city
+    ? `${streetParts.join(' ')}, ${city}`
+    : streetParts.length > 0
+    ? streetParts.join(' ')
+    : city || item.display_name;
+
+  return { short, city };
 }
 
 /**
@@ -127,22 +129,26 @@ export async function geocodeAddress(
     const data = await response.json();
     console.log(`[Geocoding] Received ${data.length || 0} results`);
 
-    return data.map((item: any) => ({
-      lat: parseFloat(item.lat),
-      lon: parseFloat(item.lon),
-      displayName: item.display_name,
-      shortAddress: formatShortAddress(item),
-      type: item.type,
-      importance: item.importance || 0,
-      boundingBox: item.boundingbox
-        ? [
-            parseFloat(item.boundingbox[0]),
-            parseFloat(item.boundingbox[1]),
-            parseFloat(item.boundingbox[2]),
-            parseFloat(item.boundingbox[3]),
-          ]
-        : undefined,
-    }));
+    return data.map((item: any) => {
+      const { short, city } = formatShortAddress(item);
+      return {
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lon),
+        displayName: item.display_name,
+        shortAddress: short,
+        city,
+        type: item.type,
+        importance: item.importance || 0,
+        boundingBox: item.boundingbox
+          ? [
+              parseFloat(item.boundingbox[0]),
+              parseFloat(item.boundingbox[1]),
+              parseFloat(item.boundingbox[2]),
+              parseFloat(item.boundingbox[3]),
+            ]
+          : undefined,
+      };
+    });
   } catch (error) {
     console.error('Geocoding error:', error);
     throw error;
@@ -239,7 +245,8 @@ export async function searchPlaces(
       limit: '10',
       addressdetails: '1',
       viewbox: ILE_DE_FRANCE_BBOX.join(','),
-      bounded: '1', // Only return results within Île-de-France
+      bounded: '0', // Don't strictly limit, just bias towards Île-de-France
+      countrycodes: 'fr', // Limit to France
       ...(lat && lon && {
         lat: lat.toString(),
         lon: lon.toString(),
@@ -266,21 +273,23 @@ export async function searchPlaces(
 
     // Filter and sort results
     const results = data
-      .map((item: any) => ({
-        lat: parseFloat(item.lat),
-        lon: parseFloat(item.lon),
-        displayName: item.display_name,
-        shortAddress: formatShortAddress(item),
-        type: item.type,
-        importance: item.importance || 0,
-      }))
+      .map((item: any) => {
+        const { short, city } = formatShortAddress(item);
+        return {
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+          displayName: item.display_name,
+          shortAddress: short,
+          city,
+          type: item.type,
+          importance: item.importance || 0,
+        };
+      })
       .filter((result: GeocodingResult) => {
-        // Filter out very low quality results (importance < 0.2)
-        // But allow most types to pass through for better search results
-        return result.importance > 0.2 ||
-               ['house', 'building', 'street', 'road', 'amenity', 'shop', 'office',
-                'residential', 'pedestrian', 'path', 'suburb', 'neighbourhood',
-                'city', 'town', 'village'].includes(result.type);
+        // Filter out neighbourhood/suburb-only results, keep streets and addresses
+        const validTypes = ['house', 'building', 'street', 'road', 'amenity', 'shop', 'office',
+                           'residential', 'pedestrian', 'path', 'city', 'town', 'village'];
+        return validTypes.includes(result.type) || result.importance > 0.3;
       })
       .sort((a: GeocodingResult, b: GeocodingResult) => b.importance - a.importance);
 
