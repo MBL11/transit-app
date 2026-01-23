@@ -143,16 +143,13 @@ export function AddressSearchModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalOverlay}
       >
-        <TouchableOpacity
-          style={styles.modalOverlayTouchable}
-          activeOpacity={1}
-          onPress={onClose}
-        >
+        <View style={styles.modalOverlayTouchable}>
           <TouchableOpacity
+            style={styles.dismissArea}
             activeOpacity={1}
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
-          >
+            onPress={onClose}
+          />
+          <View style={styles.modalContent}>
             {/* Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{title}</Text>
@@ -220,8 +217,8 @@ export function AddressSearchModal({
                 </View>
               }
             />
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -237,6 +234,9 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end',
+    },
+    dismissArea: {
+      flex: 1,
     },
     modalContent: {
       backgroundColor: colors.background,
