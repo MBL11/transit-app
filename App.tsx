@@ -7,29 +7,45 @@ import { NetworkProvider } from './src/contexts/NetworkContext';
 import { RootNavigator } from './src/navigation';
 import { ErrorBoundary } from './src/components/error/ErrorBoundary';
 import { OnboardingScreen, isOnboardingCompleted } from './src/screens/OnboardingScreen';
+import { SplashScreen } from './src/screens/SplashScreen';
 
-// Init i18n at startup (fire and forget)
-i18nInitPromise.catch(console.error);
+type AppState = 'loading' | 'onboarding' | 'ready';
 
 function AppContent() {
-  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const [appState, setAppState] = useState<AppState>('loading');
 
   useEffect(() => {
-    // Check if onboarding is completed (only once on mount)
-    isOnboardingCompleted().then((completed) => {
-      setShowOnboarding(!completed);
-    });
+    async function initialize() {
+      try {
+        // Wait for i18n to be ready
+        await i18nInitPromise;
+
+        // Check if onboarding is completed
+        const onboardingCompleted = await isOnboardingCompleted();
+
+        // Small delay to show splash screen (min 1.5s)
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        setAppState(onboardingCompleted ? 'ready' : 'onboarding');
+      } catch (error) {
+        console.error('App initialization error:', error);
+        // Still proceed to app even if there's an error
+        setAppState('ready');
+      }
+    }
+
+    initialize();
   }, []);
 
-  // Still checking onboarding status
-  if (showOnboarding === null) {
-    return null; // Brief flash, could add a splash screen here
+  // Show splash screen while loading
+  if (appState === 'loading') {
+    return <SplashScreen />;
   }
 
   // Show onboarding for first-time users
-  if (showOnboarding) {
+  if (appState === 'onboarding') {
     return (
-      <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+      <OnboardingScreen onComplete={() => setAppState('ready')} />
     );
   }
 
