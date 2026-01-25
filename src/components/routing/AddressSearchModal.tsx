@@ -191,7 +191,7 @@ export function AddressSearchModal({
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoFocus={true}
+                autoFocus={false}
               />
               {isSearching && (
                 <ActivityIndicator

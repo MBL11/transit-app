@@ -403,7 +403,7 @@ export function RouteScreenContent({
                 onChangeText={(text) => dispatch({ type: 'SET_FROM_SEARCH_QUERY', payload: text })}
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoFocus={true}
+                autoFocus={false}
               />
             </View>
             <FlatList
@@ -458,7 +458,7 @@ export function RouteScreenContent({
                 onChangeText={(text) => dispatch({ type: 'SET_TO_SEARCH_QUERY', payload: text })}
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoFocus={true}
+                autoFocus={false}
               />
             </View>
             <FlatList
