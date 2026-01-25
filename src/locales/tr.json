@@ -225,5 +225,10 @@
     "disconnected": "Bağlantı kesildi",
     "showingCachedData": "Önbelleğe alınmış veriler gösteriliyor",
     "noRealTimeData": "Gerçek zamanlı veriler çevrimdışıyken kullanılamaz"
+  },
+  "share": {
+    "title": "Rotayı paylaş",
+    "sentFrom": "Transit App'ten gönderildi",
+    "error": "Rota paylaşılamıyor"
   }
 }

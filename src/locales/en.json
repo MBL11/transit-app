@@ -259,6 +259,11 @@
       "description": "Save your preferred stops and lines for quick access"
     }
   },
+  "share": {
+    "title": "Share Journey",
+    "sentFrom": "Sent from Transit App",
+    "error": "Unable to share journey"
+  },
   "data": {
     "title": "Data Management",
     "currentData": "Current Data",

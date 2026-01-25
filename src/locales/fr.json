@@ -259,6 +259,11 @@
       "description": "Sauvegardez vos arrêts et lignes préférés pour un accès rapide"
     }
   },
+  "share": {
+    "title": "Partager l'itinéraire",
+    "sentFrom": "Envoyé depuis Transit App",
+    "error": "Impossible de partager l'itinéraire"
+  },
   "data": {
     "title": "Gestion des données",
     "currentData": "Données actuelles",

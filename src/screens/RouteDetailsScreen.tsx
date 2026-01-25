@@ -4,10 +4,10 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
-import { deserializeJourney } from '../core/types/routing-serialization';
+import { deserializeJourney, JourneyResult } from '../core/types/routing-serialization';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
@@ -33,9 +33,87 @@ export function RouteDetailsScreen({ route }: Props) {
     return mins > 0 ? `${hours}h${mins}min` : `${hours}h`;
   };
 
+  const generateShareText = (): string => {
+    const lines: string[] = [];
+
+    // Header
+    const firstSegment = journey.segments[0];
+    const lastSegment = journey.segments[journey.segments.length - 1];
+    const fromName = firstSegment.from.name;
+    const toName = lastSegment.to.name;
+
+    lines.push(`🚇 ${t('route.title')}: ${fromName} → ${toName}`);
+    lines.push('');
+
+    // Summary
+    lines.push(`⏱️ ${formatTime(journey.departureTime)} → ${formatTime(journey.arrivalTime)} (${formatDuration(journey.totalDuration)})`);
+
+    if (journey.numberOfTransfers > 0) {
+      lines.push(`🔄 ${t('transit.transfers', { count: journey.numberOfTransfers })}`);
+    }
+
+    if (journey.totalWalkDistance > 0) {
+      lines.push(`🚶 ${Math.round(journey.totalWalkDistance)}m ${t('transit.walkOnFoot')}`);
+    }
+
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+
+    // Steps
+    journey.segments.forEach((segment, index) => {
+      const isWalk = segment.type === 'walk';
+      const time = segment.departureTime ? formatTime(segment.departureTime) : '';
+
+      if (isWalk) {
+        lines.push(`${time} 🚶 ${segment.from.name}`);
+        lines.push(`   ↓ ${t('route.walk')} ${segment.duration} min (${Math.round(segment.distance || 0)}m)`);
+      } else {
+        lines.push(`${time} 📍 ${segment.from.name}`);
+        const routeName = segment.route?.shortName || '?';
+        const headsign = segment.trip?.headsign ? ` → ${segment.trip.headsign}` : '';
+        lines.push(`   ↓ ${routeName}${headsign} (${segment.duration} min)`);
+      }
+
+      // Add final destination for last segment
+      if (index === journey.segments.length - 1) {
+        const arrivalTime = segment.arrivalTime ? formatTime(segment.arrivalTime) : '';
+        lines.push(`${arrivalTime} 🏁 ${segment.to.name}`);
+      }
+    });
+
+    lines.push('');
+    lines.push('---');
+    lines.push(`📱 ${t('share.sentFrom')}`);
+
+    return lines.join('\n');
+  };
+
+  const handleShare = async () => {
+    try {
+      const shareText = generateShareText();
+      const result = await Share.share({
+        message: shareText,
+      });
+
+      if (result.action === Share.sharedAction) {
+        console.log('[RouteDetails] Journey shared successfully');
+      }
+    } catch (error) {
+      console.error('[RouteDetails] Share error:', error);
+      Alert.alert(t('common.error'), t('share.error'));
+    }
+  };
+
+  const ShareButton = () => (
+    <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
+      <Text style={styles.shareIcon}>📤</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <ScreenContainer>
-      <ScreenHeader title={t('route.title')} showBack />
+      <ScreenHeader title={t('route.title')} showBack rightElement={<ShareButton />} />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Journey Summary */}
       <View style={styles.summaryCard}>
@@ -341,5 +419,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     textAlign: 'center',
+  },
+  shareButton: {
+    padding: 4,
+  },
+  shareIcon: {
+    fontSize: 22,
   },
 });

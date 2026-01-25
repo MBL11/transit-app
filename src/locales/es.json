@@ -182,5 +182,10 @@
     "clearFavorites": "Eliminar todos los favoritos",
     "clearFavoritesConfirm": "¿Estás seguro de que quieres eliminar todos tus favoritos?",
     "favoritesCleared": "Todos los favoritos han sido eliminados"
+  },
+  "share": {
+    "title": "Compartir ruta",
+    "sentFrom": "Enviado desde Transit App",
+    "error": "No se puede compartir la ruta"
   }
 }
