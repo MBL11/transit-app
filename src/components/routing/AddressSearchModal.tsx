@@ -2,7 +2,7 @@
  * Address Search Modal with Geocoding Autocomplete
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,13 @@ import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
+  SectionList,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { searchPlaces, GeocodingResult } from '../../core/geocoding';
 import { useLocation } from '../../hooks/useLocation';
+import { getRecentSearches, addToHistory, SearchHistoryItem } from '../../core/search-history';
 
 interface AddressSearchModalProps {
   visible: boolean;
@@ -41,8 +43,21 @@ export function AddressSearchModal({
   const [results, setResults] = useState<GeocodingResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [recentSearches, setRecentSearches] = useState<SearchHistoryItem[]>([]);
 
   const { location, isLoading: isGettingLocation, getCurrentLocation } = useLocation();
+
+  // Load recent searches when modal opens
+  useEffect(() => {
+    if (visible) {
+      loadRecentSearches();
+    }
+  }, [visible]);
+
+  const loadRecentSearches = async () => {
+    const history = await getRecentSearches();
+    setRecentSearches(history);
+  };
 
   // Debounced search
   useEffect(() => {
@@ -61,7 +76,7 @@ export function AddressSearchModal({
 
     const timeout = setTimeout(async () => {
       await performSearch(searchQuery);
-    }, 500);
+    }, 300); // Reduced debounce for faster autocomplete
 
     return () => clearTimeout(timeout);
   }, [searchQuery, visible]);
@@ -107,16 +122,18 @@ export function AddressSearchModal({
     }
   };
 
-  const handleSelectResult = (result: GeocodingResult) => {
+  const handleSelectResult = async (result: GeocodingResult) => {
+    // Save to history (async, don't block)
+    addToHistory(result);
     onSelect(result);
     onClose();
   };
 
-  const renderResultItem = ({ item }: { item: GeocodingResult }) => (
+  const renderResultItem = ({ item }: { item: GeocodingResult }, isRecent: boolean = false) => (
     <TouchableOpacity style={styles.resultItem} onPress={() => handleSelectResult(item)}>
-      <View style={styles.resultIcon}>
+      <View style={[styles.resultIcon, isRecent && styles.recentIcon]}>
         <Text style={styles.resultIconText}>
-          {item.type === 'house' || item.type === 'building' ? '🏠' : '📍'}
+          {isRecent ? '🕐' : item.type === 'house' || item.type === 'building' ? '🏠' : '📍'}
         </Text>
       </View>
       <View style={styles.resultTextContainer}>
@@ -131,6 +148,12 @@ export function AddressSearchModal({
       </View>
     </TouchableOpacity>
   );
+
+  const renderRecentItem = ({ item }: { item: SearchHistoryItem }) => renderResultItem({ item }, true);
+  const renderSearchItem = ({ item }: { item: GeocodingResult }) => renderResultItem({ item }, false);
+
+  // Show recent searches when no query, otherwise show search results
+  const showRecentSearches = searchQuery.length === 0 && recentSearches.length > 0;
 
   return (
     <Modal
@@ -197,26 +220,40 @@ export function AddressSearchModal({
               )}
             </TouchableOpacity>
 
+            {/* Recent Searches Section */}
+            {showRecentSearches && (
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>{t('route.recentSearches')}</Text>
+                <FlatList
+                  data={recentSearches}
+                  keyExtractor={(item, index) => `recent-${item.lat}-${item.lon}-${index}`}
+                  renderItem={renderRecentItem}
+                  keyboardShouldPersistTaps="handled"
+                  scrollEnabled={false}
+                />
+              </View>
+            )}
+
             {/* Results List */}
-            <FlatList
-              data={results}
-              keyExtractor={(item, index) => `${item.lat}-${item.lon}-${index}`}
-              renderItem={renderResultItem}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  {searchQuery.length === 0 ? (
-                    <Text style={styles.emptyText}>{t('route.enterAddressToSearch')}</Text>
-                  ) : searchQuery.length < 3 ? (
-                    <Text style={styles.emptyText}>{t('route.typeMoreCharacters')}</Text>
-                  ) : searchError ? (
-                    <Text style={styles.emptyText}>{searchError}</Text>
-                  ) : isSearching ? (
-                    <ActivityIndicator size="large" color={colors.primary} />
-                  ) : null}
-                </View>
-              }
-            />
+            {!showRecentSearches && (
+              <FlatList
+                data={results}
+                keyExtractor={(item, index) => `${item.lat}-${item.lon}-${index}`}
+                renderItem={renderSearchItem}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    {searchQuery.length < 3 ? (
+                      <Text style={styles.emptyText}>{t('route.typeMoreCharacters')}</Text>
+                    ) : searchError ? (
+                      <Text style={styles.emptyText}>{searchError}</Text>
+                    ) : isSearching ? (
+                      <ActivityIndicator size="large" color={colors.primary} />
+                    ) : null}
+                  </View>
+                }
+              />
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -359,5 +396,20 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       fontSize: 16,
       color: colors.textMuted,
       textAlign: 'center',
+    },
+    sectionContainer: {
+      paddingTop: 8,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    recentIcon: {
+      backgroundColor: colors.primaryLight || colors.buttonBackground,
     },
   });

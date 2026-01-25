@@ -150,7 +150,8 @@
     "useCurrentLocation": "Use my location",
     "currentLocation": "My location",
     "enterAddressToSearch": "Enter an address to search",
-    "typeMoreCharacters": "Type at least 3 characters"
+    "typeMoreCharacters": "Type at least 3 characters",
+    "recentSearches": "Recent searches"
   },
   "routing": {
     "filters": {

@@ -149,7 +149,8 @@
     "useCurrentLocation": "Konumumu kullan",
     "currentLocation": "Konumum",
     "enterAddressToSearch": "Aramak için bir adres girin",
-    "typeMoreCharacters": "En az 3 karakter yazın"
+    "typeMoreCharacters": "En az 3 karakter yazın",
+    "recentSearches": "Son aramalar"
   },
   "routing": {
     "filters": {
