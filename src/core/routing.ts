@@ -86,8 +86,8 @@ export async function findRoute(
     const distanceKm = directDistance / 1000;
     const estimatedDuration = Math.max(5, Math.round(distanceKm * 3)); // ~3 min per km
 
-    // Try to get headsign for this route
-    const tripInfo = await db.getTripInfoForRoute(route.id, toStopId);
+    // Try to get headsign for this route (pass both origin and destination for correct direction)
+    const tripInfo = await db.getTripInfoForRoute(route.id, toStopId, fromStopId);
 
     const journey: JourneyResult = {
       segments: [{
@@ -159,9 +159,9 @@ export async function findRoute(
           const transferTime = 4; // 4 min pour la correspondance
           const totalDuration = duration1 + transferTime + duration2;
 
-          // Get headsigns
-          const trip1Info = await db.getTripInfoForRoute(fromRoute.id, transferStop.id);
-          const trip2Info = await db.getTripInfoForRoute(connectingRoute.id, toStopId);
+          // Get headsigns (pass origin and destination for correct direction)
+          const trip1Info = await db.getTripInfoForRoute(fromRoute.id, transferStop.id, fromStopId);
+          const trip2Info = await db.getTripInfoForRoute(connectingRoute.id, toStopId, transferStop.id);
 
           // Utilise le nom de station pour l'affichage (même si les IDs sont différents)
           const transferStationName = transferStop.name;

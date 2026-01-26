@@ -661,16 +661,37 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
 }
 
 /**
- * Get trip info (headsign) for a route going to a specific stop
+ * Get trip info (headsign) for a route going FROM origin TO destination
+ * This ensures we get the correct direction by checking stop sequence
  */
 export async function getTripInfoForRoute(
   routeId: string,
-  towardStopId: string
+  towardStopId: string,
+  fromStopId?: string
 ): Promise<{ headsign: string } | null> {
   const db = openDatabase();
 
   try {
-    // Find a trip on this route that goes through the destination stop
+    // If we have both origin and destination, find a trip where origin comes before destination
+    if (fromStopId) {
+      const row = db.getFirstSync<any>(
+        `SELECT trips.headsign
+         FROM trips
+         JOIN stop_times st_from ON trips.id = st_from.trip_id AND st_from.stop_id = ?
+         JOIN stop_times st_to ON trips.id = st_to.trip_id AND st_to.stop_id = ?
+         WHERE trips.route_id = ?
+           AND st_from.stop_sequence < st_to.stop_sequence
+           AND trips.headsign IS NOT NULL
+         LIMIT 1`,
+        [fromStopId, towardStopId, routeId]
+      );
+
+      if (row?.headsign) {
+        return { headsign: row.headsign };
+      }
+    }
+
+    // Fallback: just find any trip that goes through the destination
     const row = db.getFirstSync<any>(
       `SELECT DISTINCT trips.headsign
        FROM trips
