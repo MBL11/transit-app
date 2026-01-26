@@ -129,6 +129,8 @@
     "title": "Itinéraire",
     "searchRoute": "Rechercher",
     "swap": "Inverser",
+    "departure": "Départ",
+    "arrival": "Arrivée",
     "departureTime": "Heure de départ",
     "arrivalTime": "Heure d'arrivée",
     "departAt": "Partir à",

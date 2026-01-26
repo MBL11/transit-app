@@ -146,16 +146,37 @@ export class ParisAdapter implements TransitAdapter {
 
   /**
    * Get next departures for a stop (real-time with SIRI fallback)
+   * Filters out terminus arrivals (trains ending their journey at this stop)
    */
   async getNextDepartures(stopId: string): Promise<NextDeparture[]> {
     console.log(`[ParisAdapter] Getting next departures for stop ${stopId}...`);
+
+    // Get stop info to check for terminus filtering
+    const database = db.openDatabase();
+    const stop = database.getFirstSync<{ name: string }>(
+      'SELECT name FROM stops WHERE id = ?',
+      [stopId]
+    );
+    const stopName = stop?.name?.toLowerCase() || '';
 
     try {
       // Try to fetch real-time data from SIRI-Lite
       const realtime = await fetchNextDepartures(stopId);
       if (realtime.length > 0) {
         console.log(`[ParisAdapter] ✅ Found ${realtime.length} real-time departures from SIRI`);
-        return realtime;
+
+        // Filter out trains arriving at their final destination (terminus)
+        const filtered = realtime.filter((dep) => {
+          // If the headsign matches the current station, it's arriving at terminus
+          if (dep.headsign && stopName.includes(dep.headsign.toLowerCase())) {
+            console.log(`[ParisAdapter] Filtering out SIRI terminus: ${dep.routeShortName} → ${dep.headsign}`);
+            return false;
+          }
+          return true;
+        });
+
+        console.log(`[ParisAdapter] After terminus filter: ${filtered.length} departures`);
+        return filtered;
       }
     } catch (error) {
       console.warn('[ParisAdapter] ⚠️ SIRI fetch failed, falling back to theoretical:', error);
@@ -210,26 +231,44 @@ export class ParisAdapter implements TransitAdapter {
       const currentTime = now.toTimeString().split(' ')[0];
 
       // Query next departures from stop_times for all stops at this station
+      // Also get max_sequence to filter out terminus stops (trains arriving at final destination)
       const placeholders = stopIds.map(() => '?').join(', ');
       const rows = database.getAllSync<any>(
         `SELECT
           st.trip_id,
           st.departure_time,
+          st.stop_sequence,
           t.headsign,
           r.id as route_id,
           r.short_name as route_short_name,
-          r.color as route_color
+          r.color as route_color,
+          (SELECT MAX(st2.stop_sequence) FROM stop_times st2 WHERE st2.trip_id = st.trip_id) as max_sequence
          FROM stop_times st
          JOIN trips t ON st.trip_id = t.id
          JOIN routes r ON t.route_id = r.id
          WHERE st.stop_id IN (${placeholders})
            AND st.departure_time >= ?
          ORDER BY st.departure_time
-         LIMIT 30`,
+         LIMIT 50`,
         [...stopIds, currentTime]
       );
 
-      const departures: NextDeparture[] = rows
+      // Filter out terminus stops (where the train ends its journey)
+      const filteredRows = rows.filter((row) => {
+        // If this stop is the last in the trip, it's a terminus - filter it out
+        if (row.stop_sequence === row.max_sequence) {
+          console.log(`[ParisAdapter] Filtering out terminus arrival: ${row.route_short_name} → ${row.headsign} (stop ${row.stop_sequence}/${row.max_sequence})`);
+          return false;
+        }
+        // Also filter if headsign matches the station name (arriving at final destination)
+        if (row.headsign && stop.name.toLowerCase().includes(row.headsign.toLowerCase())) {
+          console.log(`[ParisAdapter] Filtering out: headsign "${row.headsign}" matches station "${stop.name}"`);
+          return false;
+        }
+        return true;
+      }).slice(0, 30); // Limit to 30 after filtering
+
+      const departures: NextDeparture[] = filteredRows
         .map((row) => {
           // Validate time format
           const timeValidation = GTFSTimeSchema.safeParse(row.departure_time);

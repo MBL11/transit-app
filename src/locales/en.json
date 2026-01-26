@@ -129,6 +129,8 @@
     "title": "Route",
     "searchRoute": "Search",
     "swap": "Swap",
+    "departure": "Departure",
+    "arrival": "Arrival",
     "departureTime": "Departure time",
     "arrivalTime": "Arrival time",
     "departAt": "Depart at",

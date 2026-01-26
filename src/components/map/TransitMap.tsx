@@ -3,7 +3,7 @@
  * Displays stops on a map using react-native-maps
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { StopMarker } from './StopMarker';
@@ -17,6 +17,11 @@ interface TransitMapProps {
   onRegionChangeComplete?: (region: Region) => void;
 }
 
+export interface TransitMapRef {
+  animateToRegion: (region: Region, duration?: number) => void;
+  animateToLocation: (latitude: number, longitude: number, duration?: number) => void;
+}
+
 const DEFAULT_REGION: Region = {
   latitude: 48.8566,
   longitude: 2.3522,
@@ -24,9 +29,27 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.05,
 };
 
-export function TransitMap({ stops, onStopPress, initialRegion, onRegionChange, onRegionChangeComplete }: TransitMapProps) {
+export const TransitMap = forwardRef<TransitMapRef, TransitMapProps>(function TransitMap(
+  { stops, onStopPress, initialRegion, onRegionChange, onRegionChangeComplete },
+  ref
+) {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    animateToRegion: (region: Region, duration = 500) => {
+      mapRef.current?.animateToRegion(region, duration);
+    },
+    animateToLocation: (latitude: number, longitude: number, duration = 500) => {
+      mapRef.current?.animateToRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, duration);
+    },
+  }));
 
   const handleMarkerPress = (stop: Stop) => {
     setSelectedStopId(stop.id);
@@ -62,7 +85,7 @@ export function TransitMap({ stops, onStopPress, initialRegion, onRegionChange, 
       </MapView>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

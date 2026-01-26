@@ -11,6 +11,18 @@ import { deserializeJourney, JourneyResult } from '../core/types/routing-seriali
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
+import { LineBadge, TransportType } from '../components/transit/LineBadge';
+
+// Helper to determine transport type from route type
+const getTransportType = (routeType?: number): TransportType => {
+  switch (routeType) {
+    case 1: return 'metro';
+    case 2: return 'rer';
+    case 0: return 'tram';
+    case 3: return 'bus';
+    default: return 'bus';
+  }
+};
 
 type Props = NativeStackScreenProps<RouteStackParamList, 'RouteDetails'>;
 
@@ -140,22 +152,46 @@ export function RouteDetailsScreen({ route }: Props) {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Journey Summary */}
       <View style={styles.summaryCard}>
+        {/* Time row */}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryTime}>
             {formatTime(journey.departureTime)} → {formatTime(journey.arrivalTime)}
           </Text>
           <Text style={styles.summaryDuration}>{formatDuration(journey.totalDuration)}</Text>
         </View>
-        {journey.numberOfTransfers > 0 && (
-          <Text style={styles.summaryTransfers}>
-            {t('transit.transfers', { count: journey.numberOfTransfers })}
-          </Text>
-        )}
-        {journey.totalWalkDistance > 0 && (
-          <Text style={styles.summaryWalk}>
-            🚶 {Math.round(journey.totalWalkDistance)}m {t('transit.walkOnFoot')}
-          </Text>
-        )}
+
+        {/* Departure / Arrival locations */}
+        <View style={styles.summaryLocations}>
+          <View style={styles.summaryLocation}>
+            <Text style={styles.summaryLocationLabel}>{t('route.departure')}</Text>
+            <Text style={styles.summaryLocationName} numberOfLines={1}>
+              {displaySegments[0]?.from.name || ''}
+            </Text>
+          </View>
+          <View style={styles.summaryLocationArrow}>
+            <Text style={styles.arrowText}>→</Text>
+          </View>
+          <View style={styles.summaryLocation}>
+            <Text style={styles.summaryLocationLabel}>{t('route.arrival')}</Text>
+            <Text style={styles.summaryLocationName} numberOfLines={1}>
+              {displaySegments[displaySegments.length - 1]?.to.name || ''}
+            </Text>
+          </View>
+        </View>
+
+        {/* Additional info */}
+        <View style={styles.summaryExtras}>
+          {journey.numberOfTransfers > 0 && (
+            <Text style={styles.summaryTransfers}>
+              🔄 {t('transit.transfers', { count: journey.numberOfTransfers })}
+            </Text>
+          )}
+          {journey.totalWalkDistance > 0 && (
+            <Text style={styles.summaryWalk}>
+              🚶 {Math.round(journey.totalWalkDistance)}m {t('transit.walkOnFoot')}
+            </Text>
+          )}
+        </View>
       </View>
 
       {/* Timeline */}
@@ -239,23 +275,13 @@ export function RouteDetailsScreen({ route }: Props) {
                       {isWalk ? (
                         <Text style={styles.walkIcon}>🚶</Text>
                       ) : (
-                        <View
-                          style={[
-                            segment.route?.type === 2 ? styles.rerBadge : styles.transitBadge,
-                            { backgroundColor: segment.route?.color ? `#${segment.route.color}` : '#999' },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              segment.route?.type === 2 ? styles.rerBadgeText : styles.transitBadgeText,
-                              { color: segment.route?.textColor ? `#${segment.route.textColor}` : '#FFF' },
-                            ]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                          >
-                            {segment.route?.shortName || '?'}
-                          </Text>
-                        </View>
+                        <LineBadge
+                          lineNumber={segment.route?.shortName || '?'}
+                          type={getTransportType(segment.route?.type)}
+                          color={segment.route?.color}
+                          textColor={segment.route?.textColor}
+                          size="medium"
+                        />
                       )}
                     </View>
                     {!isLast && <View style={styles.timelineLine} />}
@@ -370,6 +396,43 @@ const styles = StyleSheet.create({
   summaryWalk: {
     fontSize: 14,
     color: '#666',
+  },
+  summaryLocations: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  summaryLocation: {
+    flex: 1,
+  },
+  summaryLocationLabel: {
+    fontSize: 11,
+    color: '#999',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  summaryLocationName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  summaryLocationArrow: {
+    paddingHorizontal: 8,
+  },
+  arrowText: {
+    fontSize: 18,
+    color: '#999',
+  },
+  summaryExtras: {
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    flexDirection: 'row',
+    gap: 16,
   },
   timeline: {
     backgroundColor: '#fff',

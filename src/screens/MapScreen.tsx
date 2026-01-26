@@ -10,7 +10,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Region } from 'react-native-maps';
-import { TransitMap } from '../components/map';
+import { TransitMap, TransitMapRef } from '../components/map';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
 import { AlertBanner } from '../components/transit/AlertBanner';
@@ -61,6 +61,9 @@ export function MapScreen({ navigation }: Props) {
   // Track current map center for loading stops
   const currentRegionRef = useRef<Region | null>(null);
   const loadingRegionRef = useRef(false);
+
+  // Ref to the map for animation
+  const mapRef = useRef<TransitMapRef>(null);
 
   // Filter severe/warning alerts for badge
   const severeAlerts = alerts.filter(a => a.severity === 'severe' || a.severity === 'warning');
@@ -120,6 +123,10 @@ export function MapScreen({ navigation }: Props) {
       if (userLocation) {
         console.log('[MapScreen] Got user location:', userLocation.latitude, userLocation.longitude);
         await loadNearbyStops(userLocation.latitude, userLocation.longitude);
+        // Animate map to user location with a small delay to ensure map is mounted
+        setTimeout(() => {
+          mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude, 1000);
+        }, 100);
       } else {
         // Fallback to Paris center
         console.log('[MapScreen] No user location, using Paris center');
@@ -139,7 +146,10 @@ export function MapScreen({ navigation }: Props) {
     if (granted) {
       const userLocation = await getCurrentLocation();
       if (userLocation) {
+        // Load stops around user location
         await loadNearbyStops(userLocation.latitude, userLocation.longitude);
+        // Animate map to user location
+        mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude, 1000);
       }
     }
   };
@@ -329,6 +339,7 @@ export function MapScreen({ navigation }: Props) {
     <ScreenContainer edges={[]}>
       <View style={styles.container}>
         <TransitMap
+          ref={mapRef}
           stops={nearbyStops}
           onStopPress={handleStopPress}
           initialRegion={initialRegion}
