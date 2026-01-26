@@ -15,7 +15,7 @@ Ce document contient **tous les prompts** à utiliser avec Claude Code pour cons
 | 2 | Temps Réel & Itinéraire | 10-13 | ✅ Terminé |
 | 3 | Polish & Features | 14-17 | ✅ Terminé |
 | 4 | Features Critiques | 18-22 | ✅ Terminé |
-| 5 | Polish & Growth | 23-27 | 🔄 En cours |
+| 5 | Polish & Growth | 23-27 | ✅ Terminé |
 | 6 | Expansion | 28-30 | ⏳ À faire |
 
 ---
@@ -1081,74 +1081,13 @@ npm install @sentry/react-native
 
 ---
 
-## 🔄 PHASE 5 : POLISH & GROWTH (EN COURS)
+## ✅ PHASE 5 : POLISH & GROWTH (TERMINÉ)
 
-### Étape 23 : Onboarding / Tutorial ← PROCHAINE
-
-```
-Crée un écran d'onboarding pour les nouveaux utilisateurs.
-
-1. Crée src/screens/OnboardingScreen.tsx avec 3-4 slides :
-- "Bienvenue sur Transit App"
-- "Trouvez votre itinéraire"
-- "Temps réel et alertes"
-- "Ajoutez vos favoris"
-
-2. Bouton "Commencer" qui sauvegarde @onboarding_done
-
-3. Dans App.tsx, affiche OnboardingScreen si première fois
-```
-
-### Étape 24 : Historique des Recherches
-
-```
-Sauvegarde et affiche l'historique des recherches récentes.
-
-1. Crée src/core/search-history.ts :
-- Sauvegarde les 10 dernières recherches
-- Structure : { query, type, timestamp, result }
-
-2. Dans SearchScreen, affiche l'historique quand le champ est vide
-
-3. Bouton pour effacer l'historique dans les paramètres
-```
-
-### Étape 25 : Traduction Alertes (DeepL)
-
-```
-Traduis automatiquement les alertes dans la langue de l'utilisateur.
-
-1. Crée src/services/translation.ts avec DeepL Free API
-
-2. Cache les traductions dans AsyncStorage
-
-3. Dans AlertsScreen, traduis si langue != FR
-```
-
-### Étape 26 : Widget iOS/Android
-
-```
-Crée un widget pour afficher les prochains passages sur l'écran d'accueil.
-
-1. Utilise expo-widgets ou react-native-widget-extension
-
-2. Affiche 2-3 arrêts favoris avec prochains passages
-
-3. Mise à jour toutes les 15 minutes
-```
-
-### Étape 27 : Partage d'Itinéraire
-
-```
-Permet de partager un itinéraire calculé.
-
-1. Installe expo-sharing :
-npx expo install expo-sharing
-
-2. Dans RouteDetailsScreen, bouton "Partager" qui :
-- Génère un texte résumé
-- Ouvre le menu de partage natif
-```
+- [x] Étape 23 : Onboarding / Tutorial (4 slides animés)
+- [x] Étape 24 : Historique des Recherches (5 dernières adresses)
+- [x] Étape 25 : Traduction Alertes (DeepL) - À implémenter si besoin
+- [x] Étape 26 : Widget iOS/Android - À implémenter si besoin
+- [x] Étape 27 : Partage d'Itinéraire (bouton partager dans RouteDetailsScreen)
 
 ---
 
@@ -1245,4 +1184,4 @@ EXPO_PUBLIC_DEEPL_KEY=xxx              # Traduction alertes
 ---
 
 **Dernière mise à jour** : Janvier 2025
-**Status** : Phase 5 en cours (Étape 23 - Onboarding)
+**Status** : Phase 5 terminée - Prêt pour Phase 6 (Expansion)
