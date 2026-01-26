@@ -6,9 +6,9 @@
  * instead of multiple useState hooks, making the code more maintainable.
  */
 
-import React, { useEffect, useMemo, useReducer } from 'react';
+import React, { useEffect, useMemo, useReducer, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,9 +39,15 @@ export function RouteScreen() {
   // Use reducer instead of multiple useState
   const [state, dispatch] = useReducer(routeReducer, initialState);
 
-  // Load stops and preferences on mount
+  // Load stops when screen comes into focus (reloads after data import)
+  useFocusEffect(
+    useCallback(() => {
+      loadStops();
+    }, [])
+  );
+
+  // Load preferences once on mount
   useEffect(() => {
-    loadStops();
     loadPreferences();
   }, []);
 

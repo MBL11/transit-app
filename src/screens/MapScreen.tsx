@@ -3,9 +3,10 @@
  * Main screen displaying transit stops on an interactive map with bottom sheet
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TransitMap } from '../components/map';
@@ -32,7 +33,7 @@ export function MapScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   console.log('[MapScreen] Calling useStops...');
-  const { stops, loading, error } = useStops();
+  const { stops, loading, error, refresh: refreshStops } = useStops();
 
   console.log('[MapScreen] Calling useAdapter...');
   const { adapter } = useAdapter();
@@ -44,6 +45,13 @@ export function MapScreen({ navigation }: Props) {
   const { isOffline } = useNetwork();
 
   const [importing, setImporting] = useState(false);
+
+  // Refresh stops when screen comes into focus (reloads after data import)
+  useFocusEffect(
+    useCallback(() => {
+      refreshStops();
+    }, [refreshStops])
+  );
 
   // Filter severe/warning alerts for badge
   const severeAlerts = alerts.filter(a => a.severity === 'severe' || a.severity === 'warning');

@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -36,9 +36,16 @@ export function LinesScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const navigation = useNavigation<NavigationProp>();
-  const { routes, loading, error } = useRoutes();
+  const { routes, loading, error, refresh } = useRoutes();
   const [selectedType, setSelectedType] = useState<TransitType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Refresh routes when screen comes into focus (reloads after data import)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
