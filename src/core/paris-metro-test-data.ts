@@ -20,11 +20,51 @@ export const METRO_ROUTES: Route[] = [
     textColor: '000000',
   },
   {
+    id: 'METRO_3',
+    shortName: '3',
+    longName: 'Pont de Levallois - Gallieni',
+    type: 1,
+    color: '9F971A',
+    textColor: 'FFFFFF',
+  },
+  {
     id: 'METRO_4',
     shortName: '4',
     longName: 'Porte de Clignancourt - Mairie de Montrouge',
     type: 1,
     color: 'CF009E',
+    textColor: 'FFFFFF',
+  },
+  {
+    id: 'METRO_5',
+    shortName: '5',
+    longName: 'Bobigny - Place d\'Italie',
+    type: 1,
+    color: 'F28E42',
+    textColor: '000000',
+  },
+  {
+    id: 'METRO_8',
+    shortName: '8',
+    longName: 'Balard - Pointe du Lac',
+    type: 1,
+    color: 'C5A3CE',
+    textColor: '000000',
+  },
+  {
+    id: 'METRO_9',
+    shortName: '9',
+    longName: 'Pont de Sèvres - Mairie de Montreuil',
+    type: 1,
+    color: 'D5C900',
+    textColor: '000000',
+  },
+  {
+    id: 'METRO_11',
+    shortName: '11',
+    longName: 'Châtelet - Mairie des Lilas',
+    type: 1,
+    color: '8D6539',
     textColor: 'FFFFFF',
   },
   {
@@ -131,6 +171,50 @@ export const METRO_STOPS: Stop[] = [
   // Gare du Nord already exists
   // Châtelet already exists
   // Porte d'Orléans already exists
+
+  // === Ligne 3 (partial) ===
+  { id: 'STOP_OPERA', name: 'Opéra', lat: 48.8714, lon: 2.3318, locationType: 0 },
+  { id: 'STOP_QUATRE_SEPTEMBRE', name: 'Quatre-Septembre', lat: 48.8697, lon: 2.3363, locationType: 0 },
+  { id: 'STOP_BOURSE', name: 'Bourse', lat: 48.8688, lon: 2.3411, locationType: 0 },
+  { id: 'STOP_SENTIER', name: 'Sentier', lat: 48.8673, lon: 2.3479, locationType: 0 },
+  { id: 'STOP_REPUBLIQUE', name: 'République', lat: 48.8676, lon: 2.3639, locationType: 0 },
+  { id: 'STOP_PARMENTIER', name: 'Parmentier', lat: 48.8654, lon: 2.3747, locationType: 0 },
+  { id: 'STOP_RUE_ST_MAUR', name: 'Rue Saint-Maur', lat: 48.8641, lon: 2.3804, locationType: 0 },
+  { id: 'STOP_PERE_LACHAISE', name: 'Père Lachaise', lat: 48.8626, lon: 2.3867, locationType: 0 },
+  { id: 'STOP_GAMBETTA', name: 'Gambetta', lat: 48.8650, lon: 2.3986, locationType: 0 },
+
+  // === Ligne 5 (partial - République to Bastille) ===
+  { id: 'STOP_OBERKAMPF', name: 'Oberkampf', lat: 48.8646, lon: 2.3685, locationType: 0 },
+  { id: 'STOP_RICHARD_LENOIR', name: 'Richard-Lenoir', lat: 48.8593, lon: 2.3714, locationType: 0 },
+  { id: 'STOP_BREGUET_SABIN', name: 'Bréguet - Sabin', lat: 48.8557, lon: 2.3707, locationType: 0 },
+  // Bastille already exists
+
+  // === Ligne 8 (partial - through République) ===
+  { id: 'STOP_RICHELIEU_DROUOT', name: 'Richelieu - Drouot', lat: 48.8722, lon: 2.3390, locationType: 0 },
+  { id: 'STOP_GRANDS_BOULEVARDS', name: 'Grands Boulevards', lat: 48.8718, lon: 2.3434, locationType: 0 },
+  { id: 'STOP_BONNE_NOUVELLE', name: 'Bonne Nouvelle', lat: 48.8706, lon: 2.3487, locationType: 0 },
+  { id: 'STOP_STRASBOURG_ST_DENIS_8', name: 'Strasbourg - Saint-Denis', lat: 48.8692, lon: 2.3546, locationType: 0 },
+  { id: 'STOP_FILLES_CALVAIRE', name: 'Filles du Calvaire', lat: 48.8629, lon: 2.3669, locationType: 0 },
+  { id: 'STOP_ST_SEBASTIEN', name: 'Saint-Sébastien - Froissart', lat: 48.8610, lon: 2.3673, locationType: 0 },
+  { id: 'STOP_CHEMIN_VERT', name: 'Chemin Vert', lat: 48.8570, lon: 2.3682, locationType: 0 },
+
+  // === Ligne 9 (partial - through République) ===
+  { id: 'STOP_SAINT_AMBROISE', name: 'Saint-Ambroise', lat: 48.8612, lon: 2.3743, locationType: 0 },
+  { id: 'STOP_VOLTAIRE', name: 'Voltaire', lat: 48.8577, lon: 2.3804, locationType: 0 },
+  { id: 'STOP_CHARONNE', name: 'Charonne', lat: 48.8552, lon: 2.3871, locationType: 0 },
+  { id: 'STOP_ROQUETTE', name: 'Rue des Boulets', lat: 48.8523, lon: 2.3908, locationType: 0 },
+
+  // === Ligne 11 (Châtelet - Mairie des Lilas) ===
+  { id: 'STOP_RAMBUTEAU', name: 'Rambuteau', lat: 48.8610, lon: 2.3534, locationType: 0 },
+  { id: 'STOP_ARTS_ET_METIERS', name: 'Arts et Métiers', lat: 48.8654, lon: 2.3561, locationType: 0 },
+  // République already exists
+  { id: 'STOP_GONCOURT', name: 'Goncourt', lat: 48.8701, lon: 2.3706, locationType: 0 },
+  { id: 'STOP_BELLEVILLE', name: 'Belleville', lat: 48.8721, lon: 2.3766, locationType: 0 },
+  { id: 'STOP_PYRENEES', name: 'Pyrénées', lat: 48.8739, lon: 2.3850, locationType: 0 },
+  { id: 'STOP_JOURDAIN', name: 'Jourdain', lat: 48.8756, lon: 2.3893, locationType: 0 },
+  { id: 'STOP_PLACE_DES_FETES', name: 'Place des Fêtes', lat: 48.8766, lon: 2.3929, locationType: 0 },
+  { id: 'STOP_TELEGRAPHE', name: 'Télégraphe', lat: 48.8755, lon: 2.3989, locationType: 0 },
+  { id: 'STOP_MAIRIE_LILAS', name: 'Mairie des Lilas', lat: 48.8795, lon: 2.4154, locationType: 0 },
 ];
 
 // ============================================================================
@@ -226,6 +310,96 @@ function generateTrips(): Trip[] {
       routeId: 'BUS_38',
       serviceId: 'DAILY',
       headsign: 'Gare du Nord',
+      directionId: 1,
+    });
+  }
+
+  // Ligne 3 trips
+  for (let i = 0; i < 20; i++) {
+    trips.push({
+      id: `TRIP_M3_EST_${i}`,
+      routeId: 'METRO_3',
+      serviceId: 'DAILY',
+      headsign: 'Gallieni',
+      directionId: 0,
+    });
+    trips.push({
+      id: `TRIP_M3_OUEST_${i}`,
+      routeId: 'METRO_3',
+      serviceId: 'DAILY',
+      headsign: 'Pont de Levallois - Bécon',
+      directionId: 1,
+    });
+  }
+
+  // Ligne 5 trips
+  for (let i = 0; i < 20; i++) {
+    trips.push({
+      id: `TRIP_M5_SUD_${i}`,
+      routeId: 'METRO_5',
+      serviceId: 'DAILY',
+      headsign: 'Place d\'Italie',
+      directionId: 0,
+    });
+    trips.push({
+      id: `TRIP_M5_NORD_${i}`,
+      routeId: 'METRO_5',
+      serviceId: 'DAILY',
+      headsign: 'Bobigny - Pablo Picasso',
+      directionId: 1,
+    });
+  }
+
+  // Ligne 8 trips
+  for (let i = 0; i < 20; i++) {
+    trips.push({
+      id: `TRIP_M8_EST_${i}`,
+      routeId: 'METRO_8',
+      serviceId: 'DAILY',
+      headsign: 'Pointe du Lac',
+      directionId: 0,
+    });
+    trips.push({
+      id: `TRIP_M8_OUEST_${i}`,
+      routeId: 'METRO_8',
+      serviceId: 'DAILY',
+      headsign: 'Balard',
+      directionId: 1,
+    });
+  }
+
+  // Ligne 9 trips
+  for (let i = 0; i < 20; i++) {
+    trips.push({
+      id: `TRIP_M9_EST_${i}`,
+      routeId: 'METRO_9',
+      serviceId: 'DAILY',
+      headsign: 'Mairie de Montreuil',
+      directionId: 0,
+    });
+    trips.push({
+      id: `TRIP_M9_OUEST_${i}`,
+      routeId: 'METRO_9',
+      serviceId: 'DAILY',
+      headsign: 'Pont de Sèvres',
+      directionId: 1,
+    });
+  }
+
+  // Ligne 11 trips
+  for (let i = 0; i < 20; i++) {
+    trips.push({
+      id: `TRIP_M11_EST_${i}`,
+      routeId: 'METRO_11',
+      serviceId: 'DAILY',
+      headsign: 'Mairie des Lilas',
+      directionId: 0,
+    });
+    trips.push({
+      id: `TRIP_M11_OUEST_${i}`,
+      routeId: 'METRO_11',
+      serviceId: 'DAILY',
+      headsign: 'Châtelet',
       directionId: 1,
     });
   }
@@ -454,6 +628,231 @@ function generateStopTimes(): StopTime[] {
 
       stopTimes.push({
         tripId: `TRIP_BUS38_NORD_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+  }
+
+  // === Nouvelles lignes ===
+
+  // Ligne 3 stops (partial - Opera to Gambetta)
+  const ligne3StopsEast = [
+    'STOP_OPERA', 'STOP_QUATRE_SEPTEMBRE', 'STOP_BOURSE', 'STOP_SENTIER',
+    'STOP_REAUMUR', 'STOP_ARTS_ET_METIERS', 'STOP_REPUBLIQUE', 'STOP_PARMENTIER',
+    'STOP_RUE_ST_MAUR', 'STOP_PERE_LACHAISE', 'STOP_GAMBETTA'
+  ];
+
+  // Ligne 5 stops (République to Bastille)
+  const ligne5StopsSouth = [
+    'STOP_REPUBLIQUE', 'STOP_OBERKAMPF', 'STOP_RICHARD_LENOIR',
+    'STOP_BREGUET_SABIN', 'STOP_BASTILLE'
+  ];
+
+  // Ligne 8 stops (partial - through République)
+  const ligne8StopsEast = [
+    'STOP_RICHELIEU_DROUOT', 'STOP_GRANDS_BOULEVARDS', 'STOP_BONNE_NOUVELLE',
+    'STOP_STRASBOURG_ST_DENIS_8', 'STOP_REPUBLIQUE', 'STOP_FILLES_CALVAIRE',
+    'STOP_ST_SEBASTIEN', 'STOP_CHEMIN_VERT', 'STOP_BASTILLE'
+  ];
+
+  // Ligne 9 stops (partial - République to Nation area)
+  const ligne9StopsEast = [
+    'STOP_REPUBLIQUE', 'STOP_OBERKAMPF', 'STOP_SAINT_AMBROISE',
+    'STOP_VOLTAIRE', 'STOP_CHARONNE', 'STOP_ROQUETTE', 'STOP_NATION'
+  ];
+
+  // Ligne 11 stops (Châtelet to Mairie des Lilas)
+  const ligne11StopsEast = [
+    'STOP_CHATELET', 'STOP_HOTEL_VILLE', 'STOP_RAMBUTEAU', 'STOP_ARTS_ET_METIERS',
+    'STOP_REPUBLIQUE', 'STOP_GONCOURT', 'STOP_BELLEVILLE', 'STOP_PYRENEES',
+    'STOP_JOURDAIN', 'STOP_PLACE_DES_FETES', 'STOP_TELEGRAPHE', 'STOP_MAIRIE_LILAS'
+  ];
+
+  // Generate stop times for Ligne 3
+  for (let tripNum = 0; tripNum < 20; tripNum++) {
+    const baseHour = 6 + tripNum;
+    const baseMinute = 5;
+
+    // East
+    ligne3StopsEast.forEach((stopId, index) => {
+      const minutes = baseMinute + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M3_EST_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+
+    // West (reverse)
+    ligne3StopsEast.slice().reverse().forEach((stopId, index) => {
+      const minutes = baseMinute + 15 + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M3_OUEST_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+  }
+
+  // Generate stop times for Ligne 5
+  for (let tripNum = 0; tripNum < 20; tripNum++) {
+    const baseHour = 6 + tripNum;
+    const baseMinute = 0;
+
+    // South
+    ligne5StopsSouth.forEach((stopId, index) => {
+      const minutes = baseMinute + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M5_SUD_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+
+    // North (reverse)
+    ligne5StopsSouth.slice().reverse().forEach((stopId, index) => {
+      const minutes = baseMinute + 15 + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M5_NORD_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+  }
+
+  // Generate stop times for Ligne 8
+  for (let tripNum = 0; tripNum < 20; tripNum++) {
+    const baseHour = 6 + tripNum;
+    const baseMinute = 3;
+
+    // East
+    ligne8StopsEast.forEach((stopId, index) => {
+      const minutes = baseMinute + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M8_EST_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+
+    // West (reverse)
+    ligne8StopsEast.slice().reverse().forEach((stopId, index) => {
+      const minutes = baseMinute + 15 + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M8_OUEST_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+  }
+
+  // Generate stop times for Ligne 9
+  for (let tripNum = 0; tripNum < 20; tripNum++) {
+    const baseHour = 6 + tripNum;
+    const baseMinute = 7;
+
+    // East
+    ligne9StopsEast.forEach((stopId, index) => {
+      const minutes = baseMinute + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M9_EST_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+
+    // West (reverse)
+    ligne9StopsEast.slice().reverse().forEach((stopId, index) => {
+      const minutes = baseMinute + 15 + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M9_OUEST_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+  }
+
+  // Generate stop times for Ligne 11
+  for (let tripNum = 0; tripNum < 20; tripNum++) {
+    const baseHour = 6 + tripNum;
+    const baseMinute = 2;
+
+    // East (Châtelet -> Mairie des Lilas)
+    ligne11StopsEast.forEach((stopId, index) => {
+      const minutes = baseMinute + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M11_EST_${tripNum}`,
+        arrivalTime: time,
+        departureTime: time,
+        stopId,
+        stopSequence: index + 1,
+      });
+    });
+
+    // West (reverse - Mairie des Lilas -> Châtelet)
+    ligne11StopsEast.slice().reverse().forEach((stopId, index) => {
+      const minutes = baseMinute + 12 + index * 2;
+      const hours = baseHour + Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
+
+      stopTimes.push({
+        tripId: `TRIP_M11_OUEST_${tripNum}`,
         arrivalTime: time,
         departureTime: time,
         stopId,
