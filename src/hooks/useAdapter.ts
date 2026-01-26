@@ -3,7 +3,7 @@
  * Provides easy access to the Paris adapter in React components
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ParisAdapter, parisAdapter } from '../adapters/paris';
 import * as db from '../core/database';
 
@@ -134,7 +134,7 @@ export function useStops() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadStops = async () => {
+  const loadStops = useCallback(async () => {
     if (!adapter) return;
 
     try {
@@ -148,13 +148,13 @@ export function useStops() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adapter]);
 
   useEffect(() => {
     if (adapter && !adapterLoading) {
       loadStops();
     }
-  }, [adapter, adapterLoading]);
+  }, [adapter, adapterLoading, loadStops]);
 
   return {
     stops,
@@ -173,7 +173,7 @@ export function useRoutes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadRoutes = async () => {
+  const loadRoutes = useCallback(async () => {
     if (!adapter) return;
 
     try {
@@ -187,13 +187,13 @@ export function useRoutes() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adapter]);
 
   useEffect(() => {
     if (adapter && !adapterLoading) {
       loadRoutes();
     }
-  }, [adapter, adapterLoading]);
+  }, [adapter, adapterLoading, loadRoutes]);
 
   return {
     routes,
@@ -229,7 +229,7 @@ export function useDepartures(stopId: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadDepartures = async () => {
+  const loadDepartures = useCallback(async () => {
     if (!adapter || !stopId) {
       setDepartures([]);
       setLoading(false);
@@ -247,13 +247,13 @@ export function useDepartures(stopId: string | null) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adapter, stopId]);
 
   useEffect(() => {
     if (adapter && !adapterLoading && stopId) {
       loadDepartures();
     }
-  }, [adapter, adapterLoading, stopId]);
+  }, [adapter, adapterLoading, stopId, loadDepartures]);
 
   return {
     departures,

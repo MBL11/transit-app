@@ -37,6 +37,9 @@ export function LineCard({
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // Ensure color has # prefix
+  const formattedColor = lineColor.startsWith('#') ? lineColor : `#${lineColor}`;
+
   const typeLabels: Record<TransportType, string> = {
     metro: t('transit.metro'),
     bus: t('transit.bus'),
@@ -48,14 +51,14 @@ export function LineCard({
 
   return (
     <Pressable {...props} style={styles.pressable}>
-      <View style={[styles.card, { borderLeftColor: lineColor }]}>
+      <View style={[styles.card, { borderLeftColor: formattedColor }]}>
         <View style={styles.content}>
           <View style={styles.leftSection}>
             {/* Official Line Badge */}
             <LineBadge
               lineNumber={lineNumber}
               type={type}
-              color={lineColor}
+              color={formattedColor}
               size="large"
             />
 

@@ -3,7 +3,7 @@
  * Provides pagination logic for large lists
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 interface UsePaginationOptions {
   pageSize?: number;
@@ -37,21 +37,24 @@ export function usePagination<T>(
 
   const hasMore = currentPage < totalPages;
 
-  const loadMore = () => {
-    if (hasMore) {
-      setCurrentPage((prev) => prev + 1);
-    }
-  };
+  const loadMore = useCallback(() => {
+    setCurrentPage((prev) => {
+      const nextPage = prev + 1;
+      const maxPages = Math.ceil(data.length / pageSize);
+      return nextPage <= maxPages ? nextPage : prev;
+    });
+  }, [data.length, pageSize]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setCurrentPage(initialPage);
-  };
+  }, [initialPage]);
 
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
+  const goToPage = useCallback((page: number) => {
+    const maxPages = Math.ceil(data.length / pageSize);
+    if (page >= 1 && page <= maxPages) {
       setCurrentPage(page);
     }
-  };
+  }, [data.length, pageSize]);
 
   return {
     currentPage,

@@ -13,6 +13,14 @@ import { useAlerts, useFavorites } from '../../hooks';
 import { isStopAffected, isRouteAffected } from '../../adapters/paris/alerts';
 import { useTranslation } from 'react-i18next';
 
+// Helper to ensure color has # prefix
+const formatColor = (color: string | undefined, fallback: string = '666666'): string => {
+  if (!color) return `#${fallback}`;
+  const trimmed = color.trim();
+  if (!trimmed) return `#${fallback}`;
+  return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+};
+
 interface StopDetailsSheetProps {
   stop: Stop | null;
   routes: Route[];
@@ -67,13 +75,13 @@ export function StopDetailsSheet({
                   key={route.id}
                   style={[
                     styles.headerLineBadge,
-                    { backgroundColor: `#${route.color}` },
+                    { backgroundColor: formatColor(route.color) },
                   ]}
                 >
                   <Text
                     style={[
                       styles.headerLineBadgeText,
-                      { color: `#${route.textColor || 'FFFFFF'}` },
+                      { color: formatColor(route.textColor, 'FFFFFF') },
                     ]}
                   >
                     {route.shortName}
@@ -122,14 +130,14 @@ export function StopDetailsSheet({
                   key={route.id}
                   style={[
                     styles.lineBadge,
-                    { backgroundColor: `#${route.color}` },
+                    { backgroundColor: formatColor(route.color) },
                   ]}
                   onPress={() => onLinePress(route.id)}
                 >
                   <Text
                     style={[
                       styles.lineBadgeText,
-                      { color: `#${route.textColor || 'FFFFFF'}` },
+                      { color: formatColor(route.textColor, 'FFFFFF') },
                     ]}
                   >
                     {route.shortName}
@@ -201,15 +209,15 @@ export function StopDetailsSheet({
                     .slice(0, 3);
 
                   const route = routes.find(r => r.id === group.routeId);
-                  const bgColor = route?.color || group.routeColor || '666666';
-                  const textColor = route?.textColor || 'FFFFFF';
+                  const bgColor = formatColor(route?.color || group.routeColor);
+                  const textColor = formatColor(route?.textColor, 'FFFFFF');
 
                   return (
                     <View key={`${group.routeId}_${group.headsign}`} style={styles.directionGroup}>
                       {/* Direction header */}
                       <View style={styles.directionHeader}>
-                        <View style={[styles.directionBadge, { backgroundColor: `#${bgColor}` }]}>
-                          <Text style={[styles.directionBadgeText, { color: `#${textColor}` }]}>
+                        <View style={[styles.directionBadge, { backgroundColor: bgColor }]}>
+                          <Text style={[styles.directionBadgeText, { color: textColor }]}>
                             {group.routeShortName}
                           </Text>
                         </View>

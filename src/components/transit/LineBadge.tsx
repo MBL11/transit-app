@@ -82,35 +82,60 @@ const SIZES = {
   large: { width: 48, height: 48, fontSize: 18, borderWidth: 2.5 },
 };
 
+// Ensure color has # prefix
+function ensureColorPrefix(color: string | undefined, fallback: string): string {
+  if (!color) return fallback;
+  const trimmed = color.trim();
+  if (!trimmed) return fallback;
+  return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+}
+
 function getLineColors(lineNumber: string, type: TransportType, customColor?: string, customTextColor?: string) {
   const normalizedLine = lineNumber.toUpperCase().trim();
+  // Extract just the number/letter part (e.g., "M1" -> "1", "RER A" -> "A")
+  const lineKey = normalizedLine.replace(/^(M|RER|T|BUS|METRO)\s*/i, '').trim();
 
-  let colors = { bg: customColor || '#666666', text: customTextColor || '#FFFFFF' };
+  // Ensure custom colors have # prefix
+  const safeCustomColor = ensureColorPrefix(customColor, '#666666');
+  const safeCustomTextColor = ensureColorPrefix(customTextColor, '#FFFFFF');
+
+  let colors = { bg: safeCustomColor, text: safeCustomTextColor };
 
   switch (type) {
     case 'metro':
-      const metroLine = normalizedLine.toLowerCase();
-      if (METRO_COLORS[metroLine]) {
-        colors = METRO_COLORS[metroLine];
+      // Try both original line key and lowercase version
+      const metroKey = lineKey.toLowerCase();
+      if (METRO_COLORS[metroKey]) {
+        colors = METRO_COLORS[metroKey];
+      } else if (METRO_COLORS[lineKey]) {
+        colors = METRO_COLORS[lineKey];
       }
+      // If no match found, colors keeps the custom color
       break;
     case 'rer':
-      if (RER_COLORS[normalizedLine]) {
+      // Try lineKey (e.g., "A" from "RER A" or just "A")
+      if (RER_COLORS[lineKey]) {
+        colors = RER_COLORS[lineKey];
+      } else if (RER_COLORS[normalizedLine]) {
         colors = RER_COLORS[normalizedLine];
       }
       break;
     case 'tram':
-      // Try with T prefix first
-      const tramKey = normalizedLine.startsWith('T') ? normalizedLine : `T${normalizedLine}`;
+      // Try with T prefix first, then without
+      const tramKey = lineKey.startsWith('T') ? lineKey : `T${lineKey}`;
       if (TRAM_COLORS[tramKey]) {
         colors = TRAM_COLORS[tramKey];
+      } else if (TRAM_COLORS[lineKey]) {
+        colors = TRAM_COLORS[lineKey];
       }
       break;
     case 'train':
-      if (TRANSILIEN_COLORS[normalizedLine]) {
+      if (TRANSILIEN_COLORS[lineKey]) {
+        colors = TRANSILIEN_COLORS[lineKey];
+      } else if (RER_COLORS[lineKey]) {
+        colors = RER_COLORS[lineKey];
+      } else if (TRANSILIEN_COLORS[normalizedLine]) {
         colors = TRANSILIEN_COLORS[normalizedLine];
-      } else if (RER_COLORS[normalizedLine]) {
-        colors = RER_COLORS[normalizedLine];
       }
       break;
     case 'noctilien':
@@ -118,19 +143,9 @@ function getLineColors(lineNumber: string, type: TransportType, customColor?: st
       break;
     case 'bus':
     default:
-      // Use custom color or default for buses
-      if (customColor) {
-        colors.bg = customColor;
-      }
-      if (customTextColor) {
-        colors.text = customTextColor;
-      }
+      // Custom colors are already set in the initial colors object
       break;
   }
-
-  // Override with custom colors if provided (for buses mainly)
-  if (customColor && type === 'bus') colors.bg = customColor;
-  if (customTextColor && type === 'bus') colors.text = customTextColor;
 
   return colors;
 }
