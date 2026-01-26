@@ -122,11 +122,12 @@ export function RouteScreenContent({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      {/* Header with stop selection */}
+      {/* Single ScrollView for both form and results */}
       <ScrollView
+        style={styles.mainScrollView}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
       >
         <View style={styles.searchContainer}>
           <Text style={styles.title}>{t('route.title')}</Text>
@@ -338,11 +339,10 @@ export function RouteScreenContent({
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
 
-      {/* Results */}
-      <ScrollView style={styles.resultsContainer} contentContainerStyle={styles.resultsContent}>
-        {state.calculating && (
+        {/* Results - now part of the same ScrollView */}
+        <View style={styles.resultsContainer}>
+          {state.calculating && (
           <View style={styles.calculatingContainer}>
             <ActivityIndicator size="large" color="#0066CC" />
             <Text style={styles.calculatingText}>{t('common.loading')}</Text>
@@ -374,6 +374,7 @@ export function RouteScreenContent({
             ))}
           </>
         )}
+        </View>
       </ScrollView>
 
       {/* From Stop Search Modal */}
@@ -745,11 +746,12 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       fontSize: 18,
       fontWeight: 'bold',
     },
-    resultsContainer: {
+    mainScrollView: {
       flex: 1,
     },
-    resultsContent: {
+    resultsContainer: {
       padding: 16,
+      minHeight: 200,
     },
     calculatingContainer: {
       paddingVertical: 40,

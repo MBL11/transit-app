@@ -59,6 +59,7 @@
     "tram": "Tramvay",
     "rer": "Tren",
     "train": "Tren",
+    "noctilien": "Gece Otobüsü",
     "linesServing": "Bu duraktan geçen hatlar",
     "stopsOnLine": "Bu hattaki duraklar",
     "loadingStops": "Duraklar yükleniyor...",
