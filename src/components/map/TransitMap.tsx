@@ -3,7 +3,7 @@
  * Displays stops on a map using react-native-maps
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { StopMarker } from './StopMarker';
@@ -13,6 +13,8 @@ interface TransitMapProps {
   stops: Stop[];
   onStopPress: (stop: Stop) => void;
   initialRegion?: Region;
+  onRegionChange?: (region: Region) => void;
+  onRegionChangeComplete?: (region: Region) => void;
 }
 
 const DEFAULT_REGION: Region = {
@@ -22,17 +24,23 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.05,
 };
 
-export function TransitMap({ stops, onStopPress, initialRegion }: TransitMapProps) {
+export function TransitMap({ stops, onStopPress, initialRegion, onRegionChange, onRegionChangeComplete }: TransitMapProps) {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  const mapRef = useRef<MapView>(null);
 
   const handleMarkerPress = (stop: Stop) => {
     setSelectedStopId(stop.id);
     onStopPress(stop);
   };
 
+  const handleRegionChangeComplete = useCallback((region: Region) => {
+    onRegionChangeComplete?.(region);
+  }, [onRegionChangeComplete]);
+
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         style={styles.map}
         initialRegion={initialRegion || DEFAULT_REGION}
@@ -40,6 +48,8 @@ export function TransitMap({ stops, onStopPress, initialRegion }: TransitMapProp
         showsMyLocationButton
         showsCompass
         showsScale
+        onRegionChange={onRegionChange}
+        onRegionChangeComplete={handleRegionChangeComplete}
       >
         {stops.map((stop) => (
           <StopMarker

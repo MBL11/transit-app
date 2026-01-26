@@ -1,13 +1,15 @@
 /**
  * Map Screen
  * Main screen displaying transit stops on an interactive map with bottom sheet
+ * Optimized to load only stops around user's location for better performance
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { Region } from 'react-native-maps';
 import { TransitMap } from '../components/map';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
@@ -15,13 +17,19 @@ import { AlertBanner } from '../components/transit/AlertBanner';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
 import { BannerAdComponent } from '../components/ads/BannerAd';
-import { useStops, useAlerts } from '../hooks';
+import { useAlerts } from '../hooks';
 import { useAdapter } from '../hooks/useAdapter';
+import { useLocation } from '../hooks/useLocation';
 import { useNetwork } from '../contexts/NetworkContext';
+import { findNearbyStops, NearbyStop } from '../core/nearby-stops';
 import type { Stop, Route } from '../core/types/models';
 import type { NextDeparture } from '../core/types/adapter';
 import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
+
+// Radius in meters for loading nearby stops
+const NEARBY_STOPS_RADIUS = 2000; // 2km radius
+const MAX_STOPS_ON_MAP = 100; // Maximum stops to display for performance
 
 type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
@@ -31,11 +39,11 @@ export function MapScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  console.log('[MapScreen] Calling useStops...');
-  const { stops, loading, error } = useStops();
+  // Geolocation
+  const { location, isLoading: locationLoading, permissionGranted, getCurrentLocation, requestPermission } = useLocation();
 
   console.log('[MapScreen] Calling useAdapter...');
-  const { adapter } = useAdapter();
+  const { adapter, loading: adapterLoading } = useAdapter();
 
   console.log('[MapScreen] Calling useAlerts...');
   const { alerts } = useAlerts();
@@ -43,7 +51,16 @@ export function MapScreen({ navigation }: Props) {
   console.log('[MapScreen] Calling useNetwork...');
   const { isOffline } = useNetwork();
 
+  // Local state for nearby stops (instead of all stops)
+  const [nearbyStops, setNearbyStops] = useState<NearbyStop[]>([]);
+  const [loadingStops, setLoadingStops] = useState(true);
+  const [stopsError, setStopsError] = useState<Error | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+
+  // Track current map center for loading stops
+  const currentRegionRef = useRef<Region | null>(null);
+  const loadingRegionRef = useRef(false);
 
   // Filter severe/warning alerts for badge
   const severeAlerts = alerts.filter(a => a.severity === 'severe' || a.severity === 'warning');
@@ -55,7 +72,94 @@ export function MapScreen({ navigation }: Props) {
   const [stopDepartures, setStopDepartures] = useState<NextDeparture[]>([]);
   const [loadingStopData, setLoadingStopData] = useState(false);
 
-  console.log('[MapScreen] Render - stops:', stops.length, 'loading:', loading, 'error:', error);
+  console.log('[MapScreen] Render - nearbyStops:', nearbyStops.length, 'loading:', loadingStops);
+
+  // Load nearby stops around a given location
+  const loadNearbyStops = useCallback(async (lat: number, lon: number) => {
+    if (loadingRegionRef.current) {
+      console.log('[MapScreen] Already loading stops, skipping...');
+      return;
+    }
+
+    try {
+      loadingRegionRef.current = true;
+      setLoadingStops(true);
+      setStopsError(null);
+
+      console.log(`[MapScreen] Loading stops around (${lat.toFixed(4)}, ${lon.toFixed(4)})...`);
+
+      const stops = await findNearbyStops(lat, lon, NEARBY_STOPS_RADIUS, MAX_STOPS_ON_MAP);
+
+      console.log(`[MapScreen] Found ${stops.length} nearby stops`);
+      setNearbyStops(stops);
+    } catch (err) {
+      console.error('[MapScreen] Failed to load nearby stops:', err);
+      setStopsError(err instanceof Error ? err : new Error('Failed to load stops'));
+    } finally {
+      setLoadingStops(false);
+      loadingRegionRef.current = false;
+    }
+  }, []);
+
+  // Initial location setup
+  useEffect(() => {
+    const initLocation = async () => {
+      console.log('[MapScreen] Initializing location...');
+
+      // If permission not granted, show prompt
+      if (!permissionGranted) {
+        console.log('[MapScreen] Location permission not granted, showing prompt');
+        setShowLocationPrompt(true);
+        // Load stops around Paris center as fallback
+        await loadNearbyStops(48.8566, 2.3522);
+        return;
+      }
+
+      // Get current location
+      const userLocation = await getCurrentLocation();
+      if (userLocation) {
+        console.log('[MapScreen] Got user location:', userLocation.latitude, userLocation.longitude);
+        await loadNearbyStops(userLocation.latitude, userLocation.longitude);
+      } else {
+        // Fallback to Paris center
+        console.log('[MapScreen] No user location, using Paris center');
+        await loadNearbyStops(48.8566, 2.3522);
+      }
+    };
+
+    if (!adapterLoading) {
+      initLocation();
+    }
+  }, [adapterLoading, permissionGranted]);
+
+  // Handle location permission request
+  const handleEnableLocation = async () => {
+    setShowLocationPrompt(false);
+    const granted = await requestPermission();
+    if (granted) {
+      const userLocation = await getCurrentLocation();
+      if (userLocation) {
+        await loadNearbyStops(userLocation.latitude, userLocation.longitude);
+      }
+    }
+  };
+
+  // Handle map region change (debounced)
+  const regionChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleRegionChangeComplete = useCallback((region: Region) => {
+    currentRegionRef.current = region;
+
+    // Debounce the stop loading
+    if (regionChangeTimeoutRef.current) {
+      clearTimeout(regionChangeTimeoutRef.current);
+    }
+
+    regionChangeTimeoutRef.current = setTimeout(() => {
+      console.log('[MapScreen] Region changed, reloading stops...');
+      loadNearbyStops(region.latitude, region.longitude);
+    }, 500); // Wait 500ms after user stops moving the map
+  }, [loadNearbyStops]);
 
   // Load stop details when a stop is selected
   useEffect(() => {
@@ -136,10 +240,10 @@ export function MapScreen({ navigation }: Props) {
       Alert.alert(t('common.success'), t('common.dataImported'));
       console.log('[MapScreen] Data imported successfully');
 
-      // Reload page
-      if (adapter) {
-        await adapter.initialize();
-      }
+      // Reload stops around current location or Paris center
+      const lat = location?.latitude || 48.8566;
+      const lon = location?.longitude || 2.3522;
+      await loadNearbyStops(lat, lon);
     } catch (err) {
       console.error('[MapScreen] Import error:', err);
       Alert.alert(t('common.error'), t('common.importFailed'));
@@ -148,33 +252,35 @@ export function MapScreen({ navigation }: Props) {
     }
   };
 
-  // Loading state
-  if (loading) {
+  // Initial loading state
+  if (adapterLoading || (loadingStops && nearbyStops.length === 0)) {
     return (
       <ScreenContainer edges={[]}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#0066CC" />
-          <Text style={styles.loadingText}>{t('transit.loadingStops')}</Text>
+          <Text style={styles.loadingText}>
+            {locationLoading ? t('common.gettingLocation', { defaultValue: 'Getting your location...' }) : t('transit.loadingStops')}
+          </Text>
         </View>
       </ScreenContainer>
     );
   }
 
   // Error state
-  if (error) {
+  if (stopsError) {
     return (
       <ScreenContainer edges={[]}>
         <View style={styles.centerContainer}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>{t('transit.loadingError')}</Text>
-          <Text style={styles.errorMessage}>{error.message}</Text>
+          <Text style={styles.errorMessage}>{stopsError.message}</Text>
         </View>
       </ScreenContainer>
     );
   }
 
-  // Empty state
-  if (stops.length === 0) {
+  // Empty state - no stops found (database might be empty)
+  if (nearbyStops.length === 0 && !loadingStops) {
     return (
       <ScreenContainer edges={[]}>
         <View style={styles.centerContainer}>
@@ -208,11 +314,26 @@ export function MapScreen({ navigation }: Props) {
     );
   }
 
+  // Calculate initial region based on user location or default to Paris
+  const initialRegion = location
+    ? {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }
+    : undefined;
+
   // Map view
   return (
     <ScreenContainer edges={[]}>
       <View style={styles.container}>
-        <TransitMap stops={stops} onStopPress={handleStopPress} />
+        <TransitMap
+          stops={nearbyStops}
+          onStopPress={handleStopPress}
+          initialRegion={initialRegion}
+          onRegionChangeComplete={handleRegionChangeComplete}
+        />
 
         {/* Floating Header */}
         <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
@@ -225,6 +346,47 @@ export function MapScreen({ navigation }: Props) {
             <OfflineBanner visible={isOffline} />
           </View>
         )}
+
+        {/* Location Permission Prompt */}
+        {showLocationPrompt && (
+          <View style={[styles.locationPromptContainer, { top: insets.top + 68 }]}>
+            <View style={styles.locationPrompt}>
+              <Text style={styles.locationPromptIcon}>📍</Text>
+              <View style={styles.locationPromptTextContainer}>
+                <Text style={styles.locationPromptTitle}>
+                  {t('map.enableLocation', { defaultValue: 'Activer la localisation' })}
+                </Text>
+                <Text style={styles.locationPromptText}>
+                  {t('map.locationDescription', { defaultValue: 'Pour afficher les arrêts autour de vous' })}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.locationPromptButton}
+                onPress={handleEnableLocation}
+              >
+                <Text style={styles.locationPromptButtonText}>
+                  {t('common.enable', { defaultValue: 'Activer' })}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.locationPromptCloseButton}
+                onPress={() => setShowLocationPrompt(false)}
+              >
+                <Text style={styles.locationPromptCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Stops count indicator */}
+        <View style={[styles.stopsCountContainer, { top: insets.top + (showLocationPrompt ? 140 : 68) }]}>
+          <View style={styles.stopsCountBadge}>
+            <Text style={styles.stopsCountText}>
+              {nearbyStops.length} {t('map.stopsNearby', { defaultValue: 'arrêts' })}
+              {loadingStops && ' ...'}
+            </Text>
+          </View>
+        </View>
 
       {/* Alerts Banner */}
       {alerts.length > 0 && (
@@ -495,5 +657,89 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     alignItems: 'center',
     zIndex: 5,
+  },
+  // Location permission prompt styles
+  locationPromptContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 15,
+  },
+  locationPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0066CC',
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  locationPromptIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  locationPromptTextContainer: {
+    flex: 1,
+  },
+  locationPromptTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  locationPromptText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12,
+  },
+  locationPromptButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  locationPromptButtonText: {
+    color: '#0066CC',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  locationPromptCloseButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  locationPromptCloseText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  // Stops count badge
+  stopsCountContainer: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 5,
+  },
+  stopsCountBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  stopsCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
   },
 });
