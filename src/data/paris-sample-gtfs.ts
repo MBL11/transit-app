@@ -213,7 +213,66 @@ export function generateParisTrips(): Trip[] {
     });
   }
 
-  // Add more trips for other lines...
+  // Metro Line 9 - Both directions
+  for (let i = 0; i < 10; i++) {
+    trips.push({
+      id: `M9_EAST_${i}`,
+      routeId: 'M9',
+      serviceId: 'WD',
+      headsign: 'Mairie de Montreuil',
+      directionId: 0,
+      shapeId: undefined,
+    });
+    trips.push({
+      id: `M9_WEST_${i}`,
+      routeId: 'M9',
+      serviceId: 'WD',
+      headsign: 'Pont de Sèvres',
+      directionId: 1,
+      shapeId: undefined,
+    });
+  }
+
+  // Metro Line 14 - Both directions
+  for (let i = 0; i < 10; i++) {
+    trips.push({
+      id: `M14_SOUTH_${i}`,
+      routeId: 'M14',
+      serviceId: 'WD',
+      headsign: 'Olympiades',
+      directionId: 0,
+      shapeId: undefined,
+    });
+    trips.push({
+      id: `M14_NORTH_${i}`,
+      routeId: 'M14',
+      serviceId: 'WD',
+      headsign: 'Saint-Lazare',
+      directionId: 1,
+      shapeId: undefined,
+    });
+  }
+
+  // RER A - Both directions
+  for (let i = 0; i < 5; i++) {
+    trips.push({
+      id: `RERA_EAST_${i}`,
+      routeId: 'RERA',
+      serviceId: 'WD',
+      headsign: 'Marne-la-Vallée',
+      directionId: 0,
+      shapeId: undefined,
+    });
+    trips.push({
+      id: `RERA_WEST_${i}`,
+      routeId: 'RERA',
+      serviceId: 'WD',
+      headsign: 'Saint-Germain-en-Laye',
+      directionId: 1,
+      shapeId: undefined,
+    });
+  }
+
   return trips;
 }
 
@@ -289,6 +348,110 @@ export function generateParisStopTimes(): StopTime[] {
         tripId: `M4_SOUTH_${tripNum}`,
         arrivalTime: generateFutureTime(startOffset + idx * 2),
         departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 9 - East direction (important: connects to République!)
+  const m9EastStops = [
+    'M9_TROCADERO9', 'M9_IENA', 'M9_ALMA', 'M9_FDROOS9', 'M9_STPHILIPPE',
+    'M9_MIROMESNIL', 'M9_AUGUSTIN', 'M9_HAVRE', 'M9_CHAUSSEE', 'M9_RICHELIEU',
+    'M9_GRANDS', 'M9_BONNE', 'M9_STRASBOURG9', 'M9_REPUBLIQUE', 'M9_VOLTAIRE',
+    'M9_NATION9'
+  ];
+
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 2 + tripNum * 3;
+    m9EastStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M9_EAST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 9 - West direction
+  const m9WestStops = [...m9EastStops].reverse();
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 3 + tripNum * 3;
+    m9WestStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M9_WEST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 14 - South direction
+  const m14SouthStops = [
+    'M14_STLAZARE', 'M14_MADELEINE', 'M14_PYRAMIDES14', 'M14_CHATELET14',
+    'M14_GAREDEL14', 'M14_BERCY14', 'M14_COUR', 'M14_BIBLIO', 'M14_OLYMP'
+  ];
+
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 1 + tripNum * 3;
+    m14SouthStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M14_SOUTH_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 3), // Faster line, 3 min between stops
+        departureTime: generateFutureTime(startOffset + idx * 3),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 14 - North direction
+  const m14NorthStops = [...m14SouthStops].reverse();
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 2 + tripNum * 3;
+    m14NorthStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M14_NORTH_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 3),
+        departureTime: generateFutureTime(startOffset + idx * 3),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // RER A - East direction
+  const reraEastStops = [
+    'RERA_DEFENSE', 'RERA_ETOILE', 'RERA_AUBER', 'RERA_CHATELET',
+    'RERA_GAREDEL', 'RERA_NATION', 'RERA_VINCENNES'
+  ];
+
+  for (let tripNum = 0; tripNum < 5; tripNum++) {
+    const startOffset = tripNum * 10; // Every 10 min
+    reraEastStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `RERA_EAST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 4), // 4 min between RER stops
+        departureTime: generateFutureTime(startOffset + idx * 4),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // RER A - West direction
+  const reraWestStops = [...reraEastStops].reverse();
+  for (let tripNum = 0; tripNum < 5; tripNum++) {
+    const startOffset = 5 + tripNum * 10;
+    reraWestStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `RERA_WEST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 4),
+        departureTime: generateFutureTime(startOffset + idx * 4),
         stopId,
         stopSequence: idx + 1,
       });
