@@ -241,15 +241,17 @@ export function RouteDetailsScreen({ route }: Props) {
                       ) : (
                         <View
                           style={[
-                            styles.transitBadge,
+                            segment.route?.type === 2 ? styles.rerBadge : styles.transitBadge,
                             { backgroundColor: segment.route?.color ? `#${segment.route.color}` : '#999' },
                           ]}
                         >
                           <Text
                             style={[
-                              styles.transitBadgeText,
+                              segment.route?.type === 2 ? styles.rerBadgeText : styles.transitBadgeText,
                               { color: segment.route?.textColor ? `#${segment.route.textColor}` : '#FFF' },
                             ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
                           >
                             {segment.route?.shortName || '?'}
                           </Text>
@@ -268,16 +270,15 @@ export function RouteDetailsScreen({ route }: Props) {
                       </View>
                     ) : (
                       <View style={styles.transitDetails}>
-                        {/* Direction header like Citymapper */}
-                        <View style={styles.directionHeader}>
-                          <Text style={styles.directionLabel}>
-                            {segment.trip?.headsign || segment.to?.name || t('transit.direction')}
+                        {/* Direction - show headsign as direction */}
+                        {segment.trip?.headsign && (
+                          <Text style={styles.directionText}>
+                            {t('transit.direction')} {segment.trip.headsign}
                           </Text>
-                        </View>
+                        )}
 
                         {/* Get off at station */}
                         <View style={styles.getOffContainer}>
-                          <Text style={styles.getOffIcon}>Ⓜ</Text>
                           <Text style={styles.getOffText}>
                             {t('transit.getOffAt')} {segment.to.name}
                           </Text>
@@ -454,6 +455,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  rerBadge: {
+    minWidth: 44,
+    height: 44,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  rerBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   walkDetails: {
     paddingLeft: 12,
     paddingVertical: 8,
@@ -473,27 +487,17 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 2,
   },
-  directionHeader: {
+  directionText: {
+    fontSize: 13,
+    color: '#666',
     marginBottom: 8,
   },
-  directionLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-  },
   getOffContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 8,
     backgroundColor: '#f0f0f0',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-  },
-  getOffIcon: {
-    fontSize: 16,
-    marginRight: 8,
-    color: '#0066CC',
   },
   getOffText: {
     fontSize: 14,
