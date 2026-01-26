@@ -1,6 +1,7 @@
 /**
  * RouteOptionCard Component
  * Displays a single route option with tags, duration, transfers, and walking distance
+ * Shows line directions and transfer stations for clarity
  */
 
 import React, { useMemo } from 'react';
@@ -68,6 +69,17 @@ function getTransportType(segment: RouteSegment): TransportType {
   }
 }
 
+/**
+ * Get direction text (headsign) or fallback to destination station
+ */
+function getDirection(segment: RouteSegment): string {
+  if (segment.trip?.headsign) {
+    return segment.trip.headsign;
+  }
+  // Fallback to destination stop name
+  return segment.to?.name || '';
+}
+
 export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOptionCardProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -76,9 +88,9 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
   // Get transit segments for badge display
   const transitSegments = route.segments
     .filter((leg) => leg.type === 'transit')
-    .slice(0, 4); // Max 4 segments
+    .slice(0, 3); // Max 3 segments to fit with directions
 
-  const hasMoreModes = route.segments.filter((leg) => leg.type === 'transit').length > 4;
+  const hasMoreModes = route.segments.filter((leg) => leg.type === 'transit').length > 3;
 
   return (
     <TouchableOpacity
@@ -109,22 +121,36 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
         </View>
       </View>
 
-      {/* Transit Lines with Official Badges */}
-      <View style={styles.modesRow}>
-        {transitSegments.map((segment, index) => (
-          <View key={index} style={styles.badgeWrapper}>
-            <LineBadge
-              lineNumber={segment.route?.shortName || '?'}
-              type={getTransportType(segment)}
-              color={segment.route?.color ? `#${segment.route.color}` : undefined}
-              textColor={segment.route?.textColor ? `#${segment.route.textColor}` : undefined}
-              size="small"
-            />
-          </View>
-        ))}
+      {/* Transit Lines with Directions - Citymapper style */}
+      <View style={styles.journeySteps}>
+        {transitSegments.map((segment, index) => {
+          const direction = getDirection(segment);
+          const isLast = index === transitSegments.length - 1 && !hasMoreModes;
+
+          return (
+            <View key={index} style={styles.stepRow}>
+              {/* Line badge */}
+              <LineBadge
+                lineNumber={segment.route?.shortName || '?'}
+                type={getTransportType(segment)}
+                color={segment.route?.color ? `#${segment.route.color}` : undefined}
+                textColor={segment.route?.textColor ? `#${segment.route.textColor}` : undefined}
+                size="small"
+              />
+              {/* Direction */}
+              <Text style={styles.directionText} numberOfLines={1}>
+                → {direction}
+              </Text>
+              {/* Arrow to next segment */}
+              {!isLast && (
+                <Text style={styles.transferArrow}>›</Text>
+              )}
+            </View>
+          );
+        })}
         {hasMoreModes && (
           <Text style={styles.moreModesText}>
-            +{route.segments.filter((l) => l.type === 'transit').length - 4}
+            +{route.segments.filter((l) => l.type === 'transit').length - 3}
           </Text>
         )}
       </View>
@@ -217,20 +243,30 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       fontWeight: 'bold',
       color: '#fff',
     },
-    modesRow: {
+    journeySteps: {
+      marginBottom: 12,
+      gap: 6,
+    },
+    stepRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      marginBottom: 12,
-      flexWrap: 'wrap',
+      gap: 8,
     },
-    badgeWrapper: {
-      marginRight: 2,
+    directionText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    transferArrow: {
+      fontSize: 18,
+      color: colors.textMuted,
+      fontWeight: 'bold',
     },
     moreModesText: {
       fontSize: 12,
       color: colors.textMuted,
       marginLeft: 4,
+      marginTop: 4,
     },
     statsRow: {
       flexDirection: 'row',

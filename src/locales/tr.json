@@ -82,6 +82,7 @@
     "affectedLinesCount_plural": "{{count}} etkilenen hat",
     "walkOnFoot": "yürüyerek",
     "takeLine": "Bin",
+    "getOffAt": "İn",
     "totalDuration": "Toplam süre",
     "estimatedArrival": "Planlanan tarifelere göre tahmini varış saati"
   },

@@ -82,6 +82,7 @@
     "affectedLinesCount_plural": "{{count}} affected lines",
     "walkOnFoot": "on foot",
     "takeLine": "Take",
+    "getOffAt": "Get off at",
     "totalDuration": "Total duration",
     "estimatedArrival": "Estimated arrival time based on scheduled timetables"
   },

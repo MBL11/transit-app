@@ -82,6 +82,7 @@
     "affectedLinesCount_plural": "{{count}} lignes affectées",
     "walkOnFoot": "à pied",
     "takeLine": "Prendre",
+    "getOffAt": "Descendre à",
     "totalDuration": "Durée totale",
     "estimatedArrival": "Heure d'arrivée estimée basée sur les horaires théoriques"
   },

@@ -268,17 +268,22 @@ export function RouteDetailsScreen({ route }: Props) {
                       </View>
                     ) : (
                       <View style={styles.transitDetails}>
-                        <Text style={styles.segmentAction}>
-                          {t('transit.takeLine')} {segment.route?.shortName}
-                        </Text>
-                        {segment.route?.longName && (
-                          <Text style={styles.segmentInfo}>{segment.route.longName}</Text>
-                        )}
-                        {segment.trip?.headsign && (
-                          <Text style={styles.segmentDirection}>
-                            {t('transit.direction')} {segment.trip.headsign}
+                        {/* Direction header like Citymapper */}
+                        <View style={styles.directionHeader}>
+                          <Text style={styles.directionLabel}>
+                            {segment.trip?.headsign || segment.to?.name || t('transit.direction')}
                           </Text>
-                        )}
+                        </View>
+
+                        {/* Get off at station */}
+                        <View style={styles.getOffContainer}>
+                          <Text style={styles.getOffIcon}>Ⓜ</Text>
+                          <Text style={styles.getOffText}>
+                            {t('transit.getOffAt')} {segment.to.name}
+                          </Text>
+                        </View>
+
+                        {/* Duration */}
                         <Text style={styles.segmentDuration}>{segment.duration} min</Text>
                       </View>
                     )}
@@ -468,11 +473,32 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 2,
   },
-  segmentDirection: {
-    fontSize: 13,
+  directionHeader: {
+    marginBottom: 8,
+  },
+  directionLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  getOffContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  getOffIcon: {
+    fontSize: 16,
+    marginRight: 8,
     color: '#0066CC',
-    fontStyle: 'italic',
-    marginBottom: 4,
+  },
+  getOffText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
   },
   segmentDuration: {
     fontSize: 13,

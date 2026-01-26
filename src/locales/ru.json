@@ -82,6 +82,7 @@
     "affectedLinesCount_plural": "{{count}} затронутых линий",
     "walkOnFoot": "пешком",
     "takeLine": "Сесть на",
+    "getOffAt": "Выйти на",
     "totalDuration": "Общая продолжительность",
     "estimatedArrival": "Расчётное время прибытия на основе расписания"
   },

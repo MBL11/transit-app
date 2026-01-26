@@ -82,6 +82,7 @@
     "affectedLinesCount_plural": "{{count}} líneas afectadas",
     "walkOnFoot": "a pie",
     "takeLine": "Tomar",
+    "getOffAt": "Bajar en",
     "totalDuration": "Duración total",
     "estimatedArrival": "Hora de llegada estimada basada en horarios programados"
   },
