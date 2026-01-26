@@ -70,7 +70,7 @@ export async function findRoute(
     }];
   }
 
-  // 3. Algorithme simplifié : trouve les lignes directes d'abord
+  // 3. Algorithme : trouve les lignes directes d'abord
   const journeys: JourneyResult[] = [];
 
   // Récupère les routes qui passent par les deux arrêts
@@ -82,8 +82,12 @@ export async function findRoute(
   const directRoutes = toRoutes.filter(r => fromRouteIds.has(r.id));
 
   for (const route of directRoutes.slice(0, 3)) { // Max 3 itinéraires directs
-    // Estime le temps de trajet (simplifié : 2 min par arrêt)
-    const estimatedDuration = 15; // TODO: calculer vraiment avec stop_times
+    // Estime le temps de trajet basé sur la distance (simplifié)
+    const distanceKm = directDistance / 1000;
+    const estimatedDuration = Math.max(5, Math.round(distanceKm * 3)); // ~3 min per km
+
+    // Try to get headsign for this route
+    const tripInfo = await db.getTripInfoForRoute(route.id, toStopId);
 
     const journey: JourneyResult = {
       segments: [{
@@ -91,6 +95,7 @@ export async function findRoute(
         from: fromStop,
         to: toStop,
         route: route,
+        trip: tripInfo ? { headsign: tripInfo.headsign } : undefined,
         departureTime: departureTime,
         arrivalTime: new Date(departureTime.getTime() + estimatedDuration * 60000),
         duration: estimatedDuration,
@@ -105,9 +110,88 @@ export async function findRoute(
     journeys.push(journey);
   }
 
-  // Si pas de trajet direct, retourne un message (à améliorer plus tard)
+  // 4. Si pas de trajet direct, cherche avec une correspondance
+  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0) {
+    console.log('[Routing] No direct route, looking for connections...');
+
+    const toRouteIds = new Set(toRoutes.map(r => r.id));
+    const transferJourneys: JourneyResult[] = [];
+
+    // Pour chaque ligne de départ, trouve les arrêts de correspondance possibles
+    for (const fromRoute of fromRoutes.slice(0, 3)) {
+      // Récupère tous les arrêts de cette ligne
+      const fromRouteStops = await db.getStopsByRouteId(fromRoute.id);
+
+      // Pour chaque arrêt de cette ligne, vérifie s'il est desservi par une ligne d'arrivée
+      for (const transferStop of fromRouteStops) {
+        if (transferStop.id === fromStopId) continue; // Skip départ
+
+        // Vérifie les routes qui passent par cet arrêt de correspondance
+        const transferRoutes = await db.getRoutesByStopId(transferStop.id);
+        const connectingRoutes = transferRoutes.filter(r => toRouteIds.has(r.id) && r.id !== fromRoute.id);
+
+        if (connectingRoutes.length > 0) {
+          // Correspondance trouvée !
+          const connectingRoute = connectingRoutes[0];
+
+          // Calcul des durées
+          const dist1 = haversineDistance(fromStop.lat, fromStop.lon, transferStop.lat, transferStop.lon);
+          const dist2 = haversineDistance(transferStop.lat, transferStop.lon, toStop.lat, toStop.lon);
+          const duration1 = Math.max(3, Math.round((dist1 / 1000) * 3));
+          const duration2 = Math.max(3, Math.round((dist2 / 1000) * 3));
+          const transferTime = 4; // 4 min pour la correspondance
+          const totalDuration = duration1 + transferTime + duration2;
+
+          // Get headsigns
+          const trip1Info = await db.getTripInfoForRoute(fromRoute.id, transferStop.id);
+          const trip2Info = await db.getTripInfoForRoute(connectingRoute.id, toStopId);
+
+          const journey: JourneyResult = {
+            segments: [
+              {
+                type: 'transit',
+                from: fromStop,
+                to: transferStop,
+                route: fromRoute,
+                trip: trip1Info ? { headsign: trip1Info.headsign } : undefined,
+                departureTime: departureTime,
+                arrivalTime: new Date(departureTime.getTime() + duration1 * 60000),
+                duration: duration1,
+              },
+              {
+                type: 'transit',
+                from: transferStop,
+                to: toStop,
+                route: connectingRoute,
+                trip: trip2Info ? { headsign: trip2Info.headsign } : undefined,
+                departureTime: new Date(departureTime.getTime() + (duration1 + transferTime) * 60000),
+                arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+                duration: duration2,
+              },
+            ],
+            totalDuration: totalDuration,
+            totalWalkDistance: 0,
+            numberOfTransfers: 1,
+            departureTime: departureTime,
+            arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+          };
+
+          transferJourneys.push(journey);
+
+          // Limite le nombre de correspondances trouvées
+          if (transferJourneys.length >= 5) break;
+        }
+      }
+      if (transferJourneys.length >= 5) break;
+    }
+
+    // Trie par durée et garde les meilleurs
+    transferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+    journeys.push(...transferJourneys.slice(0, 3));
+  }
+
+  // Si toujours pas de trajet, retourne un trajet à pied comme fallback
   if (journeys.length === 0) {
-    // Retourne un trajet à pied comme fallback
     const walkTime = walkingTime(directDistance);
     journeys.push({
       segments: [{

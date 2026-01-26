@@ -627,6 +627,37 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
 }
 
 /**
+ * Get trip info (headsign) for a route going to a specific stop
+ */
+export async function getTripInfoForRoute(
+  routeId: string,
+  towardStopId: string
+): Promise<{ headsign: string } | null> {
+  const db = openDatabase();
+
+  try {
+    // Find a trip on this route that goes through the destination stop
+    const row = db.getFirstSync<any>(
+      `SELECT DISTINCT trips.headsign
+       FROM trips
+       JOIN stop_times ON trips.id = stop_times.trip_id
+       WHERE trips.route_id = ?
+         AND stop_times.stop_id = ?
+         AND trips.headsign IS NOT NULL
+       LIMIT 1`,
+      [routeId, towardStopId]
+    );
+
+    if (!row || !row.headsign) return null;
+
+    return { headsign: row.headsign };
+  } catch (error) {
+    console.error('[Database] ❌ Failed to get trip info:', error);
+    return null;
+  }
+}
+
+/**
  * Departure information for display
  */
 export interface TheoreticalDeparture {
