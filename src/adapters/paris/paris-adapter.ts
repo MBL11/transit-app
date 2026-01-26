@@ -277,20 +277,23 @@ export class ParisAdapter implements TransitAdapter {
         return true;
       });
 
-      // Group by route and direction to ensure we get both directions for each line
-      const groupedByRouteDirection = new Map<string, any[]>();
+      // Group by route and headsign (destination) to support RER branches
+      // RER A for example has 5 different terminus: Cergy, Poissy, Saint-Germain, Marne-la-Vallée, Boissy
+      const groupedByRouteHeadsign = new Map<string, any[]>();
       for (const row of filteredRows) {
-        const key = `${row.route_short_name}_${row.direction_id}`;
-        if (!groupedByRouteDirection.has(key)) {
-          groupedByRouteDirection.set(key, []);
+        // Use headsign as key to capture different branches/destinations
+        const key = `${row.route_short_name}_${row.headsign || row.direction_id}`;
+        if (!groupedByRouteHeadsign.has(key)) {
+          groupedByRouteHeadsign.set(key, []);
         }
-        groupedByRouteDirection.get(key)!.push(row);
+        groupedByRouteHeadsign.get(key)!.push(row);
       }
 
-      // Take up to 5 departures per route/direction, then flatten and sort by time
+      // Take up to 3 departures per route/destination, then flatten and sort by time
+      // Reduced from 5 to 3 to accommodate more destinations (RER branches)
       const balancedRows: any[] = [];
-      for (const [key, departures] of groupedByRouteDirection) {
-        balancedRows.push(...departures.slice(0, 5));
+      for (const [key, departures] of groupedByRouteHeadsign) {
+        balancedRows.push(...departures.slice(0, 3));
       }
 
       // Sort by departure time and limit total
@@ -298,7 +301,7 @@ export class ParisAdapter implements TransitAdapter {
         .sort((a, b) => a.departure_time.localeCompare(b.departure_time))
         .slice(0, 30);
 
-      console.log(`[ParisAdapter] After balancing: ${sortedRows.length} departures from ${groupedByRouteDirection.size} route/direction combinations`);
+      console.log(`[ParisAdapter] After balancing: ${sortedRows.length} departures from ${groupedByRouteHeadsign.size} route/destination combinations`);
 
       const departures: NextDeparture[] = sortedRows
         .map((row) => {
