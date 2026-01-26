@@ -127,8 +127,25 @@ export async function findRoute(
         if (transferStop.id === fromStopId) continue; // Skip départ
 
         // Vérifie les routes qui passent par cet arrêt de correspondance
-        const transferRoutes = await db.getRoutesByStopId(transferStop.id);
-        const connectingRoutes = transferRoutes.filter(r => toRouteIds.has(r.id) && r.id !== fromRoute.id);
+        let transferRoutes = await db.getRoutesByStopId(transferStop.id);
+        let connectingRoutes = transferRoutes.filter(r => toRouteIds.has(r.id) && r.id !== fromRoute.id);
+
+        // Si pas de connexion directe, cherche des arrêts proches (< 200m) pour les correspondances
+        // Cela gère le cas où le même nom de station a des IDs différents par ligne
+        let actualTransferStop = transferStop;
+        if (connectingRoutes.length === 0) {
+          const nearbyStops = await findBestNearbyStops(transferStop.lat, transferStop.lon, 5, 200);
+          for (const nearbyStop of nearbyStops) {
+            if (nearbyStop.id === transferStop.id) continue;
+            const nearbyRoutes = await db.getRoutesByStopId(nearbyStop.id);
+            const nearbyConnecting = nearbyRoutes.filter(r => toRouteIds.has(r.id) && r.id !== fromRoute.id);
+            if (nearbyConnecting.length > 0) {
+              connectingRoutes = nearbyConnecting;
+              actualTransferStop = nearbyStop;
+              break;
+            }
+          }
+        }
 
         if (connectingRoutes.length > 0) {
           // Correspondance trouvée !
@@ -136,7 +153,7 @@ export async function findRoute(
 
           // Calcul des durées
           const dist1 = haversineDistance(fromStop.lat, fromStop.lon, transferStop.lat, transferStop.lon);
-          const dist2 = haversineDistance(transferStop.lat, transferStop.lon, toStop.lat, toStop.lon);
+          const dist2 = haversineDistance(actualTransferStop.lat, actualTransferStop.lon, toStop.lat, toStop.lon);
           const duration1 = Math.max(3, Math.round((dist1 / 1000) * 3));
           const duration2 = Math.max(3, Math.round((dist2 / 1000) * 3));
           const transferTime = 4; // 4 min pour la correspondance
@@ -146,12 +163,15 @@ export async function findRoute(
           const trip1Info = await db.getTripInfoForRoute(fromRoute.id, transferStop.id);
           const trip2Info = await db.getTripInfoForRoute(connectingRoute.id, toStopId);
 
+          // Utilise le nom de station pour l'affichage (même si les IDs sont différents)
+          const transferStationName = transferStop.name;
+
           const journey: JourneyResult = {
             segments: [
               {
                 type: 'transit',
                 from: fromStop,
-                to: transferStop,
+                to: { ...transferStop, name: transferStationName },
                 route: fromRoute,
                 trip: trip1Info ? { headsign: trip1Info.headsign } : undefined,
                 departureTime: departureTime,
@@ -160,7 +180,7 @@ export async function findRoute(
               },
               {
                 type: 'transit',
-                from: transferStop,
+                from: { ...actualTransferStop, name: transferStationName },
                 to: toStop,
                 route: connectingRoute,
                 trip: trip2Info ? { headsign: trip2Info.headsign } : undefined,
