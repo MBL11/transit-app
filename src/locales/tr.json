@@ -40,6 +40,7 @@
     "stops": "Duraklar",
     "lines": "Hatlar",
     "routes": "Rotalar",
+    "trips": "Seyahatler",
     "nextDepartures": "Sonraki kalkışlar",
     "direction": "Yön",
     "from": "Nereden",
@@ -207,6 +208,17 @@
     "darkMode": "Karanlık mod",
     "lightMode": "Aydınlık mod",
     "systemMode": "Sistem",
+    "notifications": "Bildirimler",
+    "enableNotifications": "Bildirimleri etkinleştir",
+    "notificationsDescription": "Favori hatlarınızdaki aksaklıklar için uyarı alın",
+    "notificationsInfo": "Favori hatlarınızdaki önemli aksaklıklar için push bildirimleri alacaksınız",
+    "notificationsEnabled": "Bildirimler etkin",
+    "notificationsEnabledMessage": "Favori hatlarınız için uyarı alacaksınız",
+    "notificationsDisabled": "Bildirimler devre dışı",
+    "notificationsDisabledMessage": "Artık push bildirimleri almayacaksınız",
+    "notificationsPermissionDenied": "İzin reddedildi",
+    "notificationsPermissionDeniedMessage": "Lütfen cihaz ayarlarınızdan bildirimleri etkinleştirin",
+    "notificationsEnableFailed": "Bildirimler etkinleştirilemedi",
     "about": "Hakkında",
     "version": "Sürüm",
     "dataSource": "Veri kaynağı",
@@ -231,5 +243,45 @@
     "title": "Rotayı paylaş",
     "sentFrom": "Transit App'ten gönderildi",
     "error": "Rota paylaşılamıyor"
+  },
+  "onboarding": {
+    "skip": "Atla",
+    "next": "İleri",
+    "start": "Başla",
+    "welcome": {
+      "title": "Transit App'e Hoş Geldiniz",
+      "description": "Şehirde kolayca dolaşmanız için toplu taşıma arkadaşınız"
+    },
+    "route": {
+      "title": "Rotanızı bulun",
+      "description": "Toplu taşıma kullanarak A noktasından B noktasına en iyi yolu hesaplayın"
+    },
+    "realtime": {
+      "title": "Gerçek zamanlı ve uyarılar",
+      "description": "Gerçek zamanlı tarifeleri kontrol edin ve aksaklıklardan haberdar olun"
+    },
+    "favorites": {
+      "title": "Favorilerinizi ekleyin",
+      "description": "Hızlı erişim için tercih ettiğiniz durakları ve hatları kaydedin"
+    }
+  },
+  "data": {
+    "title": "Veri Yönetimi",
+    "currentData": "Mevcut Veriler",
+    "dataLoaded": "Yüklendi",
+    "noData": "Veri Yok",
+    "importRealData": "Gerçek GTFS Verilerini İçe Aktar",
+    "updateData": "Verileri Güncelle",
+    "clearData": "Verileri Sil",
+    "import": "İçe Aktar",
+    "importWarning": "Bu, IDFM'den ~800MB GTFS verisi indirecektir. Devam edilsin mi?",
+    "importSuccess": "GTFS verileri başarıyla içe aktarıldı!",
+    "importFailed": "GTFS verileri içe aktarılamadı",
+    "clearWarning": "Bu, tüm ulaşım verilerini silecektir. Daha sonra yeniden içe aktarabilirsiniz.",
+    "dataCleared": "Tüm veriler silindi",
+    "clearFailed": "Veriler silinemedi",
+    "infoMessage": "Gerçek GTFS verileri, tüm Île-de-France ulaşım hatları için tam tarifeleri sağlar. İndirme büyüktür (~800MB) ancak yalnızca bir kez yapılması gerekir.",
+    "lastUpdate": "Son güncelleme",
+    "outdated": "Veriler güncel değil (> 7 gün). Lütfen güncelleyin."
   }
 }

@@ -21,7 +21,13 @@
     "selectStopOnMap": "Selecciona una parada en el mapa",
     "code": "Código",
     "result": "resultado",
-    "result_plural": "resultados"
+    "result_plural": "resultados",
+    "status": "Estado",
+    "online": "En línea",
+    "offline": "Sin conexión",
+    "retry": "Reintentar",
+    "apply": "Aplicar",
+    "reset": "Restablecer"
   },
   "tabs": {
     "map": "Mapa",
@@ -34,6 +40,7 @@
     "stops": "Paradas",
     "lines": "Líneas",
     "routes": "Rutas",
+    "trips": "Viajes",
     "nextDepartures": "Próximas salidas",
     "direction": "Dirección",
     "from": "Desde",
@@ -147,6 +154,34 @@
     "typeMoreCharacters": "Escribe al menos 3 caracteres",
     "recentSearches": "Búsquedas recientes"
   },
+  "routing": {
+    "filters": {
+      "title": "Preferencias de ruta",
+      "transportModes": "Medios de transporte",
+      "metro": "Metro",
+      "bus": "Autobús",
+      "tram": "Tranvía",
+      "train": "Tren / Cercanías",
+      "optimizeFor": "Optimizar para",
+      "fastest": "Más rápido",
+      "leastTransfers": "Menos transbordos",
+      "leastWalking": "Menos caminata",
+      "maxTransfers": "Transbordos máximos",
+      "unlimited": "Ilimitado",
+      "maxWalking": "Distancia máxima a pie",
+      "accessibility": "Accesibilidad",
+      "wheelchair": "Accesible en silla de ruedas"
+    },
+    "tags": {
+      "fastest": "⚡ Más rápido",
+      "least-transfers": "🔄 Menos transbordos",
+      "least-walking": "🚶 Menos caminata",
+      "eco-friendly": "🌱 Ecológico"
+    },
+    "transfers": "transbordo(s)",
+    "availableRoutes": "{{count}} ruta disponible",
+    "availableRoutes_plural": "{{count}} rutas disponibles"
+  },
   "alerts": {
     "title": "Interrupciones",
     "noAlerts": "Sin interrupciones",
@@ -173,6 +208,17 @@
     "darkMode": "Modo oscuro",
     "lightMode": "Modo claro",
     "systemMode": "Sistema",
+    "notifications": "Notificaciones",
+    "enableNotifications": "Activar notificaciones",
+    "notificationsDescription": "Recibe alertas de interrupciones en tus líneas favoritas",
+    "notificationsInfo": "Recibirás notificaciones push para interrupciones importantes en tus líneas favoritas",
+    "notificationsEnabled": "Notificaciones activadas",
+    "notificationsEnabledMessage": "Recibirás alertas para tus líneas favoritas",
+    "notificationsDisabled": "Notificaciones desactivadas",
+    "notificationsDisabledMessage": "Ya no recibirás notificaciones push",
+    "notificationsPermissionDenied": "Permiso denegado",
+    "notificationsPermissionDeniedMessage": "Por favor activa las notificaciones en los ajustes de tu dispositivo",
+    "notificationsEnableFailed": "Error al activar las notificaciones",
     "about": "Acerca de",
     "version": "Versión",
     "dataSource": "Fuente de datos",
@@ -188,5 +234,54 @@
     "title": "Compartir ruta",
     "sentFrom": "Enviado desde Transit App",
     "error": "No se puede compartir la ruta"
+  },
+  "network": {
+    "offline": "Estás sin conexión",
+    "online": "De vuelta en línea",
+    "status": "Estado de la red",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "showingCachedData": "Mostrando datos en caché",
+    "noRealTimeData": "Datos en tiempo real no disponibles sin conexión"
+  },
+  "onboarding": {
+    "skip": "Omitir",
+    "next": "Siguiente",
+    "start": "Comenzar",
+    "welcome": {
+      "title": "Bienvenido a Transit App",
+      "description": "Tu compañero de transporte público para moverte fácilmente por la ciudad"
+    },
+    "route": {
+      "title": "Encuentra tu ruta",
+      "description": "Calcula el mejor trayecto de un punto A a un punto B usando transporte público"
+    },
+    "realtime": {
+      "title": "Tiempo real y alertas",
+      "description": "Consulta horarios en tiempo real y mantente informado sobre interrupciones"
+    },
+    "favorites": {
+      "title": "Añade tus favoritos",
+      "description": "Guarda tus paradas y líneas preferidas para acceso rápido"
+    }
+  },
+  "data": {
+    "title": "Gestión de datos",
+    "currentData": "Datos actuales",
+    "dataLoaded": "Cargados",
+    "noData": "Sin datos",
+    "importRealData": "Importar datos GTFS reales",
+    "updateData": "Actualizar datos",
+    "clearData": "Borrar datos",
+    "import": "Importar",
+    "importWarning": "Esto descargará ~800MB de datos GTFS de IDFM. ¿Continuar?",
+    "importSuccess": "¡Datos GTFS importados con éxito!",
+    "importFailed": "Error al importar datos GTFS",
+    "clearWarning": "Esto eliminará todos los datos de transporte. Puedes reimportarlos más tarde.",
+    "dataCleared": "Todos los datos han sido eliminados",
+    "clearFailed": "Error al eliminar datos",
+    "infoMessage": "Los datos GTFS reales proporcionan horarios completos de todas las líneas de transporte de Île-de-France. La descarga es grande (~800MB) pero solo necesita hacerse una vez.",
+    "lastUpdate": "Última actualización",
+    "outdated": "Datos obsoletos (> 7 días). Por favor actualiza."
   }
 }

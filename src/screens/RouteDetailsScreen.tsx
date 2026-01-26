@@ -18,6 +18,19 @@ export function RouteDetailsScreen({ route }: Props) {
   const { t } = useTranslation();
   const journey = deserializeJourney(route.params.journey);
 
+  // Filter out useless segments (walking 0 min or duplicate stops)
+  const filteredSegments = journey.segments.filter((segment, index) => {
+    const isWalk = segment.type === 'walk';
+    // Skip walking segments with 0 or less duration
+    if (isWalk && segment.duration <= 0) {
+      return false;
+    }
+    return true;
+  });
+
+  // Check if it's a walking-only journey
+  const isWalkingOnly = filteredSegments.every(s => s.type === 'walk');
+
   const formatTime = (date: Date): string => {
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
@@ -37,10 +50,10 @@ export function RouteDetailsScreen({ route }: Props) {
     const lines: string[] = [];
 
     // Header
-    const firstSegment = journey.segments[0];
-    const lastSegment = journey.segments[journey.segments.length - 1];
-    const fromName = firstSegment.from.name;
-    const toName = lastSegment.to.name;
+    const firstSegment = filteredSegments[0];
+    const lastSegment = filteredSegments[filteredSegments.length - 1];
+    const fromName = firstSegment?.from.name || '';
+    const toName = lastSegment?.to.name || '';
 
     lines.push(`🚇 ${t('route.title')}: ${fromName} → ${toName}`);
     lines.push('');
@@ -60,27 +73,34 @@ export function RouteDetailsScreen({ route }: Props) {
     lines.push('---');
     lines.push('');
 
-    // Steps
-    journey.segments.forEach((segment, index) => {
-      const isWalk = segment.type === 'walk';
-      const time = segment.departureTime ? formatTime(segment.departureTime) : '';
+    // Steps - use filtered segments and skip 0-duration walks
+    if (isWalkingOnly) {
+      // Simplified for walking-only
+      lines.push(`${formatTime(journey.departureTime)} 🚶 ${fromName}`);
+      lines.push(`   ↓ ${t('route.walk')} ${journey.totalDuration} min (${Math.round(journey.totalWalkDistance)}m)`);
+      lines.push(`${formatTime(journey.arrivalTime)} 🏁 ${toName}`);
+    } else {
+      filteredSegments.forEach((segment, index) => {
+        const isWalk = segment.type === 'walk';
+        const time = segment.departureTime ? formatTime(segment.departureTime) : '';
 
-      if (isWalk) {
-        lines.push(`${time} 🚶 ${segment.from.name}`);
-        lines.push(`   ↓ ${t('route.walk')} ${segment.duration} min (${Math.round(segment.distance || 0)}m)`);
-      } else {
-        lines.push(`${time} 📍 ${segment.from.name}`);
-        const routeName = segment.route?.shortName || '?';
-        const headsign = segment.trip?.headsign ? ` → ${segment.trip.headsign}` : '';
-        lines.push(`   ↓ ${routeName}${headsign} (${segment.duration} min)`);
-      }
+        if (isWalk) {
+          lines.push(`${time} 🚶 ${segment.from.name}`);
+          lines.push(`   ↓ ${t('route.walk')} ${segment.duration} min (${Math.round(segment.distance || 0)}m)`);
+        } else {
+          lines.push(`${time} 📍 ${segment.from.name}`);
+          const routeName = segment.route?.shortName || '?';
+          const headsign = segment.trip?.headsign ? ` → ${segment.trip.headsign}` : '';
+          lines.push(`   ↓ ${routeName}${headsign} (${segment.duration} min)`);
+        }
 
-      // Add final destination for last segment
-      if (index === journey.segments.length - 1) {
-        const arrivalTime = segment.arrivalTime ? formatTime(segment.arrivalTime) : '';
-        lines.push(`${arrivalTime} 🏁 ${segment.to.name}`);
-      }
-    });
+        // Add final destination for last segment
+        if (index === filteredSegments.length - 1) {
+          const arrivalTime = segment.arrivalTime ? formatTime(segment.arrivalTime) : '';
+          lines.push(`${arrivalTime} 🏁 ${segment.to.name}`);
+        }
+      });
+    }
 
     lines.push('');
     lines.push('---');
@@ -137,100 +157,151 @@ export function RouteDetailsScreen({ route }: Props) {
 
       {/* Timeline */}
       <View style={styles.timeline}>
-        {journey.segments.map((segment, index) => {
-          const isLast = index === journey.segments.length - 1;
-          const isWalk = segment.type === 'walk';
-
-          return (
-            <View key={index} style={styles.segmentContainer}>
-              {/* Departure Stop */}
-              <View style={styles.stepContainer}>
-                <View style={styles.stepLeft}>
-                  <View style={styles.timelineNode} />
-                  {!isLast && <View style={styles.timelineLine} />}
-                </View>
-                <View style={styles.stepRight}>
-                  <View style={styles.stepHeader}>
-                    {segment.departureTime && (
-                      <Text style={styles.stepTime}>{formatTime(segment.departureTime)}</Text>
-                    )}
-                    <Text style={styles.stopName}>{segment.from.name}</Text>
-                  </View>
+        {isWalkingOnly ? (
+          // Simplified view for walking-only journeys
+          <>
+            {/* Start point */}
+            <View style={styles.stepContainer}>
+              <View style={styles.stepLeft}>
+                <View style={styles.timelineNode} />
+                <View style={styles.timelineLine} />
+              </View>
+              <View style={styles.stepRight}>
+                <View style={styles.stepHeader}>
+                  <Text style={styles.stepTime}>{formatTime(journey.departureTime)}</Text>
+                  <Text style={styles.stopName}>{filteredSegments[0]?.from.name}</Text>
                 </View>
               </View>
+            </View>
 
-              {/* Segment Details */}
-              <View style={styles.segmentDetails}>
-                <View style={styles.stepLeft}>
-                  <View style={styles.segmentIconContainer}>
-                    {isWalk ? (
-                      <Text style={styles.walkIcon}>🚶</Text>
-                    ) : (
-                      <View
-                        style={[
-                          styles.transitBadge,
-                          { backgroundColor: segment.route?.color ? `#${segment.route.color}` : '#999' },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.transitBadgeText,
-                            { color: segment.route?.textColor ? `#${segment.route.textColor}` : '#FFF' },
-                          ]}
-                        >
-                          {segment.route?.shortName || '?'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  {!isLast && <View style={styles.timelineLine} />}
+            {/* Walking segment */}
+            <View style={styles.segmentDetails}>
+              <View style={styles.stepLeft}>
+                <View style={styles.segmentIconContainer}>
+                  <Text style={styles.walkIcon}>🚶</Text>
                 </View>
-                <View style={styles.stepRight}>
-                  {isWalk ? (
-                    <View style={styles.walkDetails}>
-                      <Text style={styles.segmentAction}>{t('route.walk')} {segment.duration} min</Text>
-                      {segment.distance && (
-                        <Text style={styles.segmentInfo}>≈ {Math.round(segment.distance)}m</Text>
-                      )}
-                    </View>
-                  ) : (
-                    <View style={styles.transitDetails}>
-                      <Text style={styles.segmentAction}>
-                        {t('transit.takeLine')} {segment.route?.shortName}
-                      </Text>
-                      {segment.route?.longName && (
-                        <Text style={styles.segmentInfo}>{segment.route.longName}</Text>
-                      )}
-                      {segment.trip?.headsign && (
-                        <Text style={styles.segmentDirection}>
-                          {t('transit.direction')} {segment.trip.headsign}
-                        </Text>
-                      )}
-                      <Text style={styles.segmentDuration}>{segment.duration} min</Text>
-                    </View>
+                <View style={styles.timelineLine} />
+              </View>
+              <View style={styles.stepRight}>
+                <View style={styles.walkDetails}>
+                  <Text style={styles.segmentAction}>{t('route.walk')} {journey.totalDuration} min</Text>
+                  {journey.totalWalkDistance > 0 && (
+                    <Text style={styles.segmentInfo}>≈ {Math.round(journey.totalWalkDistance)}m</Text>
                   )}
                 </View>
               </View>
+            </View>
 
-              {/* Arrival Stop */}
-              {isLast && (
+            {/* End point */}
+            <View style={styles.stepContainer}>
+              <View style={styles.stepLeft}>
+                <View style={[styles.timelineNode, styles.timelineNodeLast]} />
+              </View>
+              <View style={styles.stepRight}>
+                <View style={styles.stepHeader}>
+                  <Text style={styles.stepTime}>{formatTime(journey.arrivalTime)}</Text>
+                  <Text style={styles.stopName}>{filteredSegments[filteredSegments.length - 1]?.to.name}</Text>
+                </View>
+              </View>
+            </View>
+          </>
+        ) : (
+          // Normal view for transit journeys
+          filteredSegments.map((segment, index) => {
+            const isLast = index === filteredSegments.length - 1;
+            const isWalk = segment.type === 'walk';
+
+            return (
+              <View key={index} style={styles.segmentContainer}>
+                {/* Departure Stop */}
                 <View style={styles.stepContainer}>
                   <View style={styles.stepLeft}>
-                    <View style={[styles.timelineNode, styles.timelineNodeLast]} />
+                    <View style={styles.timelineNode} />
+                    {!isLast && <View style={styles.timelineLine} />}
                   </View>
                   <View style={styles.stepRight}>
                     <View style={styles.stepHeader}>
-                      {segment.arrivalTime && (
-                        <Text style={styles.stepTime}>{formatTime(segment.arrivalTime)}</Text>
+                      {segment.departureTime && (
+                        <Text style={styles.stepTime}>{formatTime(segment.departureTime)}</Text>
                       )}
-                      <Text style={styles.stopName}>{segment.to.name}</Text>
+                      <Text style={styles.stopName}>{segment.from.name}</Text>
                     </View>
                   </View>
                 </View>
-              )}
-            </View>
-          );
-        })}
+
+                {/* Segment Details */}
+                <View style={styles.segmentDetails}>
+                  <View style={styles.stepLeft}>
+                    <View style={styles.segmentIconContainer}>
+                      {isWalk ? (
+                        <Text style={styles.walkIcon}>🚶</Text>
+                      ) : (
+                        <View
+                          style={[
+                            styles.transitBadge,
+                            { backgroundColor: segment.route?.color ? `#${segment.route.color}` : '#999' },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.transitBadgeText,
+                              { color: segment.route?.textColor ? `#${segment.route.textColor}` : '#FFF' },
+                            ]}
+                          >
+                            {segment.route?.shortName || '?'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {!isLast && <View style={styles.timelineLine} />}
+                  </View>
+                  <View style={styles.stepRight}>
+                    {isWalk ? (
+                      <View style={styles.walkDetails}>
+                        <Text style={styles.segmentAction}>{t('route.walk')} {segment.duration} min</Text>
+                        {segment.distance && (
+                          <Text style={styles.segmentInfo}>≈ {Math.round(segment.distance)}m</Text>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={styles.transitDetails}>
+                        <Text style={styles.segmentAction}>
+                          {t('transit.takeLine')} {segment.route?.shortName}
+                        </Text>
+                        {segment.route?.longName && (
+                          <Text style={styles.segmentInfo}>{segment.route.longName}</Text>
+                        )}
+                        {segment.trip?.headsign && (
+                          <Text style={styles.segmentDirection}>
+                            {t('transit.direction')} {segment.trip.headsign}
+                          </Text>
+                        )}
+                        <Text style={styles.segmentDuration}>{segment.duration} min</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Arrival Stop */}
+                {isLast && (
+                  <View style={styles.stepContainer}>
+                    <View style={styles.stepLeft}>
+                      <View style={[styles.timelineNode, styles.timelineNodeLast]} />
+                    </View>
+                    <View style={styles.stepRight}>
+                      <View style={styles.stepHeader}>
+                        {segment.arrivalTime && (
+                          <Text style={styles.stepTime}>{formatTime(segment.arrivalTime)}</Text>
+                        )}
+                        <Text style={styles.stopName}>{segment.to.name}</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
       </View>
 
       {/* Footer Info */}
