@@ -21,8 +21,8 @@ export function OfflineBanner({ visible }: OfflineBannerProps) {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.warning }]}>
-      <Text style={[styles.text, { color: colors.warningForeground }]}>
+    <View style={[styles.container, { backgroundColor: colors.warning || '#F59E0B' }]}>
+      <Text style={styles.text}>
         📡 {t('network.offline')}
       </Text>
     </View>

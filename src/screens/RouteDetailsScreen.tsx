@@ -19,7 +19,7 @@ export function RouteDetailsScreen({ route }: Props) {
   const journey = deserializeJourney(route.params.journey);
 
   // Filter out useless segments (walking 0 min or duplicate stops)
-  const filteredSegments = journey.segments.filter((segment, index) => {
+  const filteredSegments = journey.segments.filter((segment) => {
     const isWalk = segment.type === 'walk';
     // Skip walking segments with 0 or less duration
     if (isWalk && segment.duration <= 0) {
@@ -28,8 +28,11 @@ export function RouteDetailsScreen({ route }: Props) {
     return true;
   });
 
-  // Check if it's a walking-only journey
-  const isWalkingOnly = filteredSegments.every(s => s.type === 'walk');
+  // Safety check: if no segments after filtering, use original segments
+  const displaySegments = filteredSegments.length > 0 ? filteredSegments : journey.segments;
+
+  // Check if it's a walking-only journey (and has segments)
+  const isWalkingOnly = displaySegments.length > 0 && displaySegments.every(s => s.type === 'walk');
 
   const formatTime = (date: Date): string => {
     const hours = date.getHours().toString().padStart(2, '0');
@@ -50,8 +53,8 @@ export function RouteDetailsScreen({ route }: Props) {
     const lines: string[] = [];
 
     // Header
-    const firstSegment = filteredSegments[0];
-    const lastSegment = filteredSegments[filteredSegments.length - 1];
+    const firstSegment = displaySegments[0];
+    const lastSegment = displaySegments[displaySegments.length - 1];
     const fromName = firstSegment?.from.name || '';
     const toName = lastSegment?.to.name || '';
 
@@ -80,7 +83,7 @@ export function RouteDetailsScreen({ route }: Props) {
       lines.push(`   ↓ ${t('route.walk')} ${journey.totalDuration} min (${Math.round(journey.totalWalkDistance)}m)`);
       lines.push(`${formatTime(journey.arrivalTime)} 🏁 ${toName}`);
     } else {
-      filteredSegments.forEach((segment, index) => {
+      displaySegments.forEach((segment, index) => {
         const isWalk = segment.type === 'walk';
         const time = segment.departureTime ? formatTime(segment.departureTime) : '';
 
@@ -95,7 +98,7 @@ export function RouteDetailsScreen({ route }: Props) {
         }
 
         // Add final destination for last segment
-        if (index === filteredSegments.length - 1) {
+        if (index === displaySegments.length - 1) {
           const arrivalTime = segment.arrivalTime ? formatTime(segment.arrivalTime) : '';
           lines.push(`${arrivalTime} 🏁 ${segment.to.name}`);
         }
@@ -169,7 +172,7 @@ export function RouteDetailsScreen({ route }: Props) {
               <View style={styles.stepRight}>
                 <View style={styles.stepHeader}>
                   <Text style={styles.stepTime}>{formatTime(journey.departureTime)}</Text>
-                  <Text style={styles.stopName}>{filteredSegments[0]?.from.name}</Text>
+                  <Text style={styles.stopName}>{displaySegments[0]?.from.name}</Text>
                 </View>
               </View>
             </View>
@@ -200,15 +203,15 @@ export function RouteDetailsScreen({ route }: Props) {
               <View style={styles.stepRight}>
                 <View style={styles.stepHeader}>
                   <Text style={styles.stepTime}>{formatTime(journey.arrivalTime)}</Text>
-                  <Text style={styles.stopName}>{filteredSegments[filteredSegments.length - 1]?.to.name}</Text>
+                  <Text style={styles.stopName}>{displaySegments[displaySegments.length - 1]?.to.name}</Text>
                 </View>
               </View>
             </View>
           </>
         ) : (
           // Normal view for transit journeys
-          filteredSegments.map((segment, index) => {
-            const isLast = index === filteredSegments.length - 1;
+          displaySegments.map((segment, index) => {
+            const isLast = index === displaySegments.length - 1;
             const isWalk = segment.type === 'walk';
 
             return (
