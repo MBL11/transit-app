@@ -2,6 +2,7 @@
  * BottomSheet Component
  * Custom bottom sheet using React Native Modal and Animated API
  * Compatible with Expo Go (no external dependencies)
+ * Improved UX: drag only on handle, better snap points
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -13,12 +14,15 @@ import {
   PanResponder,
   Dimensions,
   TouchableWithoutFeedback,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const MIN_TRANSLATE_Y = 0;
 const MAX_TRANSLATE_Y = SCREEN_HEIGHT;
-const CLOSE_THRESHOLD = 100; // Distance to drag down to close
+const CLOSE_THRESHOLD = 80; // Distance to drag down to close
+const VELOCITY_THRESHOLD = 0.5; // Velocity to trigger close
 
 interface BottomSheetProps {
   visible: boolean;
@@ -43,30 +47,36 @@ export function BottomSheet({
     return SCREEN_HEIGHT * (1 - percent);
   });
 
-  // Pan responder for drag gestures
+  // Pan responder for drag gestures - only on handle
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only respond to vertical gestures
-        return Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+        // Respond to vertical gestures > 5px
+        return Math.abs(gestureState.dy) > 5;
       },
       onPanResponderGrant: () => {
         lastGestureY.current = (translateY as any)._value;
       },
       onPanResponderMove: (_, gestureState) => {
         const newY = lastGestureY.current + gestureState.dy;
-        // Prevent dragging above the top snap point
-        if (newY >= MIN_TRANSLATE_Y) {
+        // Prevent dragging above the top snap point (with some resistance)
+        if (newY >= snapPointsPixels[snapPointsPixels.length - 1] - 20) {
           translateY.setValue(newY);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
         const currentY = (translateY as any)._value;
 
-        // If dragged down significantly, close the sheet
-        if (gestureState.dy > CLOSE_THRESHOLD) {
+        // If dragged down fast or significantly, close the sheet
+        if (gestureState.vy > VELOCITY_THRESHOLD || gestureState.dy > CLOSE_THRESHOLD) {
           closeSheet();
+          return;
+        }
+
+        // If dragged up fast, expand to largest snap point
+        if (gestureState.vy < -VELOCITY_THRESHOLD) {
+          snapToIndex(snapPointsPixels.length - 1);
           return;
         }
 
@@ -93,8 +103,8 @@ export function BottomSheet({
     Animated.spring(translateY, {
       toValue: snapPointsPixels[index],
       useNativeDriver: true,
-      tension: 50,
-      friction: 8,
+      tension: 65,
+      friction: 10,
     }).start();
   };
 
@@ -105,11 +115,17 @@ export function BottomSheet({
   const closeSheet = () => {
     Animated.timing(translateY, {
       toValue: MAX_TRANSLATE_Y,
-      duration: 250,
+      duration: 200,
       useNativeDriver: true,
     }).start(() => {
       onClose();
     });
+  };
+
+  // Toggle between snap points on handle tap
+  const handleTap = () => {
+    const nextIndex = (currentSnapIndex + 1) % snapPointsPixels.length;
+    snapToIndex(nextIndex);
   };
 
   // Open/close animation when visible prop changes
@@ -146,14 +162,20 @@ export function BottomSheet({
             transform: [{ translateY }],
           },
         ]}
-        {...panResponder.panHandlers}
       >
-        {/* Drag Handle */}
-        <View style={styles.handleContainer}>
-          <View style={styles.handle} />
+        {/* Drag Handle - only this area responds to gestures */}
+        <View {...panResponder.panHandlers}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleTap}
+            style={styles.handleContainer}
+          >
+            <View style={styles.handle} />
+            <Text style={styles.handleHint}>Glisser pour agrandir</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Content */}
+        {/* Content - doesn't interfere with scrolling */}
         <View style={styles.contentContainer}>{children}</View>
       </Animated.View>
     </Modal>
@@ -167,7 +189,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   sheetContainer: {
     position: 'absolute',
@@ -176,26 +198,34 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: SCREEN_HEIGHT,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: -3,
+      height: -4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 15,
   },
   handleContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D0D0D0',
+    width: 48,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#CDCDCD',
+  },
+  handleHint: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#999',
   },
   contentContainer: {
     flex: 1,

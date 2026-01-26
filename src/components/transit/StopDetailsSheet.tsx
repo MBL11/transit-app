@@ -140,12 +140,11 @@ export function StopDetailsSheet({
           </View>
         )}
 
-        {/* Departures Section */}
+        {/* Departures Section - Grouped by direction */}
         <View style={styles.section}>
           <View style={styles.departuresHeader}>
             <Text style={styles.sectionTitle}>
-              {t('transit.nextDepartures')}{' '}
-              <Text style={styles.departureCount}>({departures.length})</Text>
+              {t('transit.nextDepartures')}
             </Text>
             {departures.length > 0 && (
               <View
@@ -177,13 +176,69 @@ export function StopDetailsSheet({
             </View>
           ) : (
             <View style={styles.departuresList}>
-              {departures.map((departure, index) => (
-                <DepartureRow
-                  key={`${departure.tripId}-${index}`}
-                  departure={departure}
-                  onPress={() => onLinePress(departure.routeId)}
-                />
-              ))}
+              {/* Group departures by route + headsign (direction) */}
+              {(() => {
+                // Group by route + headsign
+                const grouped = departures.reduce((acc, dep) => {
+                  const key = `${dep.routeId}_${dep.headsign}`;
+                  if (!acc[key]) {
+                    acc[key] = {
+                      routeId: dep.routeId,
+                      routeShortName: dep.routeShortName,
+                      routeColor: dep.routeColor,
+                      headsign: dep.headsign,
+                      departures: [],
+                    };
+                  }
+                  acc[key].departures.push(dep);
+                  return acc;
+                }, {} as Record<string, { routeId: string; routeShortName: string; routeColor?: string; headsign: string; departures: NextDeparture[] }>);
+
+                // Sort each group by departure time and take only 3
+                return Object.values(grouped).map((group) => {
+                  const sortedDepartures = group.departures
+                    .sort((a, b) => a.departureTime.getTime() - b.departureTime.getTime())
+                    .slice(0, 3);
+
+                  const route = routes.find(r => r.id === group.routeId);
+                  const bgColor = route?.color || group.routeColor || '666666';
+                  const textColor = route?.textColor || 'FFFFFF';
+
+                  return (
+                    <View key={`${group.routeId}_${group.headsign}`} style={styles.directionGroup}>
+                      {/* Direction header */}
+                      <View style={styles.directionHeader}>
+                        <View style={[styles.directionBadge, { backgroundColor: `#${bgColor}` }]}>
+                          <Text style={[styles.directionBadgeText, { color: `#${textColor}` }]}>
+                            {group.routeShortName}
+                          </Text>
+                        </View>
+                        <Text style={styles.directionHeadsign} numberOfLines={1}>
+                          → {group.headsign}
+                        </Text>
+                      </View>
+                      {/* Times */}
+                      <View style={styles.timesContainer}>
+                        {sortedDepartures.map((dep, idx) => {
+                          const now = new Date();
+                          const diffMs = dep.departureTime.getTime() - now.getTime();
+                          const diffMin = Math.round(diffMs / 60000);
+                          const timeStr = diffMin <= 0 ? '0 min' : diffMin < 60 ? `${diffMin} min` : dep.departureTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+                          return (
+                            <View key={idx} style={[styles.timeChip, idx === 0 && styles.timeChipFirst]}>
+                              <Text style={[styles.timeChipText, idx === 0 && styles.timeChipTextFirst]}>
+                                {timeStr}
+                              </Text>
+                              {dep.isRealtime && <View style={styles.realtimeDot} />}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                });
+              })()}
             </View>
           )}
         </View>
@@ -357,7 +412,71 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   departuresList: {
-    gap: 8,
+    gap: 12,
     paddingBottom: 20,
+  },
+  // Direction group styles
+  directionGroup: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  directionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  directionBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    minWidth: 40,
+    alignItems: 'center',
+  },
+  directionBadgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  directionHeadsign: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  timesContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  timeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  timeChipFirst: {
+    backgroundColor: '#0066CC',
+  },
+  timeChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  timeChipTextFirst: {
+    color: '#fff',
+  },
+  realtimeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF3B30',
+    marginLeft: 6,
   },
 });
