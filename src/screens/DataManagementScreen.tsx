@@ -24,6 +24,7 @@ import {
   type GTFSSourceKey,
 } from '../core/gtfs-downloader';
 import { clearAllData, getAllStops, getAllRoutes } from '../core/database';
+import { loadTestData, type LoadingProgress } from '../core/load-test-data';
 
 type ImportStage =
   | 'downloading'
@@ -116,6 +117,56 @@ export function DataManagementScreen() {
     );
   };
 
+  const handleLoadTestData = async () => {
+    Alert.alert(
+      '🚇 Charger données test',
+      'Ceci va charger des données réalistes du métro parisien (lignes 1, 4, 14, RER A, Bus 38) pour tester l\'application.\n\nContinuer ?',
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: 'Charger',
+          onPress: async () => {
+            try {
+              setImporting(true);
+              setImportProgress(0);
+
+              const result = await loadTestData((progress: LoadingProgress) => {
+                setImportStage(progress.stage as ImportStage);
+                setImportProgress(progress.progress);
+              });
+
+              await markAsLoaded('Paris Metro Test Data');
+
+              Alert.alert(
+                t('common.success'),
+                `Données test chargées !\n\n` +
+                  `${t('transit.stops')}: ${result.stops}\n` +
+                  `${t('transit.lines')}: ${result.routes}\n` +
+                  `Trajets: ${result.trips}\n` +
+                  `Horaires: ${result.stopTimes}`
+              );
+
+              await loadDataCounts();
+            } catch (error) {
+              console.error('[DataManagement] Test data error:', error);
+              Alert.alert(
+                t('common.error'),
+                'Erreur lors du chargement des données test:\n\n' + (error as Error).message
+              );
+            } finally {
+              setImporting(false);
+              setImportProgress(0);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const handleClearData = () => {
     Alert.alert(
       t('data.clearData'),
@@ -161,18 +212,18 @@ export function DataManagementScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* Current Data Status */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>
             {t('data.currentData')}
           </Text>
 
           <View style={styles.statusRow}>
-            <Text style={[styles.statusLabel, { color: colors.mutedForeground }]}>
+            <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
               {t('common.status')}
             </Text>
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: isLoaded ? colors.success : colors.destructive },
+                { backgroundColor: isLoaded ? colors.success : colors.error },
               ]}
             >
               <Text style={styles.statusBadgeText}>
@@ -185,10 +236,10 @@ export function DataManagementScreen() {
             <>
               {source && (
                 <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
                     Source:
                   </Text>
-                  <Text style={[styles.infoValue, { color: colors.foreground }]}>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>
                     {source}
                   </Text>
                 </View>
@@ -196,10 +247,10 @@ export function DataManagementScreen() {
 
               {lastUpdate && (
                 <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
                     Last update:
                   </Text>
-                  <Text style={[styles.infoValue, { color: colors.foreground }]}>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>
                     {lastUpdate.toLocaleDateString()}
                   </Text>
                 </View>
@@ -210,7 +261,7 @@ export function DataManagementScreen() {
                   <Text style={[styles.statValue, { color: colors.primary }]}>
                     {dataCounts.stops}
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                     {t('transit.stops')}
                   </Text>
                 </View>
@@ -219,7 +270,7 @@ export function DataManagementScreen() {
                   <Text style={[styles.statValue, { color: colors.primary }]}>
                     {dataCounts.routes}
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                     {t('transit.lines')}
                   </Text>
                 </View>
@@ -231,10 +282,10 @@ export function DataManagementScreen() {
         {/* Import Progress */}
         {importing && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
               {STAGE_LABELS[importStage]}
             </Text>
-            <View style={[styles.progressBar, { backgroundColor: colors.muted }]}>
+            <View style={[styles.progressBar, { backgroundColor: colors.buttonBackground }]}>
               <View
                 style={[
                   styles.progressFill,
@@ -242,7 +293,7 @@ export function DataManagementScreen() {
                 ]}
               />
             </View>
-            <Text style={[styles.progressText, { color: colors.mutedForeground }]}>
+            <Text style={[styles.progressText, { color: colors.textSecondary }]}>
               {Math.round(importProgress * 100)}%
             </Text>
           </View>
@@ -250,6 +301,26 @@ export function DataManagementScreen() {
 
         {/* Actions */}
         <View style={styles.actionsContainer}>
+          {/* Test Data Button */}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              { backgroundColor: '#10B981' },
+              importing && styles.actionButtonDisabled,
+            ]}
+            onPress={handleLoadTestData}
+            disabled={importing}
+          >
+            {importing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.actionButtonText}>
+                🚇 Charger données test (Métro Paris)
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Real GTFS Import Button */}
           <TouchableOpacity
             style={[
               styles.actionButton,
@@ -270,7 +341,7 @@ export function DataManagementScreen() {
 
           {isLoaded && !importing && (
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.destructive }]}
+              style={[styles.actionButton, { backgroundColor: colors.error || '#DC2626' }]}
               onPress={handleClearData}
             >
               <Text style={styles.actionButtonText}>{t('data.clearData')}</Text>
@@ -279,9 +350,9 @@ export function DataManagementScreen() {
         </View>
 
         {/* Info */}
-        <View style={[styles.infoCard, { backgroundColor: colors.muted }]}>
+        <View style={[styles.infoCard, { backgroundColor: colors.buttonBackground }]}>
           <Text style={[styles.infoIcon]}>ℹ️</Text>
-          <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             {t('data.infoMessage')}
           </Text>
         </View>
