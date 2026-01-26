@@ -231,6 +231,7 @@ export class ParisAdapter implements TransitAdapter {
       const currentTime = now.toTimeString().split(' ')[0];
 
       // Query next departures from stop_times for all stops at this station
+      // Include direction_id to ensure we get both directions
       // Also get max_sequence to filter out terminus stops (trains arriving at final destination)
       const placeholders = stopIds.map(() => '?').join(', ');
       const rows = database.getAllSync<any>(
@@ -239,6 +240,7 @@ export class ParisAdapter implements TransitAdapter {
           st.departure_time,
           st.stop_sequence,
           t.headsign,
+          t.direction_id,
           r.id as route_id,
           r.short_name as route_short_name,
           r.color as route_color,
@@ -248,10 +250,17 @@ export class ParisAdapter implements TransitAdapter {
          JOIN routes r ON t.route_id = r.id
          WHERE st.stop_id IN (${placeholders})
            AND st.departure_time >= ?
-         ORDER BY st.departure_time
-         LIMIT 50`,
+         ORDER BY r.short_name, t.direction_id, st.departure_time
+         LIMIT 100`,
         [...stopIds, currentTime]
       );
+
+      console.log(`[ParisAdapter] Raw departures found: ${rows.length}`);
+
+      // Log direction distribution for debugging
+      const dir0 = rows.filter(r => r.direction_id === 0).length;
+      const dir1 = rows.filter(r => r.direction_id === 1).length;
+      console.log(`[ParisAdapter] Direction 0: ${dir0}, Direction 1: ${dir1}`);
 
       // Filter out terminus stops (where the train ends its journey)
       const filteredRows = rows.filter((row) => {
@@ -266,9 +275,32 @@ export class ParisAdapter implements TransitAdapter {
           return false;
         }
         return true;
-      }).slice(0, 30); // Limit to 30 after filtering
+      });
 
-      const departures: NextDeparture[] = filteredRows
+      // Group by route and direction to ensure we get both directions for each line
+      const groupedByRouteDirection = new Map<string, any[]>();
+      for (const row of filteredRows) {
+        const key = `${row.route_short_name}_${row.direction_id}`;
+        if (!groupedByRouteDirection.has(key)) {
+          groupedByRouteDirection.set(key, []);
+        }
+        groupedByRouteDirection.get(key)!.push(row);
+      }
+
+      // Take up to 5 departures per route/direction, then flatten and sort by time
+      const balancedRows: any[] = [];
+      for (const [key, departures] of groupedByRouteDirection) {
+        balancedRows.push(...departures.slice(0, 5));
+      }
+
+      // Sort by departure time and limit total
+      const sortedRows = balancedRows
+        .sort((a, b) => a.departure_time.localeCompare(b.departure_time))
+        .slice(0, 30);
+
+      console.log(`[ParisAdapter] After balancing: ${sortedRows.length} departures from ${groupedByRouteDirection.size} route/direction combinations`);
+
+      const departures: NextDeparture[] = sortedRows
         .map((row) => {
           // Validate time format
           const timeValidation = GTFSTimeSchema.safeParse(row.departure_time);
