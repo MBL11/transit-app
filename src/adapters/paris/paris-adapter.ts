@@ -167,6 +167,7 @@ export class ParisAdapter implements TransitAdapter {
 
   /**
    * Get theoretical departures from static GTFS schedule
+   * Also gets departures from all stops with the same name at the same location
    */
   private async getTheoreticalDepartures(stopId: string): Promise<NextDeparture[]> {
     console.log(`[ParisAdapter] Getting theoretical departures for stop ${stopId}...`);
@@ -174,11 +175,42 @@ export class ParisAdapter implements TransitAdapter {
     try {
       const database = db.openDatabase();
 
+      // First, get the stop info to find its name and location
+      const stop = database.getFirstSync<any>(
+        'SELECT name, lat, lon FROM stops WHERE id = ?',
+        [stopId]
+      );
+
+      if (!stop) {
+        console.warn(`[ParisAdapter] Stop not found: ${stopId}`);
+        return [];
+      }
+
+      // Find all stop IDs with the same name within 100m (same station, different lines)
+      const radiusDegrees = 100 / 111000; // ~100 meters in degrees
+      const sameStationStops = database.getAllSync<{ id: string }>(
+        `SELECT id FROM stops
+         WHERE name = ?
+         AND lat BETWEEN ? AND ?
+         AND lon BETWEEN ? AND ?`,
+        [
+          stop.name,
+          stop.lat - radiusDegrees,
+          stop.lat + radiusDegrees,
+          stop.lon - radiusDegrees,
+          stop.lon + radiusDegrees,
+        ]
+      );
+
+      const stopIds = sameStationStops.map(s => s.id);
+      console.log(`[ParisAdapter] Found ${stopIds.length} stops for station "${stop.name}"`);
+
       // Get current time in HH:MM:SS format
       const now = new Date();
       const currentTime = now.toTimeString().split(' ')[0];
 
-      // Query next departures from stop_times
+      // Query next departures from stop_times for all stops at this station
+      const placeholders = stopIds.map(() => '?').join(', ');
       const rows = database.getAllSync<any>(
         `SELECT
           st.trip_id,
@@ -190,11 +222,11 @@ export class ParisAdapter implements TransitAdapter {
          FROM stop_times st
          JOIN trips t ON st.trip_id = t.id
          JOIN routes r ON t.route_id = r.id
-         WHERE st.stop_id = ?
+         WHERE st.stop_id IN (${placeholders})
            AND st.departure_time >= ?
          ORDER BY st.departure_time
-         LIMIT 10`,
-        [stopId, currentTime]
+         LIMIT 30`,
+        [...stopIds, currentTime]
       );
 
       const departures: NextDeparture[] = rows

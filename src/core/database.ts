@@ -428,18 +428,52 @@ export async function getStopById(id: string): Promise<Stop | null> {
 
 /**
  * Get routes that serve a specific stop
+ * Also finds routes for stops with the same name at nearby locations (same station, different lines)
  */
 export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
   const db = openDatabase();
 
   try {
+    // First, get the stop info to find its name and location
+    const stop = db.getFirstSync<any>(
+      'SELECT name, lat, lon FROM stops WHERE id = ?',
+      [stopId]
+    );
+
+    if (!stop) {
+      console.warn(`[Database] Stop not found: ${stopId}`);
+      return [];
+    }
+
+    // Find all stop IDs with the same name within 100m (same station, different lines)
+    // This handles cases like République which has M3_REPUBLIQUE, M5_REPUBLIQUE, etc.
+    const radiusDegrees = 100 / 111000; // ~100 meters in degrees
+    const sameStationStops = db.getAllSync<{ id: string }>(
+      `SELECT id FROM stops
+       WHERE name = ?
+       AND lat BETWEEN ? AND ?
+       AND lon BETWEEN ? AND ?`,
+      [
+        stop.name,
+        stop.lat - radiusDegrees,
+        stop.lat + radiusDegrees,
+        stop.lon - radiusDegrees,
+        stop.lon + radiusDegrees,
+      ]
+    );
+
+    const stopIds = sameStationStops.map(s => s.id);
+    console.log(`[Database] Found ${stopIds.length} stops for station "${stop.name}":`, stopIds);
+
+    // Get all routes serving any of these stops
+    const placeholders = stopIds.map(() => '?').join(', ');
     const rows = db.getAllSync<any>(
       `SELECT DISTINCT routes.*
        FROM routes
        JOIN trips ON routes.id = trips.route_id
        JOIN stop_times ON trips.id = stop_times.trip_id
-       WHERE stop_times.stop_id = ?`,
-      [stopId]
+       WHERE stop_times.stop_id IN (${placeholders})`,
+      stopIds
     );
 
     return rows.map((row) => ({

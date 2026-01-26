@@ -20,8 +20,14 @@ export const PARIS_ROUTES: Route[] = [
   // Metro Line 1 (Yellow)
   { id: 'M1', shortName: 'M1', longName: 'La Défense - Château de Vincennes', type: 1, color: 'FFCD00', textColor: '000000' },
 
+  // Metro Line 3 (Olive)
+  { id: 'M3', shortName: 'M3', longName: 'Pont de Levallois - Gallieni', type: 1, color: '837902', textColor: 'FFFFFF' },
+
   // Metro Line 4 (Purple)
   { id: 'M4', shortName: 'M4', longName: 'Porte de Clignancourt - Mairie de Montrouge', type: 1, color: 'BC1A8D', textColor: 'FFFFFF' },
+
+  // Metro Line 5 (Orange)
+  { id: 'M5', shortName: 'M5', longName: 'Bobigny - Place d\'Italie', type: 1, color: 'FF7E2E', textColor: '000000' },
 
   // Metro Line 6 (Green)
   { id: 'M6', shortName: 'M6', longName: 'Charles de Gaulle - Étoile - Nation', type: 1, color: '79BB92', textColor: '000000' },
@@ -29,8 +35,14 @@ export const PARIS_ROUTES: Route[] = [
   // Metro Line 7 (Pink)
   { id: 'M7', shortName: 'M7', longName: 'La Courneuve - Villejuif', type: 1, color: 'F3A4BA', textColor: '000000' },
 
+  // Metro Line 8 (Lilac)
+  { id: 'M8', shortName: 'M8', longName: 'Balard - Pointe du Lac', type: 1, color: 'E19BDF', textColor: '000000' },
+
   // Metro Line 9 (Yellow-Green)
   { id: 'M9', shortName: 'M9', longName: 'Pont de Sèvres - Mairie de Montreuil', type: 1, color: 'D5C900', textColor: '000000' },
+
+  // Metro Line 11 (Brown)
+  { id: 'M11', shortName: 'M11', longName: 'Châtelet - Mairie des Lilas', type: 1, color: '704B1C', textColor: 'FFFFFF' },
 
   // Metro Line 14 (Purple)
   { id: 'M14', shortName: 'M14', longName: 'Saint-Lazare - Olympiades', type: 1, color: '62259D', textColor: 'FFFFFF' },
@@ -139,6 +151,81 @@ export const PARIS_STOPS: Stop[] = [
   { id: 'M9_VOLTAIRE', name: 'Voltaire', lat: 48.8610, lon: 2.3794, locationType: 0, parentStation: undefined },
   { id: 'M9_NATION9', name: 'Nation', lat: 48.8480, lon: 2.3960, locationType: 0, parentStation: undefined },
 
+  // Metro Line 3 - Key Stations (passes through République)
+  { id: 'M3_VILLIERS', name: 'Villiers', lat: 48.8810, lon: 2.3155, locationType: 0, parentStation: undefined },
+  { id: 'M3_EUROPE', name: 'Europe', lat: 48.8790, lon: 2.3227, locationType: 0, parentStation: undefined },
+  { id: 'M3_STLAZARE3', name: 'Saint-Lazare', lat: 48.8760, lon: 2.3260, locationType: 0, parentStation: undefined },
+  { id: 'M3_HAVRE3', name: 'Havre - Caumartin', lat: 48.8734, lon: 2.3278, locationType: 0, parentStation: undefined },
+  { id: 'M3_OPERA3', name: 'Opéra', lat: 48.8710, lon: 2.3318, locationType: 0, parentStation: undefined },
+  { id: 'M3_QUATRE', name: 'Quatre-Septembre', lat: 48.8697, lon: 2.3375, locationType: 0, parentStation: undefined },
+  { id: 'M3_BOURSE', name: 'Bourse', lat: 48.8686, lon: 2.3410, locationType: 0, parentStation: undefined },
+  { id: 'M3_SENTIER', name: 'Sentier', lat: 48.8674, lon: 2.3470, locationType: 0, parentStation: undefined },
+  { id: 'M3_REAUMUR3', name: 'Réaumur - Sébastopol', lat: 48.8663, lon: 2.3522, locationType: 0, parentStation: undefined },
+  { id: 'M3_ARTSETM', name: 'Arts et Métiers', lat: 48.8653, lon: 2.3560, locationType: 0, parentStation: undefined },
+  { id: 'M3_TEMPLE', name: 'Temple', lat: 48.8665, lon: 2.3612, locationType: 0, parentStation: undefined },
+  { id: 'M3_REPUBLIQUE', name: 'République', lat: 48.8674, lon: 2.3637, locationType: 0, parentStation: undefined },
+  { id: 'M3_PARMENTIER', name: 'Parmentier', lat: 48.8653, lon: 2.3745, locationType: 0, parentStation: undefined },
+  { id: 'M3_RUESTVMAUR', name: 'Rue Saint-Maur', lat: 48.8640, lon: 2.3808, locationType: 0, parentStation: undefined },
+  { id: 'M3_PERELACHA', name: 'Père Lachaise', lat: 48.8628, lon: 2.3865, locationType: 0, parentStation: undefined },
+  { id: 'M3_GAMBETTA', name: 'Gambetta', lat: 48.8650, lon: 2.3985, locationType: 0, parentStation: undefined },
+  { id: 'M3_GALLIENI', name: 'Gallieni', lat: 48.8635, lon: 2.4160, locationType: 0, parentStation: undefined },
+
+  // Metro Line 5 - Key Stations (passes through République)
+  { id: 'M5_BOBIGNY', name: 'Bobigny - Pablo Picasso', lat: 48.9065, lon: 2.4490, locationType: 0, parentStation: undefined },
+  { id: 'M5_EGLISED', name: 'Église de Pantin', lat: 48.8950, lon: 2.4120, locationType: 0, parentStation: undefined },
+  { id: 'M5_OURCQ', name: 'Ourcq', lat: 48.8875, lon: 2.3860, locationType: 0, parentStation: undefined },
+  { id: 'M5_LAUMIERE', name: 'Laumière', lat: 48.8850, lon: 2.3790, locationType: 0, parentStation: undefined },
+  { id: 'M5_JAURES', name: 'Jaurès', lat: 48.8822, lon: 2.3707, locationType: 0, parentStation: undefined },
+  { id: 'M5_STALINGRAD', name: 'Stalingrad', lat: 48.8840, lon: 2.3660, locationType: 0, parentStation: undefined },
+  { id: 'M5_GAREDN5', name: 'Gare du Nord', lat: 48.8809, lon: 2.3553, locationType: 0, parentStation: undefined },
+  { id: 'M5_GARDEST5', name: 'Gare de l\'Est', lat: 48.8767, lon: 2.3594, locationType: 0, parentStation: undefined },
+  { id: 'M5_JACQUESB', name: 'Jacques Bonsergent', lat: 48.8710, lon: 2.3615, locationType: 0, parentStation: undefined },
+  { id: 'M5_REPUBLIQUE', name: 'République', lat: 48.8674, lon: 2.3637, locationType: 0, parentStation: undefined },
+  { id: 'M5_OBERKAMPF', name: 'Oberkampf', lat: 48.8647, lon: 2.3680, locationType: 0, parentStation: undefined },
+  { id: 'M5_RICHARD', name: 'Richard-Lenoir', lat: 48.8590, lon: 2.3718, locationType: 0, parentStation: undefined },
+  { id: 'M5_BREGUET', name: 'Bréguet - Sabin', lat: 48.8560, lon: 2.3710, locationType: 0, parentStation: undefined },
+  { id: 'M5_BASTILLE5', name: 'Bastille', lat: 48.8530, lon: 2.3690, locationType: 0, parentStation: undefined },
+  { id: 'M5_QUAIRA', name: 'Quai de la Rapée', lat: 48.8460, lon: 2.3665, locationType: 0, parentStation: undefined },
+  { id: 'M5_GAREDEL5', name: 'Gare d\'Austerlitz', lat: 48.8420, lon: 2.3645, locationType: 0, parentStation: undefined },
+  { id: 'M5_STMARCEL', name: 'Saint-Marcel', lat: 48.8382, lon: 2.3610, locationType: 0, parentStation: undefined },
+  { id: 'M5_ITALIE', name: 'Place d\'Italie', lat: 48.8310, lon: 2.3553, locationType: 0, parentStation: undefined },
+
+  // Metro Line 8 - Key Stations (passes through République)
+  { id: 'M8_BALARD', name: 'Balard', lat: 48.8365, lon: 2.2785, locationType: 0, parentStation: undefined },
+  { id: 'M8_LOURMEL', name: 'Lourmel', lat: 48.8388, lon: 2.2820, locationType: 0, parentStation: undefined },
+  { id: 'M8_COMMERCE', name: 'Commerce', lat: 48.8445, lon: 2.2935, locationType: 0, parentStation: undefined },
+  { id: 'M8_GRENELLE8', name: 'La Motte-Picquet - Grenelle', lat: 48.8489, lon: 2.2981, locationType: 0, parentStation: undefined },
+  { id: 'M8_ECOLE', name: 'École Militaire', lat: 48.8550, lon: 2.3058, locationType: 0, parentStation: undefined },
+  { id: 'M8_LATOUR', name: 'La Tour-Maubourg', lat: 48.8575, lon: 2.3100, locationType: 0, parentStation: undefined },
+  { id: 'M8_INVALIDES', name: 'Invalides', lat: 48.8614, lon: 2.3147, locationType: 0, parentStation: undefined },
+  { id: 'M8_CONCORDE8', name: 'Concorde', lat: 48.8656, lon: 2.3212, locationType: 0, parentStation: undefined },
+  { id: 'M8_MADELEINE8', name: 'Madeleine', lat: 48.8701, lon: 2.3247, locationType: 0, parentStation: undefined },
+  { id: 'M8_OPERA8', name: 'Opéra', lat: 48.8710, lon: 2.3318, locationType: 0, parentStation: undefined },
+  { id: 'M8_RICHELIEU8', name: 'Richelieu - Drouot', lat: 48.8717, lon: 2.3397, locationType: 0, parentStation: undefined },
+  { id: 'M8_GRANDSBOUL', name: 'Grands Boulevards', lat: 48.8714, lon: 2.3439, locationType: 0, parentStation: undefined },
+  { id: 'M8_BONNE8', name: 'Bonne Nouvelle', lat: 48.8704, lon: 2.3499, locationType: 0, parentStation: undefined },
+  { id: 'M8_STRASBOURG8', name: 'Strasbourg - Saint-Denis', lat: 48.8695, lon: 2.3545, locationType: 0, parentStation: undefined },
+  { id: 'M8_REPUBLIQUE', name: 'République', lat: 48.8674, lon: 2.3637, locationType: 0, parentStation: undefined },
+  { id: 'M8_FILLESD', name: 'Filles du Calvaire', lat: 48.8631, lon: 2.3665, locationType: 0, parentStation: undefined },
+  { id: 'M8_STSEBASF', name: 'Saint-Sébastien - Froissart', lat: 48.8610, lon: 2.3680, locationType: 0, parentStation: undefined },
+  { id: 'M8_CHEMIN', name: 'Chemin Vert', lat: 48.8575, lon: 2.3685, locationType: 0, parentStation: undefined },
+  { id: 'M8_BASTILLE8', name: 'Bastille', lat: 48.8530, lon: 2.3690, locationType: 0, parentStation: undefined },
+  { id: 'M8_LEDRU', name: 'Ledru-Rollin', lat: 48.8510, lon: 2.3760, locationType: 0, parentStation: undefined },
+
+  // Metro Line 11 - Key Stations (passes through République)
+  { id: 'M11_CHATELET11', name: 'Châtelet', lat: 48.8583, lon: 2.3470, locationType: 0, parentStation: undefined },
+  { id: 'M11_HOTELD11', name: 'Hôtel de Ville', lat: 48.8571, lon: 2.3517, locationType: 0, parentStation: undefined },
+  { id: 'M11_RAMBUTEAU', name: 'Rambuteau', lat: 48.8610, lon: 2.3538, locationType: 0, parentStation: undefined },
+  { id: 'M11_ARTSM11', name: 'Arts et Métiers', lat: 48.8653, lon: 2.3560, locationType: 0, parentStation: undefined },
+  { id: 'M11_REPUBLIQUE', name: 'République', lat: 48.8674, lon: 2.3637, locationType: 0, parentStation: undefined },
+  { id: 'M11_GONCOURT', name: 'Goncourt', lat: 48.8700, lon: 2.3705, locationType: 0, parentStation: undefined },
+  { id: 'M11_BELLEVILLE', name: 'Belleville', lat: 48.8720, lon: 2.3770, locationType: 0, parentStation: undefined },
+  { id: 'M11_PYRENEES', name: 'Pyrénées', lat: 48.8735, lon: 2.3850, locationType: 0, parentStation: undefined },
+  { id: 'M11_JOURDAIN', name: 'Jourdain', lat: 48.8755, lon: 2.3895, locationType: 0, parentStation: undefined },
+  { id: 'M11_PLACEFETES', name: 'Place des Fêtes', lat: 48.8770, lon: 2.3935, locationType: 0, parentStation: undefined },
+  { id: 'M11_TELEGRAPH', name: 'Télégraphe', lat: 48.8755, lon: 2.3980, locationType: 0, parentStation: undefined },
+  { id: 'M11_LILAS', name: 'Mairie des Lilas', lat: 48.8795, lon: 2.4165, locationType: 0, parentStation: undefined },
+
   // Metro Line 14 - Key Stations
   { id: 'M14_STLAZARE', name: 'Saint-Lazare', lat: 48.8760, lon: 2.3260, locationType: 0, parentStation: undefined },
   { id: 'M14_MADELEINE', name: 'Madeleine', lat: 48.8701, lon: 2.3247, locationType: 0, parentStation: undefined },
@@ -228,6 +315,86 @@ export function generateParisTrips(): Trip[] {
       routeId: 'M9',
       serviceId: 'WD',
       headsign: 'Pont de Sèvres',
+      directionId: 1,
+      shapeId: undefined,
+    });
+  }
+
+  // Metro Line 3 - Both directions
+  for (let i = 0; i < 10; i++) {
+    trips.push({
+      id: `M3_EAST_${i}`,
+      routeId: 'M3',
+      serviceId: 'WD',
+      headsign: 'Gallieni',
+      directionId: 0,
+      shapeId: undefined,
+    });
+    trips.push({
+      id: `M3_WEST_${i}`,
+      routeId: 'M3',
+      serviceId: 'WD',
+      headsign: 'Pont de Levallois',
+      directionId: 1,
+      shapeId: undefined,
+    });
+  }
+
+  // Metro Line 5 - Both directions
+  for (let i = 0; i < 10; i++) {
+    trips.push({
+      id: `M5_SOUTH_${i}`,
+      routeId: 'M5',
+      serviceId: 'WD',
+      headsign: 'Place d\'Italie',
+      directionId: 0,
+      shapeId: undefined,
+    });
+    trips.push({
+      id: `M5_NORTH_${i}`,
+      routeId: 'M5',
+      serviceId: 'WD',
+      headsign: 'Bobigny - Pablo Picasso',
+      directionId: 1,
+      shapeId: undefined,
+    });
+  }
+
+  // Metro Line 8 - Both directions
+  for (let i = 0; i < 10; i++) {
+    trips.push({
+      id: `M8_EAST_${i}`,
+      routeId: 'M8',
+      serviceId: 'WD',
+      headsign: 'Pointe du Lac',
+      directionId: 0,
+      shapeId: undefined,
+    });
+    trips.push({
+      id: `M8_WEST_${i}`,
+      routeId: 'M8',
+      serviceId: 'WD',
+      headsign: 'Balard',
+      directionId: 1,
+      shapeId: undefined,
+    });
+  }
+
+  // Metro Line 11 - Both directions
+  for (let i = 0; i < 10; i++) {
+    trips.push({
+      id: `M11_EAST_${i}`,
+      routeId: 'M11',
+      serviceId: 'WD',
+      headsign: 'Mairie des Lilas',
+      directionId: 0,
+      shapeId: undefined,
+    });
+    trips.push({
+      id: `M11_WEST_${i}`,
+      routeId: 'M11',
+      serviceId: 'WD',
+      headsign: 'Châtelet',
       directionId: 1,
       shapeId: undefined,
     });
@@ -382,6 +549,149 @@ export function generateParisStopTimes(): StopTime[] {
     m9WestStops.forEach((stopId, idx) => {
       stopTimes.push({
         tripId: `M9_WEST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 3 - East direction (passes through République)
+  const m3EastStops = [
+    'M3_VILLIERS', 'M3_EUROPE', 'M3_STLAZARE3', 'M3_HAVRE3', 'M3_OPERA3',
+    'M3_QUATRE', 'M3_BOURSE', 'M3_SENTIER', 'M3_REAUMUR3', 'M3_ARTSETM',
+    'M3_TEMPLE', 'M3_REPUBLIQUE', 'M3_PARMENTIER', 'M3_RUESTVMAUR',
+    'M3_PERELACHA', 'M3_GAMBETTA', 'M3_GALLIENI'
+  ];
+
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 1 + tripNum * 3;
+    m3EastStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M3_EAST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 3 - West direction
+  const m3WestStops = [...m3EastStops].reverse();
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 2 + tripNum * 3;
+    m3WestStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M3_WEST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 5 - South direction (passes through République)
+  const m5SouthStops = [
+    'M5_BOBIGNY', 'M5_EGLISED', 'M5_OURCQ', 'M5_LAUMIERE', 'M5_JAURES',
+    'M5_STALINGRAD', 'M5_GAREDN5', 'M5_GARDEST5', 'M5_JACQUESB', 'M5_REPUBLIQUE',
+    'M5_OBERKAMPF', 'M5_RICHARD', 'M5_BREGUET', 'M5_BASTILLE5', 'M5_QUAIRA',
+    'M5_GAREDEL5', 'M5_STMARCEL', 'M5_ITALIE'
+  ];
+
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 1 + tripNum * 3;
+    m5SouthStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M5_SOUTH_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 5 - North direction
+  const m5NorthStops = [...m5SouthStops].reverse();
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 2 + tripNum * 3;
+    m5NorthStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M5_NORTH_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 8 - East direction (passes through République)
+  const m8EastStops = [
+    'M8_BALARD', 'M8_LOURMEL', 'M8_COMMERCE', 'M8_GRENELLE8', 'M8_ECOLE',
+    'M8_LATOUR', 'M8_INVALIDES', 'M8_CONCORDE8', 'M8_MADELEINE8', 'M8_OPERA8',
+    'M8_RICHELIEU8', 'M8_GRANDSBOUL', 'M8_BONNE8', 'M8_STRASBOURG8', 'M8_REPUBLIQUE',
+    'M8_FILLESD', 'M8_STSEBASF', 'M8_CHEMIN', 'M8_BASTILLE8', 'M8_LEDRU'
+  ];
+
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 1 + tripNum * 3;
+    m8EastStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M8_EAST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 8 - West direction
+  const m8WestStops = [...m8EastStops].reverse();
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 2 + tripNum * 3;
+    m8WestStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M8_WEST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 11 - East direction (passes through République)
+  const m11EastStops = [
+    'M11_CHATELET11', 'M11_HOTELD11', 'M11_RAMBUTEAU', 'M11_ARTSM11', 'M11_REPUBLIQUE',
+    'M11_GONCOURT', 'M11_BELLEVILLE', 'M11_PYRENEES', 'M11_JOURDAIN',
+    'M11_PLACEFETES', 'M11_TELEGRAPH', 'M11_LILAS'
+  ];
+
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 1 + tripNum * 3;
+    m11EastStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M11_EAST_${tripNum}`,
+        arrivalTime: generateFutureTime(startOffset + idx * 2),
+        departureTime: generateFutureTime(startOffset + idx * 2),
+        stopId,
+        stopSequence: idx + 1,
+      });
+    });
+  }
+
+  // Metro Line 11 - West direction
+  const m11WestStops = [...m11EastStops].reverse();
+  for (let tripNum = 0; tripNum < 10; tripNum++) {
+    const startOffset = 2 + tripNum * 3;
+    m11WestStops.forEach((stopId, idx) => {
+      stopTimes.push({
+        tripId: `M11_WEST_${tripNum}`,
         arrivalTime: generateFutureTime(startOffset + idx * 2),
         departureTime: generateFutureTime(startOffset + idx * 2),
         stopId,
