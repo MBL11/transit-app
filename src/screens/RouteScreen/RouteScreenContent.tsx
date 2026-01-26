@@ -263,25 +263,31 @@ export function RouteScreenContent({
             )}
           </View>
 
-          {/* Compact Optimize Options + More Options */}
+          {/* Optimize Options + More Options */}
           <View style={styles.optimizeRow}>
             <TouchableOpacity
               style={[styles.optimizeChip, state.preferences.optimizeFor === 'fastest' && styles.optimizeChipActive]}
               onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'fastest' })}
             >
-              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'fastest' && styles.optimizeChipTextActive]}>⚡</Text>
+              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'fastest' && styles.optimizeChipTextActive]}>
+                ⚡ {t('routing.filters.fastest')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.optimizeChip, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeChipActive]}
               onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-transfers' })}
             >
-              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeChipTextActive]}>🔄</Text>
+              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeChipTextActive]}>
+                🔄 {t('routing.filters.leastTransfers')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.optimizeChip, state.preferences.optimizeFor === 'least-walking' && styles.optimizeChipActive]}
               onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-walking' })}
             >
-              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'least-walking' && styles.optimizeChipTextActive]}>🚶</Text>
+              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'least-walking' && styles.optimizeChipTextActive]}>
+                🚶 {t('routing.filters.leastWalking')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.moreOptionsChip}
@@ -631,13 +637,14 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     optimizeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      flexWrap: 'wrap',
+      gap: 6,
       marginBottom: 8,
     },
     optimizeChip: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 16,
       backgroundColor: colors.buttonBackground,
       justifyContent: 'center',
       alignItems: 'center',
@@ -646,22 +653,24 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       backgroundColor: colors.primary,
     },
     optimizeChipText: {
-      fontSize: 16,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
     },
     optimizeChipTextActive: {
       color: '#fff',
     },
     moreOptionsChip: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       backgroundColor: colors.buttonBackground,
       justifyContent: 'center',
       alignItems: 'center',
       marginLeft: 'auto',
     },
     moreOptionsChipText: {
-      fontSize: 16,
+      fontSize: 14,
     },
     optimizeButtons: {
       flexDirection: 'row',

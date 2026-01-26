@@ -7,7 +7,7 @@ const API_KEY = process.env.EXPO_PUBLIC_IDFM_API_KEY || '';
 const CACHE_TTL = 300000; // 5 minutes
 
 // Mode développement pour tester les alertes
-const DEV_MODE = true; // Mettre à false pour utiliser l'API réelle
+const DEV_MODE = false; // Mettre à true pour utiliser les alertes de test
 
 // Alertes de test pour le développement
 const MOCK_ALERTS: Alert[] = [
