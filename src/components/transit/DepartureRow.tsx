@@ -2,14 +2,53 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { LineBadge, TransportType } from './LineBadge';
 
 export interface Departure {
   routeShortName: string;
   routeColor?: string;
+  routeTextColor?: string;
+  routeType?: number; // GTFS route type
   headsign: string;
   departureTime: Date;
   isRealtime: boolean;
   delay: number;
+}
+
+/**
+ * Get transport type from GTFS route type
+ */
+function getTransportTypeFromRouteType(routeType?: number, routeName?: string): TransportType {
+  const name = (routeName || '').toUpperCase();
+
+  switch (routeType) {
+    case 0:
+      return 'tram';
+    case 1:
+      return 'metro';
+    case 2:
+      if (['A', 'B', 'C', 'D', 'E'].includes(name)) {
+        return 'rer';
+      }
+      return 'train';
+    case 3:
+      if (name.startsWith('N')) {
+        return 'noctilien';
+      }
+      return 'bus';
+    default:
+      // Try to infer from name
+      if (/^[1-9]$|^1[0-4]$|^[37]BIS$/i.test(name)) {
+        return 'metro';
+      }
+      if (/^[A-E]$/i.test(name)) {
+        return 'rer';
+      }
+      if (/^T\d/i.test(name)) {
+        return 'tram';
+      }
+      return 'bus';
+  }
 }
 
 export interface DepartureRowProps {
@@ -51,26 +90,36 @@ export function DepartureRow({ departure, onPress }: DepartureRowProps) {
   const {
     routeShortName,
     routeColor,
+    routeTextColor,
+    routeType,
     headsign,
     departureTime,
     isRealtime,
     delay,
   } = departure;
 
+  const transportType = getTransportTypeFromRouteType(routeType, routeShortName);
+
   const now = new Date();
   const diffMs = departureTime.getTime() - now.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);
   const { key: timeKey, params: timeParams } = getRelativeTimeKey(diffMinutes);
-  const relativeTime = t(timeKey, timeParams);
+  const relativeTime = t(timeKey, timeParams) as string;
   const formattedTime = formatTime(departureTime);
 
   const Container = onPress ? TouchableOpacity : View;
 
   return (
     <Container style={styles.container} onPress={onPress} activeOpacity={0.7}>
-      {/* Line badge */}
-      <View style={[styles.lineBadge, { backgroundColor: routeColor || '#999999' }]}>
-        <Text style={styles.lineBadgeText}>{routeShortName}</Text>
+      {/* Official Line Badge */}
+      <View style={styles.lineBadgeWrapper}>
+        <LineBadge
+          lineNumber={routeShortName}
+          type={transportType}
+          color={routeColor}
+          textColor={routeTextColor}
+          size="medium"
+        />
       </View>
 
       {/* Direction */}
@@ -114,18 +163,12 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
     },
-    lineBadge: {
-      minWidth: 40,
-      height: 40,
-      borderRadius: 6,
+    lineBadgeWrapper: {
+      marginRight: 12,
+      width: 36,
+      height: 36,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
-    },
-    lineBadgeText: {
-      color: 'white',
-      fontWeight: 'bold',
-      fontSize: 14,
     },
     directionContainer: {
       flex: 1,

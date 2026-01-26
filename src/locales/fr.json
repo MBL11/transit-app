@@ -60,6 +60,7 @@
     "tram": "Tramway",
     "rer": "RER/Train",
     "train": "Train",
+    "noctilien": "Noctilien",
     "linesServing": "Lignes desservant cet arrêt",
     "stopsOnLine": "Arrêts de cette ligne",
     "loadingStops": "Chargement des arrêts...",

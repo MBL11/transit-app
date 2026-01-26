@@ -2,23 +2,25 @@ import React, { useMemo } from 'react';
 import { View, Text, Pressable, PressableProps, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { LineBadge, TransportType } from './LineBadge';
 
 export interface LineCardProps extends Omit<PressableProps, 'children'> {
   lineNumber: string;
   lineName: string;
   lineColor: string;
   direction?: string;
-  type?: 'metro' | 'bus' | 'tram' | 'rer' | 'train';
+  type?: TransportType;
   isFavorite?: boolean;
   onFavoritePress?: () => void;
 }
 
-const typeColors = {
-  metro: '#003366', // Dark blue
-  bus: '#00AA55', // Green
-  tram: '#CC0000', // Red
-  rer: '#7B68EE', // Purple
-  train: '#0066CC', // Blue
+const typeColors: Record<TransportType, string> = {
+  metro: '#003366',
+  bus: '#00AA55',
+  tram: '#CC0000',
+  rer: '#7B68EE',
+  train: '#0066CC',
+  noctilien: '#003366',
 };
 
 export function LineCard({
@@ -35,12 +37,13 @@ export function LineCard({
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const typeLabels = {
+  const typeLabels: Record<TransportType, string> = {
     metro: t('transit.metro'),
     bus: t('transit.bus'),
     tram: t('transit.tram'),
     rer: t('transit.rer'),
     train: t('transit.train'),
+    noctilien: t('transit.noctilien'),
   };
 
   return (
@@ -48,10 +51,13 @@ export function LineCard({
       <View style={[styles.card, { borderLeftColor: lineColor }]}>
         <View style={styles.content}>
           <View style={styles.leftSection}>
-            {/* Line Number Badge */}
-            <View style={[styles.badge, { backgroundColor: lineColor }]}>
-              <Text style={styles.badgeText}>{lineNumber}</Text>
-            </View>
+            {/* Official Line Badge */}
+            <LineBadge
+              lineNumber={lineNumber}
+              type={type}
+              color={lineColor}
+              size="large"
+            />
 
             {/* Line Info */}
             <View style={styles.infoContainer}>

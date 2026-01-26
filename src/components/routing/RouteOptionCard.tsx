@@ -6,8 +6,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import type { JourneyResult } from '../../core/types/routing';
+import type { JourneyResult, RouteSegment } from '../../core/types/routing';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { LineBadge, TransportType } from '../transit/LineBadge';
 
 interface RouteOptionCardProps {
   route: JourneyResult;
@@ -36,21 +37,48 @@ function formatDuration(minutes: number): string {
   return mins > 0 ? `${hours}h${mins}` : `${hours}h`;
 }
 
+/**
+ * Determine transport type from route type code (GTFS)
+ */
+function getTransportType(segment: RouteSegment): TransportType {
+  const routeType = segment.route?.type;
+  const routeName = (segment.route?.shortName || '').toUpperCase();
+
+  // GTFS route types:
+  // 0 = Tram, 1 = Metro, 2 = Rail, 3 = Bus, 4 = Ferry, 5 = Cable, 6 = Gondola, 7 = Funicular
+  switch (routeType) {
+    case 0:
+      return 'tram';
+    case 1:
+      return 'metro';
+    case 2:
+      // RER or Transilien
+      if (['A', 'B', 'C', 'D', 'E'].includes(routeName)) {
+        return 'rer';
+      }
+      return 'train';
+    case 3:
+      // Check for Noctilien
+      if (routeName.startsWith('N')) {
+        return 'noctilien';
+      }
+      return 'bus';
+    default:
+      return 'bus';
+  }
+}
+
 export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOptionCardProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  // Get mode icons from transit segments
-  const modeIcons = route.segments
+  // Get transit segments for badge display
+  const transitSegments = route.segments
     .filter((leg) => leg.type === 'transit')
-    .map((leg) => {
-      if (leg.route?.shortName) return leg.route.shortName;
-      return leg.type === 'transit' ? '🚌' : '🚶';
-    })
-    .slice(0, 3); // Max 3 icons
+    .slice(0, 4); // Max 4 segments
 
-  const hasMoreModes = route.segments.filter((leg) => leg.type === 'transit').length > 3;
+  const hasMoreModes = route.segments.filter((leg) => leg.type === 'transit').length > 4;
 
   return (
     <TouchableOpacity
@@ -81,31 +109,22 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
         </View>
       </View>
 
-      {/* Transit Lines */}
+      {/* Transit Lines with Official Badges */}
       <View style={styles.modesRow}>
-        {modeIcons.map((icon, index) => (
-          <View
-            key={index}
-            style={[
-              styles.modeBadge,
-              // If it's a route code (like "14", "M1"), use styled badge
-              // Otherwise use simple emoji badge
-              /^[A-Z0-9]+$/.test(icon) && styles.modeBadgeTransit,
-            ]}
-          >
-            <Text
-              style={[
-                styles.modeText,
-                /^[A-Z0-9]+$/.test(icon) && styles.modeTextTransit,
-              ]}
-            >
-              {icon}
-            </Text>
+        {transitSegments.map((segment, index) => (
+          <View key={index} style={styles.badgeWrapper}>
+            <LineBadge
+              lineNumber={segment.route?.shortName || '?'}
+              type={getTransportType(segment)}
+              color={segment.route?.color ? `#${segment.route.color}` : undefined}
+              textColor={segment.route?.textColor ? `#${segment.route.textColor}` : undefined}
+              size="small"
+            />
           </View>
         ))}
         {hasMoreModes && (
           <Text style={styles.moreModesText}>
-            +{route.segments.filter((l) => l.type === 'transit').length - 3}
+            +{route.segments.filter((l) => l.type === 'transit').length - 4}
           </Text>
         )}
       </View>
@@ -201,29 +220,12 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     modesRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
       marginBottom: 12,
       flexWrap: 'wrap',
     },
-    modeBadge: {
-      backgroundColor: colors.buttonBackground,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 12,
-    },
-    modeBadgeTransit: {
-      backgroundColor: colors.primary,
-      minWidth: 32,
-      alignItems: 'center',
-    },
-    modeText: {
-      fontSize: 14,
-      color: colors.text,
-    },
-    modeTextTransit: {
-      fontSize: 13,
-      fontWeight: 'bold',
-      color: '#fff',
+    badgeWrapper: {
+      marginRight: 2,
     },
     moreModesText: {
       fontSize: 12,
