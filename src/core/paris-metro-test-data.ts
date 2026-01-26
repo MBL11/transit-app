@@ -278,11 +278,11 @@ function generateStopTimes(): StopTime[] {
     'STOP_GARE_NORD', 'STOP_CHATELET', 'STOP_ST_MICHEL', 'STOP_PORTE_ORLEANS'
   ];
 
-  // Generate stop times for each trip
+  // Generate stop times for each trip (coverage from 6h to 23h)
   for (let tripNum = 0; tripNum < 20; tripNum++) {
-    // Ligne 1 East
-    const baseHourM1 = 6 + Math.floor(tripNum / 3); // Start at 6h, increment every 3 trips
-    const baseMinuteM1 = (tripNum % 3) * 20; // 0, 20, 40
+    // Ligne 1 East - spread trips across the day
+    const baseHourM1 = 6 + tripNum; // 6h, 7h, 8h... up to 25h (1h next day)
+    const baseMinuteM1 = 0;
 
     ligne1StopsEast.forEach((stopId, index) => {
       const minutes = baseMinuteM1 + index * 2; // 2 min between stations
@@ -315,9 +315,9 @@ function generateStopTimes(): StopTime[] {
       });
     });
 
-    // Ligne 4 South
-    const baseHourM4 = 6 + Math.floor(tripNum / 3);
-    const baseMinuteM4 = (tripNum % 3) * 20;
+    // Ligne 4 South - spread trips across the day
+    const baseHourM4 = 6 + tripNum;
+    const baseMinuteM4 = 10; // Offset by 10 min from ligne 1
 
     ligne4StopsSouth.forEach((stopId, index) => {
       const minutes = baseMinuteM4 + index * 2;
@@ -350,9 +350,9 @@ function generateStopTimes(): StopTime[] {
       });
     });
 
-    // Ligne 14 South
-    const baseHourM14 = 6 + Math.floor(tripNum / 3);
-    const baseMinuteM14 = (tripNum % 3) * 20;
+    // Ligne 14 South - spread trips across the day
+    const baseHourM14 = 6 + tripNum;
+    const baseMinuteM14 = 20; // Offset by 20 min
 
     ligne14StopsSouth.forEach((stopId, index) => {
       const minutes = baseMinuteM14 + index * 3; // 3 min between stations (faster line)

@@ -130,8 +130,6 @@ export function RouteScreenContent({
         bounces={true}
       >
         <View style={styles.searchContainer}>
-          <Text style={styles.title}>{t('route.title')}</Text>
-
           {/* From Location */}
           <View style={styles.inputContainer}>
             <View style={styles.labelRow}>
@@ -201,52 +199,28 @@ export function RouteScreenContent({
             </TouchableOpacity>
           </View>
 
-          {/* Time Mode Toggle */}
-          <View style={styles.timeModeContainer}>
+          {/* Compact Time Selector */}
+          <View style={styles.timeRow}>
+            <Text style={styles.timeLabel}>🕒</Text>
             <TouchableOpacity
-              style={[styles.timeModeButton, state.timeMode === 'departure' && styles.timeModeButtonActive]}
-              onPress={() => dispatch({ type: 'SET_TIME_MODE', payload: 'departure' })}
+              style={styles.timeButton}
+              onPress={() => dispatch({ type: 'ADJUST_DEPARTURE_TIME', payload: -15 })}
             >
-              <Text style={[styles.timeModeButtonText, state.timeMode === 'departure' && styles.timeModeButtonTextActive]}>
-                {t('route.departAt')}
-              </Text>
+              <Text style={styles.timeButtonText}>-15</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.timeModeButton, state.timeMode === 'arrival' && styles.timeModeButtonActive]}
-              onPress={() => dispatch({ type: 'SET_TIME_MODE', payload: 'arrival' })}
+              style={styles.timeDisplay}
+              onPress={() => dispatch({ type: 'SHOW_TIME_PICKER', payload: true })}
             >
-              <Text style={[styles.timeModeButtonText, state.timeMode === 'arrival' && styles.timeModeButtonTextActive]}>
-                {t('route.arriveBy')}
-              </Text>
+              <Text style={styles.timeDisplayText}>{formatTime(state.departureTime)}</Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Departure/Arrival Time Selector */}
-          <View style={styles.timeContainer}>
-            <Text style={styles.label}>
-              🕒 {state.timeMode === 'departure' ? t('route.departureTime') : t('route.arrivalTime')}
-            </Text>
-            <View style={styles.timeControls}>
-              <TouchableOpacity
-                style={styles.timeButton}
-                onPress={() => dispatch({ type: 'ADJUST_DEPARTURE_TIME', payload: -15 })}
-              >
-                <Text style={styles.timeButtonText}>-15min</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.timeDisplay}
-                onPress={() => dispatch({ type: 'SHOW_TIME_PICKER', payload: true })}
-              >
-                <Text style={styles.timeDisplayText}>{formatTime(state.departureTime)}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.timeButton}
-                onPress={() => dispatch({ type: 'ADJUST_DEPARTURE_TIME', payload: 15 })}
-              >
-                <Text style={styles.timeButtonText}>+15min</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity onPress={() => dispatch({ type: 'SET_DEPARTURE_TO_NOW' })}>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => dispatch({ type: 'ADJUST_DEPARTURE_TIME', payload: 15 })}
+            >
+              <Text style={styles.timeButtonText}>+15</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => dispatch({ type: 'SET_DEPARTURE_TO_NOW' })} style={styles.nowButtonContainer}>
               <Text style={styles.nowButton}>{t('time.now')}</Text>
             </TouchableOpacity>
 
@@ -289,40 +263,31 @@ export function RouteScreenContent({
             )}
           </View>
 
-          {/* Quick Optimize Options */}
-          <View style={styles.optimizeContainer}>
-            <Text style={styles.label}>⚡ {t('routing.filters.optimizeFor')}</Text>
-            <View style={styles.optimizeButtons}>
-              <TouchableOpacity
-                style={[styles.optimizeButton, state.preferences.optimizeFor === 'fastest' && styles.optimizeButtonActive]}
-                onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'fastest' })}
-              >
-                <Text style={[styles.optimizeButtonText, state.preferences.optimizeFor === 'fastest' && styles.optimizeButtonTextActive]}>
-                  ⚡ {t('routing.filters.fastest')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optimizeButton, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeButtonActive]}
-                onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-transfers' })}
-              >
-                <Text style={[styles.optimizeButtonText, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeButtonTextActive]}>
-                  🔄 {t('routing.filters.leastTransfers')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optimizeButton, state.preferences.optimizeFor === 'least-walking' && styles.optimizeButtonActive]}
-                onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-walking' })}
-              >
-                <Text style={[styles.optimizeButtonText, state.preferences.optimizeFor === 'least-walking' && styles.optimizeButtonTextActive]}>
-                  🚶 {t('routing.filters.leastWalking')}
-                </Text>
-              </TouchableOpacity>
-            </View>
+          {/* Compact Optimize Options + More Options */}
+          <View style={styles.optimizeRow}>
             <TouchableOpacity
-              style={styles.moreOptionsButton}
+              style={[styles.optimizeChip, state.preferences.optimizeFor === 'fastest' && styles.optimizeChipActive]}
+              onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'fastest' })}
+            >
+              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'fastest' && styles.optimizeChipTextActive]}>⚡</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.optimizeChip, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeChipActive]}
+              onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-transfers' })}
+            >
+              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'least-transfers' && styles.optimizeChipTextActive]}>🔄</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.optimizeChip, state.preferences.optimizeFor === 'least-walking' && styles.optimizeChipActive]}
+              onPress={() => onSavePreferences({ ...state.preferences, optimizeFor: 'least-walking' })}
+            >
+              <Text style={[styles.optimizeChipText, state.preferences.optimizeFor === 'least-walking' && styles.optimizeChipTextActive]}>🚶</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreOptionsChip}
               onPress={() => dispatch({ type: 'SHOW_FILTERS', payload: true })}
             >
-              <Text style={styles.moreOptionsText}>⚙️ {t('routing.filters.title')}</Text>
+              <Text style={styles.moreOptionsChipText}>⚙️</Text>
             </TouchableOpacity>
           </View>
 
@@ -551,14 +516,9 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     searchContainer: {
       backgroundColor: colors.background,
       padding: 12,
+      paddingTop: 8,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-    },
-    title: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      color: colors.text,
-      marginBottom: 12,
     },
     inputContainer: {
       marginBottom: 8,
@@ -628,73 +588,80 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     swapIcon: {
       fontSize: 20,
     },
-    timeModeContainer: {
+    timeRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       marginVertical: 8,
-      backgroundColor: colors.buttonBackground,
-      borderRadius: 8,
-      padding: 2,
+      gap: 8,
     },
-    timeModeButton: {
-      flex: 1,
-      paddingVertical: 8,
-      borderRadius: 6,
-      alignItems: 'center',
-    },
-    timeModeButtonActive: {
-      backgroundColor: colors.primary,
-    },
-    timeModeButtonText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    timeModeButtonTextActive: {
-      color: '#fff',
-    },
-    timeContainer: {
-      marginBottom: 8,
-      marginTop: 4,
-    },
-    timeControls: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 6,
+    timeLabel: {
+      fontSize: 16,
     },
     timeButton: {
       backgroundColor: colors.buttonBackground,
-      paddingHorizontal: 12,
+      paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 6,
     },
     timeButtonText: {
-      fontSize: 13,
+      fontSize: 12,
       color: colors.primary,
       fontWeight: '600',
     },
     timeDisplay: {
       backgroundColor: colors.primary,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
       borderRadius: 8,
-      minWidth: 90,
       alignItems: 'center',
     },
     timeDisplayText: {
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: 'bold',
       color: '#fff',
     },
-    nowButton: {
-      fontSize: 14,
-      color: colors.primary,
-      textAlign: 'center',
-      textDecorationLine: 'underline',
+    nowButtonContainer: {
+      marginLeft: 'auto',
     },
-    optimizeContainer: {
-      marginTop: 12,
-      marginBottom: 4,
+    nowButton: {
+      fontSize: 13,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    optimizeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    optimizeChip: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.buttonBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    optimizeChipActive: {
+      backgroundColor: colors.primary,
+    },
+    optimizeChipText: {
+      fontSize: 16,
+    },
+    optimizeChipTextActive: {
+      color: '#fff',
+    },
+    moreOptionsChip: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.buttonBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 'auto',
+    },
+    moreOptionsChipText: {
+      fontSize: 16,
     },
     optimizeButtons: {
       flexDirection: 'row',
