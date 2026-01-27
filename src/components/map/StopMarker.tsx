@@ -3,7 +3,7 @@
  * Custom marker for stops on the map
  */
 
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import type { Stop } from '../../core/types/models';
@@ -15,7 +15,12 @@ interface StopMarkerProps {
   onPress: (stop: Stop) => void;
 }
 
-export function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerProps) {
+// Memoized marker component to prevent unnecessary re-renders
+export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerProps) {
+  // Memoize the press handler
+  const handlePress = useCallback(() => {
+    onPress(stop);
+  }, [stop, onPress]);
   // Icon based on route type
   const getIcon = () => {
     switch (routeType) {
@@ -46,7 +51,7 @@ export function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerP
         latitude: stop.lat,
         longitude: stop.lon,
       }}
-      onPress={() => onPress(stop)}
+      onPress={handlePress}
     >
       <View style={styles.container}>
         <View
@@ -73,7 +78,7 @@ export function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerP
       </View>
     </Marker>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -4,7 +4,7 @@
  * Optimized to load only stops around user's location for better performance
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -34,21 +34,16 @@ const MAX_STOPS_ON_MAP = 100; // Maximum stops to display for performance
 type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
 export function MapScreen({ navigation }: Props) {
-  console.log('[MapScreen] Component mounting...');
-
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   // Geolocation
   const { location, isLoading: locationLoading, permissionGranted, getCurrentLocation, requestPermission } = useLocation();
 
-  console.log('[MapScreen] Calling useAdapter...');
   const { adapter, loading: adapterLoading } = useAdapter();
 
-  console.log('[MapScreen] Calling useAlerts...');
   const { alerts } = useAlerts();
 
-  console.log('[MapScreen] Calling useNetwork...');
   const { isOffline } = useNetwork();
 
   // Local state for nearby stops (instead of all stops)
@@ -65,8 +60,11 @@ export function MapScreen({ navigation }: Props) {
   // Ref to the map for animation
   const mapRef = useRef<TransitMapRef>(null);
 
-  // Filter severe/warning alerts for badge
-  const severeAlerts = alerts.filter(a => a.severity === 'severe' || a.severity === 'warning');
+  // Filter severe/warning alerts for badge (memoized to prevent unnecessary re-renders)
+  const severeAlerts = useMemo(() =>
+    alerts.filter(a => a.severity === 'severe' || a.severity === 'warning'),
+    [alerts]
+  );
 
   // Bottom sheet state
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -74,8 +72,6 @@ export function MapScreen({ navigation }: Props) {
   const [stopRoutes, setStopRoutes] = useState<Route[]>([]);
   const [stopDepartures, setStopDepartures] = useState<NextDeparture[]>([]);
   const [loadingStopData, setLoadingStopData] = useState(false);
-
-  console.log('[MapScreen] Render - nearbyStops:', nearbyStops.length, 'loading:', loadingStops);
 
   // Load nearby stops around a given location
   const loadNearbyStops = useCallback(async (lat: number, lon: number) => {
@@ -140,7 +136,7 @@ export function MapScreen({ navigation }: Props) {
   }, [adapterLoading, permissionGranted]);
 
   // Handle location permission request
-  const handleEnableLocation = async () => {
+  const handleEnableLocation = useCallback(async () => {
     setShowLocationPrompt(false);
     const granted = await requestPermission();
     if (granted) {
@@ -152,7 +148,7 @@ export function MapScreen({ navigation }: Props) {
         mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude, 1000);
       }
     }
-  };
+  }, [requestPermission, getCurrentLocation, loadNearbyStops]);
 
   // Handle map region change (debounced)
   const regionChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -200,12 +196,12 @@ export function MapScreen({ navigation }: Props) {
     }
   };
 
-  const handleStopPress = (stop: Stop) => {
+  const handleStopPress = useCallback((stop: Stop) => {
     setSelectedStop(stop);
     setSheetVisible(true);
-  };
+  }, []);
 
-  const handleSheetClose = () => {
+  const handleSheetClose = useCallback(() => {
     setSheetVisible(false);
     // Clear data after animation
     setTimeout(() => {
@@ -213,23 +209,22 @@ export function MapScreen({ navigation }: Props) {
       setStopRoutes([]);
       setStopDepartures([]);
     }, 300);
-  };
+  }, []);
 
-  const handleLinePress = (routeId: string) => {
+  const handleLinePress = useCallback((routeId: string) => {
     // Close sheet and navigate to Lines tab with the selected route
     setSheetVisible(false);
     console.log('[MapScreen] Line pressed:', routeId);
     // TODO: Navigate to Lines tab and show route details
-  };
+  }, []);
 
-  const handleImportData = async () => {
+  const handleImportData = useCallback(async () => {
     try {
       setImporting(true);
       console.log('[MapScreen] Starting data import...');
 
       // Clear existing data first
       db.clearAllData();
-      console.log('[MapScreen] Database cleared');
 
       // Import Paris sample GTFS data (~100 stops, 8 lines)
       const { PARIS_ROUTES, PARIS_STOPS, generateParisTrips, generateParisStopTimes } = await import('../data/paris-sample-gtfs');
@@ -239,8 +234,6 @@ export function MapScreen({ navigation }: Props) {
       const trips = generateParisTrips();
       const stopTimes = generateParisStopTimes();
 
-      console.log(`[MapScreen] Importing ${stops.length} stops, ${routes.length} routes, ${trips.length} trips, ${stopTimes.length} stop times`);
-
       // Import using database functions
       await db.insertRoutes(routes);
       await db.insertStops(stops);
@@ -248,7 +241,6 @@ export function MapScreen({ navigation }: Props) {
       await db.insertStopTimes(stopTimes);
 
       Alert.alert(t('common.success'), t('common.dataImported'));
-      console.log('[MapScreen] Data imported successfully');
 
       // Reload stops around current location or Paris center
       const lat = location?.latitude || 48.8566;
@@ -260,7 +252,7 @@ export function MapScreen({ navigation }: Props) {
     } finally {
       setImporting(false);
     }
-  };
+  }, [t, location?.latitude, location?.longitude, loadNearbyStops]);
 
   // Initial loading state
   if (adapterLoading || (loadingStops && nearbyStops.length === 0)) {
@@ -324,15 +316,18 @@ export function MapScreen({ navigation }: Props) {
     );
   }
 
-  // Calculate initial region based on user location or default to Paris
-  const initialRegion = location
-    ? {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      }
-    : undefined;
+  // Calculate initial region based on user location or default to Paris (memoized)
+  const initialRegion = useMemo(() =>
+    location
+      ? {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        }
+      : undefined,
+    [location?.latitude, location?.longitude]
+  );
 
   // Map view
   return (

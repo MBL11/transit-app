@@ -3,7 +3,7 @@
  * Displays stops on a map using react-native-maps
  */
 
-import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef, memo } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { StopMarker } from './StopMarker';
@@ -29,7 +29,7 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.05,
 };
 
-export const TransitMap = forwardRef<TransitMapRef, TransitMapProps>(function TransitMap(
+export const TransitMap = memo(forwardRef<TransitMapRef, TransitMapProps>(function TransitMap(
   { stops, onStopPress, initialRegion, onRegionChange, onRegionChangeComplete },
   ref
 ) {
@@ -51,10 +51,10 @@ export const TransitMap = forwardRef<TransitMapRef, TransitMapProps>(function Tr
     },
   }));
 
-  const handleMarkerPress = (stop: Stop) => {
+  const handleMarkerPress = useCallback((stop: Stop) => {
     setSelectedStopId(stop.id);
     onStopPress(stop);
-  };
+  }, [onStopPress]);
 
   const handleRegionChangeComplete = useCallback((region: Region) => {
     onRegionChangeComplete?.(region);
@@ -85,7 +85,7 @@ export const TransitMap = forwardRef<TransitMapRef, TransitMapProps>(function Tr
       </MapView>
     </View>
   );
-});
+}));
 
 const styles = StyleSheet.create({
   container: {
