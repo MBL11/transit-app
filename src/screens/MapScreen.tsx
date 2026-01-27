@@ -28,8 +28,9 @@ import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
 
 // Radius in meters for loading nearby stops
-const NEARBY_STOPS_RADIUS = 2000; // 2km radius
-const MAX_STOPS_ON_MAP = 100; // Maximum stops to display for performance
+const NEARBY_STOPS_RADIUS = 1500; // 1.5km radius (reduced for performance)
+const MAX_STOPS_ON_MAP = 50; // Maximum stops to display for performance
+const MIN_DISTANCE_TO_RELOAD = 300; // Minimum distance in meters before reloading stops
 
 type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
@@ -56,6 +57,7 @@ export function MapScreen({ navigation }: Props) {
   // Track current map center for loading stops
   const currentRegionRef = useRef<Region | null>(null);
   const loadingRegionRef = useRef(false);
+  const lastLoadedPositionRef = useRef<{ lat: number; lon: number } | null>(null);
 
   // Ref to the map for animation
   const mapRef = useRef<TransitMapRef>(null);
@@ -91,6 +93,8 @@ export function MapScreen({ navigation }: Props) {
 
       console.log(`[MapScreen] Found ${stops.length} nearby stops`);
       setNearbyStops(stops);
+      // Update last loaded position for distance check
+      lastLoadedPositionRef.current = { lat, lon };
     } catch (err) {
       console.error('[MapScreen] Failed to load nearby stops:', err);
       setStopsError(err instanceof Error ? err : new Error('Failed to load stops'));
@@ -162,9 +166,28 @@ export function MapScreen({ navigation }: Props) {
     }
 
     regionChangeTimeoutRef.current = setTimeout(() => {
+      // Check if we've moved enough to reload
+      const lastPos = lastLoadedPositionRef.current;
+      if (lastPos) {
+        // Simple distance calculation (Haversine approximation)
+        const R = 6371000; // Earth radius in meters
+        const dLat = (region.latitude - lastPos.lat) * Math.PI / 180;
+        const dLon = (region.longitude - lastPos.lon) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lastPos.lat * Math.PI / 180) * Math.cos(region.latitude * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        if (distance < MIN_DISTANCE_TO_RELOAD) {
+          console.log(`[MapScreen] Moved only ${Math.round(distance)}m, skipping reload`);
+          return;
+        }
+      }
+
       console.log('[MapScreen] Region changed, reloading stops...');
+      lastLoadedPositionRef.current = { lat: region.latitude, lon: region.longitude };
       loadNearbyStops(region.latitude, region.longitude);
-    }, 500); // Wait 500ms after user stops moving the map
+    }, 800); // Wait 800ms after user stops moving the map
   }, [loadNearbyStops]);
 
   // Load stop details when a stop is selected
