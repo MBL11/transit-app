@@ -502,11 +502,13 @@ export async function findRouteFromAddresses(
       console.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
       console.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
-      // 4. Try to find routes between nearby stops (limit combinations to avoid duplicates)
+      // 4. Try to find routes between nearby stops
       // OPTIMIZED: Run all combinations in parallel using Promise.all
+      // Use ALL 5 stations from each side (5×5=25 combinations) to find the truly fastest route
+      // Not just the closest stations, but also stations with better line connections
       const combinations: { fromStop: NearbyStop; toStop: NearbyStop }[] = [];
-      for (const fromStop of fromStops.slice(0, 3)) {
-        for (const toStop of toStops.slice(0, 3)) {
+      for (const fromStop of fromStops) {
+        for (const toStop of toStops) {
           combinations.push({ fromStop, toStop });
         }
       }
