@@ -69,17 +69,6 @@ function getTransportType(segment: RouteSegment): TransportType {
   }
 }
 
-/**
- * Get direction text (headsign) or fallback to destination station
- */
-function getDirection(segment: RouteSegment): string {
-  if (segment.trip?.headsign) {
-    return segment.trip.headsign;
-  }
-  // Fallback to destination stop name
-  return segment.to?.name || '';
-}
-
 export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOptionCardProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -121,10 +110,11 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
         </View>
       </View>
 
-      {/* Transit Lines with Directions - Citymapper style */}
+      {/* Transit Lines with Stops - showing departure and arrival stations */}
       <View style={styles.journeySteps}>
         {transitSegments.map((segment, index) => {
-          const direction = getDirection(segment);
+          const fromStop = segment.from?.name || '';
+          const toStop = segment.to?.name || '';
           const isLast = index === transitSegments.length - 1 && !hasMoreModes;
 
           return (
@@ -137,9 +127,9 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
                 textColor={segment.route?.textColor ? `#${segment.route.textColor}` : undefined}
                 size="small"
               />
-              {/* Direction */}
+              {/* Departure stop → Arrival stop */}
               <Text style={styles.directionText} numberOfLines={1}>
-                → {direction}
+                {fromStop} → {toStop}
               </Text>
               {/* Arrow to next segment */}
               {!isLast && (
