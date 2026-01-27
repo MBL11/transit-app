@@ -254,6 +254,20 @@ export function MapScreen({ navigation }: Props) {
     }
   }, [t, location?.latitude, location?.longitude, loadNearbyStops]);
 
+  // Calculate initial region based on user location or default to Paris (memoized)
+  // IMPORTANT: Must be before early returns to respect Rules of Hooks
+  const initialRegion = useMemo(() =>
+    location
+      ? {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        }
+      : undefined,
+    [location?.latitude, location?.longitude]
+  );
+
   // Initial loading state
   if (adapterLoading || (loadingStops && nearbyStops.length === 0)) {
     return (
@@ -315,19 +329,6 @@ export function MapScreen({ navigation }: Props) {
       </ScreenContainer>
     );
   }
-
-  // Calculate initial region based on user location or default to Paris (memoized)
-  const initialRegion = useMemo(() =>
-    location
-      ? {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        }
-      : undefined,
-    [location?.latitude, location?.longitude]
-  );
 
   // Map view
   return (
