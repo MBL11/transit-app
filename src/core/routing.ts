@@ -487,9 +487,10 @@ export async function findRouteFromAddresses(
       console.log('[Routing] Distance > 800m, searching for transit routes...');
 
       // 3. Find nearby stops for both locations
+      // Use more stops (5) to ensure we find the truly closest stations
       const [fromStops, toStops] = await Promise.all([
-        findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500), // Limit to 3 stops to reduce combinations
-        findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500),
+        findBestNearbyStops(fromLocation.lat, fromLocation.lon, 5, 2500),
+        findBestNearbyStops(toLocation.lat, toLocation.lon, 5, 2500),
       ]);
 
       if (fromStops.length === 0 || toStops.length === 0) {
@@ -505,9 +506,10 @@ export async function findRouteFromAddresses(
       const transitJourneys: JourneyResult[] = [];
       const seenRouteKeys = new Set<string>();
 
-      // Only try best 2 from-stops × best 2 to-stops = max 4 combinations
-      for (const fromStop of fromStops.slice(0, 2)) {
-        for (const toStop of toStops.slice(0, 2)) {
+      // Try best 3 from-stops × best 3 to-stops = max 9 combinations
+      // More combinations = better chance of finding optimal route
+      for (const fromStop of fromStops.slice(0, 3)) {
+        for (const toStop of toStops.slice(0, 3)) {
           try {
             // Find routes between these stops
             const routes = await findRoute(fromStop.id, toStop.id, departureTime);

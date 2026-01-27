@@ -109,11 +109,12 @@ export async function findClosestStop(
 /**
  * Find multiple nearby stops and return best candidates
  * Useful for routing when we want several options
+ * Groups stops by station name and returns the closest entry point for each unique station
  * @param lat - Latitude
  * @param lon - Longitude
- * @param count - Number of stops to return (default: 5)
+ * @param count - Number of unique stations to return (default: 5)
  * @param radiusMeters - Search radius (default: 800m)
- * @returns Array of nearby stops sorted by distance
+ * @returns Array of nearby stops sorted by distance, deduplicated by station name
  */
 export async function findBestNearbyStops(
   lat: number,
@@ -121,7 +122,47 @@ export async function findBestNearbyStops(
   count: number = 5,
   radiusMeters: number = 800
 ): Promise<NearbyStop[]> {
-  return findNearbyStops(lat, lon, radiusMeters, count);
+  // Get more stops initially to allow deduplication
+  const allNearbyStops = await findNearbyStops(lat, lon, radiusMeters, count * 5);
+
+  // Deduplicate by station name - keep only the closest stop for each unique station
+  // This handles cases where same station has multiple stop IDs (e.g., M1_SAINT_PAUL, M8_SAINT_PAUL)
+  const stationMap = new Map<string, NearbyStop>();
+
+  for (const stop of allNearbyStops) {
+    // Normalize station name (remove line prefix like "M1_", handle accents)
+    const stationName = normalizeStationName(stop.name);
+
+    if (!stationMap.has(stationName)) {
+      stationMap.set(stationName, stop);
+    }
+    // If already exists, we keep the first one (which is closer due to sorting)
+  }
+
+  // Convert back to array and return top N
+  const uniqueStations = Array.from(stationMap.values())
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, count);
+
+  console.log(`[NearbyStops] Deduplicated ${allNearbyStops.length} stops to ${uniqueStations.length} unique stations`);
+
+  return uniqueStations;
+}
+
+/**
+ * Normalize station name for deduplication
+ * Removes line prefixes and normalizes accents
+ */
+function normalizeStationName(name: string): string {
+  return name
+    // Remove common prefixes like "M1_", "RER_A_", etc.
+    .replace(/^(M\d+_|RER_[A-Z]_|T\d+_|BUS_\d+_)/i, '')
+    // Normalize accents
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    // Lowercase for comparison
+    .toLowerCase()
+    .trim();
 }
 
 /**
