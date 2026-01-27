@@ -15,7 +15,7 @@ import { LineCard } from '../components/transit/LineCard';
 import { useDebounce } from '../hooks/useDebounce';
 import { usePagination } from '../hooks/usePagination';
 import { useThemeColors } from '../hooks/useThemeColors';
-import { searchStops, searchRoutes, getRoutesByStopId } from '../core/database';
+import { searchStops, searchRoutes, getRoutesByStopIds } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
 import type { SearchStackParamList } from '../navigation/SearchStackNavigator';
 
@@ -71,13 +71,15 @@ export function SearchScreen({ navigation }: Props) {
           // Search stops (no limit, we'll paginate)
           const stops = await searchStops(debouncedQuery);
 
-          // Fetch routes for each stop
-          const stopsWithRoutes = await Promise.all(
-            stops.map(async (stop) => {
-              const routes = await getRoutesByStopId(stop.id);
-              return { ...stop, routes };
-            })
-          );
+          // Fetch routes for all stops in a single batch query (avoids N+1 problem)
+          const stopIds = stops.map(stop => stop.id);
+          const routesMap = await getRoutesByStopIds(stopIds);
+
+          // Combine stops with their routes
+          const stopsWithRoutes = stops.map(stop => ({
+            ...stop,
+            routes: routesMap.get(stop.id) || [],
+          }));
 
           setStopResults(stopsWithRoutes);
         } else {

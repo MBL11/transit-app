@@ -101,6 +101,15 @@ export async function geocodeAddress(
     return [];
   }
 
+  // Check cache first
+  const cacheKey = `geocode_${query.toLowerCase().trim()}_${countryCode || 'any'}_${limit}`;
+  const { geocodingCache, GEOCODING_TTL } = await import('./cache');
+  const cached = geocodingCache.get<GeocodingResult[]>(cacheKey, GEOCODING_TTL);
+  if (cached) {
+    console.log(`[Geocoding] Cache hit for "${query}"`);
+    return cached;
+  }
+
   try {
     const params = new URLSearchParams({
       q: query,
@@ -129,7 +138,7 @@ export async function geocodeAddress(
     const data = await response.json();
     console.log(`[Geocoding] Received ${data.length || 0} results`);
 
-    return data.map((item: any) => {
+    const results = data.map((item: any) => {
       const { short, city } = formatShortAddress(item);
       return {
         lat: parseFloat(item.lat),
@@ -149,6 +158,12 @@ export async function geocodeAddress(
           : undefined,
       };
     });
+
+    // Cache the results
+    geocodingCache.set(cacheKey, results);
+    console.log(`[Geocoding] Cached results for "${query}"`);
+
+    return results;
   } catch (error) {
     console.error('Geocoding error:', error);
     throw error;

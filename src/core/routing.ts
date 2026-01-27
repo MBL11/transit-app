@@ -503,71 +503,82 @@ export async function findRouteFromAddresses(
       console.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
       // 4. Try to find routes between nearby stops (limit combinations to avoid duplicates)
+      // OPTIMIZED: Run all combinations in parallel using Promise.all
+      const combinations: { fromStop: NearbyStop; toStop: NearbyStop }[] = [];
+      for (const fromStop of fromStops.slice(0, 3)) {
+        for (const toStop of toStops.slice(0, 3)) {
+          combinations.push({ fromStop, toStop });
+        }
+      }
+
+      console.log(`[Routing] Calculating ${combinations.length} route combinations in parallel`);
+
+      // Execute all route calculations in parallel
+      const routeResults = await Promise.all(
+        combinations.map(async ({ fromStop, toStop }) => {
+          try {
+            const routes = await findRoute(fromStop.id, toStop.id, departureTime);
+            return { fromStop, toStop, routes };
+          } catch (error) {
+            console.warn(`[Routing] Failed to find route between ${fromStop.name} and ${toStop.name}`);
+            return { fromStop, toStop, routes: [] };
+          }
+        })
+      );
+
+      // Process results and deduplicate
       const transitJourneys: JourneyResult[] = [];
       const seenRouteKeys = new Set<string>();
 
-      // Try best 3 from-stops × best 3 to-stops = max 9 combinations
-      // More combinations = better chance of finding optimal route
-      for (const fromStop of fromStops.slice(0, 3)) {
-        for (const toStop of toStops.slice(0, 3)) {
-          try {
-            // Find routes between these stops
-            const routes = await findRoute(fromStop.id, toStop.id, departureTime);
+      for (const { fromStop, toStop, routes } of routeResults) {
+        for (const route of routes) {
+          // Create a unique key based on the transit lines used
+          const routeKey = route.segments
+            .filter(seg => seg.type === 'transit' && seg.route)
+            .map(seg => seg.route!.id)
+            .join('-');
 
-            // Add walking segments to the beginning and end
-            for (const route of routes) {
-              // Create a unique key based on the transit lines used
-              const routeKey = route.segments
-                .filter(seg => seg.type === 'transit' && seg.route)
-                .map(seg => seg.route!.id)
-                .join('-');
-
-              // Skip if we've already seen this combination of lines
-              if (routeKey && seenRouteKeys.has(routeKey)) {
-                continue;
-              }
-              seenRouteKeys.add(routeKey);
-
-              // Calculate walking time to first stop
-              const walkToStop = getWalkingTime(fromStop.distance);
-
-              // Calculate walking time from last stop
-              const walkFromStop = getWalkingTime(toStop.distance);
-
-              // Prepend walking segment to first stop
-              const walkToSegment: RouteSegment = {
-                type: 'walk',
-                from: fromVirtualStop,
-                to: fromStop,
-                duration: walkToStop,
-                distance: Math.round(fromStop.distance),
-              };
-
-              // Append walking segment from last stop
-              const walkFromSegment: RouteSegment = {
-                type: 'walk',
-                from: toStop,
-                to: toVirtualStop,
-                duration: walkFromStop,
-                distance: Math.round(toStop.distance),
-              };
-
-              // Create new journey with walking segments
-              const newJourney: JourneyResult = {
-                segments: [walkToSegment, ...route.segments, walkFromSegment],
-                totalDuration: route.totalDuration + walkToStop + walkFromStop,
-                totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
-                numberOfTransfers: route.numberOfTransfers,
-                departureTime: departureTime,
-                arrivalTime: new Date(departureTime.getTime() + (route.totalDuration + walkToStop + walkFromStop) * 60000),
-              };
-
-              transitJourneys.push(newJourney);
-            }
-          } catch (error) {
-            // Skip this combination if route finding fails
-            console.warn(`[Routing] Failed to find route between ${fromStop.name} and ${toStop.name}`);
+          // Skip if we've already seen this combination of lines
+          if (routeKey && seenRouteKeys.has(routeKey)) {
+            continue;
           }
+          seenRouteKeys.add(routeKey);
+
+          // Calculate walking time to first stop
+          const walkToStop = getWalkingTime(fromStop.distance);
+
+          // Calculate walking time from last stop
+          const walkFromStop = getWalkingTime(toStop.distance);
+
+          // Prepend walking segment to first stop
+          const walkToSegment: RouteSegment = {
+            type: 'walk',
+            from: fromVirtualStop,
+            to: fromStop,
+            duration: walkToStop,
+            distance: Math.round(fromStop.distance),
+          };
+
+          // Append walking segment from last stop
+          const walkFromSegment: RouteSegment = {
+            type: 'walk',
+            from: toStop,
+            to: toVirtualStop,
+            duration: walkFromStop,
+            distance: Math.round(toStop.distance),
+          };
+
+          // Create new journey with walking segments
+          const newJourney: JourneyResult = {
+            segments: [walkToSegment, ...route.segments, walkFromSegment],
+            totalDuration: route.totalDuration + walkToStop + walkFromStop,
+            totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
+            numberOfTransfers: route.numberOfTransfers,
+            departureTime: departureTime,
+            arrivalTime: new Date(departureTime.getTime() + (route.totalDuration + walkToStop + walkFromStop) * 60000),
+          };
+
+          transitJourneys.push(newJourney);
         }
       }
 

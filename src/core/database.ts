@@ -113,6 +113,30 @@ export async function initializeDatabase(): Promise<void> {
       ON stop_times(trip_id, stop_sequence);
     `);
 
+    // Index on stops name for search (COLLATE NOCASE for case-insensitive)
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_stops_name
+      ON stops(name COLLATE NOCASE);
+    `);
+
+    // Index on stops parent_station for grouping
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_stops_parent
+      ON stops(parent_station);
+    `);
+
+    // Index on routes short_name for search
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_routes_short_name
+      ON routes(short_name COLLATE NOCASE);
+    `);
+
+    // Composite index for faster stop_times joins
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_stop_times_stop_trip
+      ON stop_times(stop_id, trip_id);
+    `);
+
     console.log('[Database] ✅ Database initialized successfully');
   } catch (error) {
     console.error('[Database] ❌ Failed to initialize database:', error);
@@ -491,6 +515,68 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
 }
 
 /**
+ * Get routes for multiple stops in a single query (batch operation)
+ * Returns a Map of stopId -> Route[]
+ * This avoids N+1 query problem when fetching routes for multiple stops
+ */
+export async function getRoutesByStopIds(stopIds: string[]): Promise<Map<string, Route[]>> {
+  const db = openDatabase();
+  const result = new Map<string, Route[]>();
+
+  if (stopIds.length === 0) {
+    return result;
+  }
+
+  try {
+    const placeholders = stopIds.map(() => '?').join(', ');
+
+    // Single query to get all routes for all stops
+    const rows = db.getAllSync<any>(
+      `SELECT DISTINCT
+         stop_times.stop_id,
+         routes.id,
+         routes.short_name,
+         routes.long_name,
+         routes.type,
+         routes.color,
+         routes.text_color
+       FROM routes
+       JOIN trips ON routes.id = trips.route_id
+       JOIN stop_times ON trips.id = stop_times.trip_id
+       WHERE stop_times.stop_id IN (${placeholders})`,
+      stopIds
+    );
+
+    // Group results by stop_id
+    for (const row of rows) {
+      const stopId = row.stop_id;
+      if (!result.has(stopId)) {
+        result.set(stopId, []);
+      }
+
+      // Check if route already added for this stop (avoid duplicates)
+      const existingRoutes = result.get(stopId)!;
+      if (!existingRoutes.some(r => r.id === row.id)) {
+        existingRoutes.push({
+          id: row.id,
+          shortName: row.short_name,
+          longName: row.long_name,
+          type: row.type,
+          color: row.color,
+          textColor: row.text_color,
+        });
+      }
+    }
+
+    console.log(`[Database] Batch fetched routes for ${stopIds.length} stops in 1 query`);
+    return result;
+  } catch (error) {
+    console.error('[Database] ❌ Failed to batch get routes:', error);
+    throw error;
+  }
+}
+
+/**
  * Get stops within geographic bounds (for map display)
  */
 export async function getStopsInBounds(
@@ -522,21 +608,35 @@ export async function getStopsInBounds(
 }
 
 /**
- * Search stops by name (case insensitive)
+ * Search stops by name (case insensitive, accent-insensitive)
+ * Optimized: Uses SQL LIKE first to reduce dataset, then filters client-side for accents
  */
 export async function searchStops(query: string): Promise<Stop[]> {
   const db = openDatabase();
 
   try {
-    // Get all stops and filter client-side for accent-insensitive search
-    const rows = db.getAllSync<any>('SELECT * FROM stops');
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
 
     // Normalize query for accent-insensitive comparison
     const normalizedQuery = query
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
+      .toLowerCase()
+      .trim();
 
+    // Use SQL LIKE to pre-filter (much faster than loading all rows)
+    // This reduces the dataset significantly before client-side accent filtering
+    const rows = db.getAllSync<any>(
+      `SELECT * FROM stops
+       WHERE name LIKE ? COLLATE NOCASE
+       OR name LIKE ? COLLATE NOCASE
+       LIMIT 200`,
+      [`%${query}%`, `%${normalizedQuery}%`]
+    );
+
+    // Now do precise accent-insensitive filtering on the smaller set
     const filteredRows = rows.filter((row: any) => {
       const normalizedName = row.name
         .normalize('NFD')
@@ -562,20 +662,35 @@ export async function searchStops(query: string): Promise<Stop[]> {
 
 /**
  * Search routes by name or short name (accent-insensitive)
+ * Optimized: Uses SQL LIKE first to reduce dataset
  */
 export async function searchRoutes(query: string): Promise<Route[]> {
   const db = openDatabase();
 
   try {
-    // Get all routes and filter client-side for accent-insensitive search
-    const rows = db.getAllSync<any>('SELECT * FROM routes');
+    if (!query || query.trim().length < 1) {
+      return [];
+    }
 
     // Normalize query for accent-insensitive comparison
     const normalizedQuery = query
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
+      .toLowerCase()
+      .trim();
 
+    // Use SQL LIKE to pre-filter (routes table is small, but still faster)
+    const rows = db.getAllSync<any>(
+      `SELECT * FROM routes
+       WHERE short_name LIKE ? COLLATE NOCASE
+       OR long_name LIKE ? COLLATE NOCASE
+       OR short_name LIKE ? COLLATE NOCASE
+       OR long_name LIKE ? COLLATE NOCASE
+       LIMIT 100`,
+      [`%${query}%`, `%${query}%`, `%${normalizedQuery}%`, `%${normalizedQuery}%`]
+    );
+
+    // Now do precise accent-insensitive filtering on the smaller set
     const filteredRows = rows.filter((row: any) => {
       const normalizedShortName = row.short_name
         .normalize('NFD')
