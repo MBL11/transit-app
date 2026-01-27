@@ -408,16 +408,6 @@ export function MapScreen({ navigation }: Props) {
           </View>
         )}
 
-        {/* Stops count indicator */}
-        <View style={[styles.stopsCountContainer, { top: insets.top + (showLocationPrompt ? 140 : 68) }]}>
-          <View style={styles.stopsCountBadge}>
-            <Text style={styles.stopsCountText}>
-              {nearbyStops.length} {t('map.stopsNearby', { defaultValue: 'arrêts' })}
-              {loadingStops && ' ...'}
-            </Text>
-          </View>
-        </View>
-
       {/* Alerts Banner */}
       {alerts.length > 0 && (
         <View style={[styles.alertsContainer, { top: insets.top + 68 }]}>
