@@ -3,60 +3,50 @@
  * Provides easy access to the Paris adapter in React components
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ParisAdapter, parisAdapter } from '../adapters/paris';
 import * as db from '../core/database';
 
 let adapterInstance: ParisAdapter | null = null;
+let initPromise: Promise<void> | null = null;
 
 /**
  * Hook to access the Paris Transit Adapter
  * Automatically initializes the database and adapter
- *
- * @example
- * ```tsx
- * function MyComponent() {
- *   const { adapter, loading, error } = useAdapter();
- *
- *   if (loading) return <Text>Loading...</Text>;
- *   if (error) return <Text>Error: {error.message}</Text>;
- *
- *   // Use adapter
- *   const stops = await adapter.loadStops();
- * }
- * ```
+ * Uses a singleton pattern to avoid duplicate initialization
  */
 export function useAdapter() {
-  console.log('[useAdapter] Hook called');
-
-  const [adapter, setAdapter] = useState<ParisAdapter | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [adapter, setAdapter] = useState<ParisAdapter | null>(adapterInstance);
+  const [loading, setLoading] = useState(!adapterInstance);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    console.log('[useAdapter] useEffect running...');
+    // Already initialized, skip
+    if (adapterInstance) {
+      setAdapter(adapterInstance);
+      setLoading(false);
+      return;
+    }
 
     async function init() {
       try {
-        console.log('[useAdapter] Starting initialization...');
-
-        // Initialize database if not already done
-        if (!adapterInstance) {
-          console.log('[useAdapter] Initializing database and adapter...');
-          await db.initializeDatabase();
-          console.log('[useAdapter] Database initialized, setting up adapter...');
-          adapterInstance = parisAdapter;
-          await adapterInstance.initialize();
-          console.log('[useAdapter] ✅ Adapter ready');
-        } else {
-          console.log('[useAdapter] Using existing adapter instance');
+        // Use shared promise to avoid duplicate initialization
+        if (!initPromise) {
+          initPromise = (async () => {
+            console.log('[useAdapter] Initializing database and adapter...');
+            await db.initializeDatabase();
+            adapterInstance = parisAdapter;
+            await adapterInstance.initialize();
+            console.log('[useAdapter] ✅ Adapter ready');
+          })();
         }
 
+        await initPromise;
         setAdapter(adapterInstance);
         setLoading(false);
-        console.log('[useAdapter] State updated, loading=false');
       } catch (err) {
         console.error('[useAdapter] ❌ Failed to initialize:', err);
+        initPromise = null; // Reset so it can be retried
         setError(err instanceof Error ? err : new Error('Unknown error'));
         setLoading(false);
       }
@@ -65,8 +55,8 @@ export function useAdapter() {
     init();
   }, []);
 
-  console.log('[useAdapter] Returning - loading:', loading, 'adapter:', !!adapter, 'error:', error);
-  return { adapter, loading, error };
+  // Memoize return value to prevent unnecessary re-renders in consumers
+  return useMemo(() => ({ adapter, loading, error }), [adapter, loading, error]);
 }
 
 /**
