@@ -778,10 +778,26 @@ export async function findMultipleRoutes(
     const scoredRoutes = allRoutes.map((journey) => ({
       journey,
       score: scoreJourney(journey, preferences),
+      isWalkOnly: journey.segments.every((seg) => seg.type === 'walk'),
     }));
 
     // 7. Sort by score (higher is better)
-    scoredRoutes.sort((a, b) => b.score - a.score);
+    // Walking-only routes go after transit routes unless they're the fastest
+    scoredRoutes.sort((a, b) => {
+      // If one is walk-only and the other isn't, walk-only goes last
+      // UNLESS it has a shorter total duration (it's genuinely faster)
+      if (a.isWalkOnly !== b.isWalkOnly) {
+        const walkRoute = a.isWalkOnly ? a : b;
+        const transitRoute = a.isWalkOnly ? b : a;
+        if (walkRoute.journey.totalDuration <= transitRoute.journey.totalDuration) {
+          // Walking is faster or equal - let score decide
+          return b.score - a.score;
+        }
+        // Transit is faster - transit goes first
+        return a.isWalkOnly ? 1 : -1;
+      }
+      return b.score - a.score;
+    });
 
     // 8. Take top routes
     const topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);

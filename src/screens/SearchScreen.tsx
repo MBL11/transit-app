@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -159,7 +159,11 @@ export function SearchScreen({ navigation }: Props) {
   return (
     <ScreenContainer>
       <ScreenHeader title={t('tabs.search')} />
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <SearchBar
@@ -223,6 +227,8 @@ export function SearchScreen({ navigation }: Props) {
               keyExtractor={keyExtractor}
               renderItem={renderStopItem}
               contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               ListHeaderComponent={
                 <Text style={styles.resultCount}>
                   {stopResults.length} {t(stopResults.length === 1 ? 'common.result' : 'common.result_plural')}
@@ -249,6 +255,8 @@ export function SearchScreen({ navigation }: Props) {
               keyExtractor={keyExtractor}
               renderItem={renderLineItem}
               contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               ListHeaderComponent={
                 <Text style={styles.resultCount}>
                   {lineResults.length} {t(lineResults.length === 1 ? 'common.result' : 'common.result_plural')}
@@ -272,7 +280,7 @@ export function SearchScreen({ navigation }: Props) {
           )}
         </>
       )}
-      </View>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
