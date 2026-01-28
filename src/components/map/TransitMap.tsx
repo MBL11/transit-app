@@ -23,8 +23,8 @@ export interface TransitMapRef {
 }
 
 const DEFAULT_REGION: Region = {
-  latitude: 48.8566,
-  longitude: 2.3522,
+  latitude: 38.4237,  // İzmir center (Konak)
+  longitude: 27.1428,
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
 };

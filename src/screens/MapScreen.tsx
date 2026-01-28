@@ -114,7 +114,7 @@ export function MapScreen({ navigation }: Props) {
         console.log('[MapScreen] Location permission not granted, showing prompt');
         setShowLocationPrompt(true);
         // Load stops around Paris center as fallback
-        await loadNearbyStops(48.8566, 2.3522);
+        await loadNearbyStops(38.4237, 27.1428); // İzmir center (Konak)
         return;
       }
 
@@ -130,7 +130,7 @@ export function MapScreen({ navigation }: Props) {
       } else {
         // Fallback to Paris center
         console.log('[MapScreen] No user location, using Paris center');
-        await loadNearbyStops(48.8566, 2.3522);
+        await loadNearbyStops(38.4237, 27.1428); // İzmir center (Konak)
       }
     };
 
@@ -244,30 +244,23 @@ export function MapScreen({ navigation }: Props) {
   const handleImportData = useCallback(async () => {
     try {
       setImporting(true);
-      console.log('[MapScreen] Starting data import...');
+      console.log('[MapScreen] Starting İzmir GTFS data import...');
 
-      // Clear existing data first
-      db.clearAllData();
+      // Import İzmir GTFS data (ESHOT, Metro, İZBAN)
+      const { downloadAndImportAllIzmir } = await import('../core/gtfs-downloader');
 
-      // Import Paris sample GTFS data (~100 stops, 8 lines)
-      const { PARIS_ROUTES, PARIS_STOPS, generateParisTrips, generateParisStopTimes } = await import('../data/paris-sample-gtfs');
+      await downloadAndImportAllIzmir((stage, progress, source) => {
+        console.log(`[MapScreen] Import: ${stage} - ${Math.round(progress * 100)}% (${source || ''})`);
+      });
 
-      const routes = PARIS_ROUTES;
-      const stops = PARIS_STOPS;
-      const trips = generateParisTrips();
-      const stopTimes = generateParisStopTimes();
+      Alert.alert(
+        t('common.success'),
+        t('common.dataImported', { defaultValue: 'İzmir transit data imported successfully!' })
+      );
 
-      // Import using database functions
-      await db.insertRoutes(routes);
-      await db.insertStops(stops);
-      await db.insertTrips(trips);
-      await db.insertStopTimes(stopTimes);
-
-      Alert.alert(t('common.success'), t('common.dataImported'));
-
-      // Reload stops around current location or Paris center
-      const lat = location?.latitude || 48.8566;
-      const lon = location?.longitude || 2.3522;
+      // Reload stops around current location or İzmir center
+      const lat = location?.latitude || 38.4237;
+      const lon = location?.longitude || 27.1428;
       await loadNearbyStops(lat, lon);
     } catch (err) {
       console.error('[MapScreen] Import error:', err);
@@ -277,7 +270,7 @@ export function MapScreen({ navigation }: Props) {
     }
   }, [t, location?.latitude, location?.longitude, loadNearbyStops]);
 
-  // Calculate initial region based on user location or default to Paris (memoized)
+  // Calculate initial region based on user location or default to İzmir (memoized)
   // IMPORTANT: Must be before early returns to respect Rules of Hooks
   const initialRegion = useMemo(() =>
     location
