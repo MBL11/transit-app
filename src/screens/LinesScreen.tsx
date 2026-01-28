@@ -316,8 +316,8 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       alignItems: 'center',
     },
     filterButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 12,
       borderRadius: 22,
       backgroundColor: colors.isDark ? '#3A3A3A' : '#F0F0F0',
       borderWidth: 2,
@@ -328,7 +328,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderColor: '#0066CC',
     },
     filterText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
       color: colors.isDark ? '#FFFFFF' : '#222222',
     },
