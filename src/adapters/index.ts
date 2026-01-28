@@ -1,16 +1,16 @@
 /**
  * Transit adapters registry
- * Import and export all city adapters here
+ * İzmir Transit App - ESHOT, Metro, İZBAN
  */
 
-import { parisAdapter } from './paris';
+import { izmirAdapter } from './izmir';
 
-export * from './paris';
+export * from './izmir';
 
-// Export the default adapter (Paris for now)
-export { parisAdapter as defaultAdapter } from './paris';
+// Export the default adapter (İzmir)
+export { izmirAdapter as defaultAdapter } from './izmir';
 
-// Function to get the active adapter (can be extended for multi-city support)
+// Function to get the active adapter
 export function getAdapter() {
-  return parisAdapter;
+  return izmirAdapter;
 }

@@ -5,18 +5,21 @@
 
 import { useState, useEffect } from 'react';
 import type { Alert } from '../core/types/adapter';
-import { fetchAlerts } from '../adapters/paris/alerts';
+import { useAdapter } from './useAdapter';
 
 export function useAlerts() {
+  const { adapter } = useAdapter();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   const loadAlerts = async () => {
+    if (!adapter) return;
+
     try {
       setLoading(true);
       setError(null);
-      const fetchedAlerts = await fetchAlerts();
+      const fetchedAlerts = await adapter.getAlerts();
       setAlerts(fetchedAlerts);
     } catch (err) {
       console.error('[useAlerts] Error fetching alerts:', err);
@@ -27,13 +30,15 @@ export function useAlerts() {
   };
 
   useEffect(() => {
-    loadAlerts();
+    if (adapter) {
+      loadAlerts();
 
-    // Rafraîchissement auto toutes les 5 minutes
-    const interval = setInterval(loadAlerts, 300000);
+      // Auto-refresh every 5 minutes
+      const interval = setInterval(loadAlerts, 300000);
 
-    return () => clearInterval(interval);
-  }, []);
+      return () => clearInterval(interval);
+    }
+  }, [adapter]);
 
   return { alerts, loading, error, refresh: loadAlerts };
 }

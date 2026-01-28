@@ -1,6 +1,6 @@
 /**
  * Data Management Screen
- * Manage GTFS data import and updates
+ * Manage İzmir GTFS data import and updates
  */
 
 import React, { useState, useEffect } from 'react';
@@ -18,13 +18,8 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useGTFSData } from '../hooks/useGTFSData';
-import {
-  downloadAndImportGTFS,
-  GTFS_SOURCES,
-  type GTFSSourceKey,
-} from '../core/gtfs-downloader';
+import { downloadAndImportAllIzmir } from '../core/gtfs-downloader';
 import { clearAllData, getAllStops, getAllRoutes } from '../core/database';
-import { loadTestData, type LoadingProgress } from '../core/load-test-data';
 
 type ImportStage =
   | 'downloading'
@@ -34,24 +29,24 @@ type ImportStage =
   | 'clearing'
   | 'importing';
 
-const STAGE_LABELS: Record<ImportStage, string> = {
-  downloading: 'Downloading GTFS...',
-  extracting: 'Extracting files...',
-  parsing: 'Parsing data...',
-  validating: 'Validating...',
-  clearing: 'Clearing old data...',
-  importing: 'Importing to database...',
+const STAGE_LABELS: Record<string, { tr: string; en: string }> = {
+  downloading: { tr: 'İndiriliyor...', en: 'Downloading...' },
+  extracting: { tr: 'Çıkarılıyor...', en: 'Extracting...' },
+  parsing: { tr: 'Analiz ediliyor...', en: 'Parsing...' },
+  validating: { tr: 'Doğrulanıyor...', en: 'Validating...' },
+  clearing: { tr: 'Temizleniyor...', en: 'Clearing...' },
+  importing: { tr: 'Aktarılıyor...', en: 'Importing...' },
 };
 
 export function DataManagementScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const colors = useThemeColors();
   const { isLoaded, lastUpdate, source, checking, markAsLoaded, refresh } = useGTFSData();
   const [dataCounts, setDataCounts] = useState({ stops: 0, routes: 0 });
   const [importing, setImporting] = useState(false);
-  const [importStage, setImportStage] = useState<ImportStage>('downloading');
+  const [importStage, setImportStage] = useState<string>('downloading');
   const [importProgress, setImportProgress] = useState(0);
-  const [selectedSource, setSelectedSource] = useState<GTFSSourceKey>('IDFM');
+  const [currentSource, setCurrentSource] = useState<string | undefined>();
 
   useEffect(() => {
     if (isLoaded) {
@@ -68,97 +63,56 @@ export function DataManagementScreen() {
     }
   };
 
+  const getStageLabel = (stage: string): string => {
+    const lang = i18n.language === 'tr' ? 'tr' : 'en';
+    return STAGE_LABELS[stage]?.[lang] || stage;
+  };
+
   const handleImportGTFS = async () => {
-    const sourceInfo = GTFS_SOURCES[selectedSource];
+    const warningText = i18n.language === 'tr'
+      ? 'İzmir toplu taşıma verileri indirilecek (ESHOT, Metro, İZBAN).\n\nBu işlem internet bağlantısı gerektirir ve birkaç dakika sürebilir.\n\nDevam etmek istiyor musunuz?'
+      : 'İzmir transit data will be downloaded (ESHOT, Metro, İZBAN).\n\nThis requires an internet connection and may take a few minutes.\n\nContinue?';
+
     Alert.alert(
-      t('data.importRealData'),
-      `${t('data.importWarning')}\n\nCity: ${sourceInfo.name}\nSize: ${sourceInfo.size}`,
+      i18n.language === 'tr' ? 'Verileri İndir' : 'Download Data',
+      warningText,
       [
         {
           text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: t('data.import'),
+          text: i18n.language === 'tr' ? 'İndir' : 'Download',
           onPress: async () => {
             try {
               setImporting(true);
               setImportProgress(0);
 
-              const result = await downloadAndImportGTFS(selectedSource, (stage, progress) => {
-                setImportStage(stage as ImportStage);
+              const result = await downloadAndImportAllIzmir((stage, progress, sourceName) => {
+                setImportStage(stage);
                 setImportProgress(progress);
+                setCurrentSource(sourceName);
               });
 
-              await markAsLoaded(sourceInfo.name);
+              await markAsLoaded('İzmir');
 
-              Alert.alert(
-                t('common.success'),
-                `${t('data.importSuccess')}\n\n` +
-                  `${t('transit.stops')}: ${result.stops}\n` +
-                  `${t('transit.lines')}: ${result.routes}`
-              );
+              const successText = i18n.language === 'tr'
+                ? `Veriler başarıyla yüklendi!\n\nDurak: ${result.stops}\nHat: ${result.routes}\nSefer: ${result.trips}`
+                : `Data imported successfully!\n\nStops: ${result.stops}\nRoutes: ${result.routes}\nTrips: ${result.trips}`;
+
+              Alert.alert(t('common.success'), successText);
 
               await loadDataCounts();
             } catch (error) {
               console.error('[DataManagement] Import error:', error);
-              Alert.alert(
-                t('common.error'),
-                t('data.importFailed') + '\n\n' + (error as Error).message
-              );
+              const errorText = i18n.language === 'tr'
+                ? 'Veri indirme başarısız:\n\n'
+                : 'Import failed:\n\n';
+              Alert.alert(t('common.error'), errorText + (error as Error).message);
             } finally {
               setImporting(false);
               setImportProgress(0);
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-
-  const handleLoadTestData = async () => {
-    Alert.alert(
-      '🚇 Charger données test',
-      'Ceci va charger des données réalistes du métro parisien (lignes 1, 4, 14, RER A, Bus 38) pour tester l\'application.\n\nContinuer ?',
-      [
-        {
-          text: t('common.cancel'),
-          style: 'cancel',
-        },
-        {
-          text: 'Charger',
-          onPress: async () => {
-            try {
-              setImporting(true);
-              setImportProgress(0);
-
-              const result = await loadTestData((progress: LoadingProgress) => {
-                setImportStage(progress.stage as ImportStage);
-                setImportProgress(progress.progress);
-              });
-
-              await markAsLoaded('Paris Metro Test Data');
-
-              Alert.alert(
-                t('common.success'),
-                `Données test chargées !\n\n` +
-                  `${t('transit.stops')}: ${result.stops}\n` +
-                  `${t('transit.lines')}: ${result.routes}\n` +
-                  `Trajets: ${result.trips}\n` +
-                  `Horaires: ${result.stopTimes}`
-              );
-
-              await loadDataCounts();
-            } catch (error) {
-              console.error('[DataManagement] Test data error:', error);
-              Alert.alert(
-                t('common.error'),
-                'Erreur lors du chargement des données test:\n\n' + (error as Error).message
-              );
-            } finally {
-              setImporting(false);
-              setImportProgress(0);
+              setCurrentSource(undefined);
             }
           },
         },
@@ -168,9 +122,13 @@ export function DataManagementScreen() {
   };
 
   const handleClearData = () => {
+    const warningText = i18n.language === 'tr'
+      ? 'Tüm veriler silinecek. Bu işlem geri alınamaz.'
+      : 'All data will be deleted. This cannot be undone.';
+
     Alert.alert(
-      t('data.clearData'),
-      t('data.clearWarning'),
+      i18n.language === 'tr' ? 'Verileri Sil' : 'Clear Data',
+      warningText,
       [
         {
           text: t('common.cancel'),
@@ -182,8 +140,10 @@ export function DataManagementScreen() {
           onPress: async () => {
             try {
               clearAllData();
-              Alert.alert(t('common.success'), t('data.dataCleared'));
+              const successText = i18n.language === 'tr' ? 'Veriler silindi' : 'Data cleared';
+              Alert.alert(t('common.success'), successText);
               await refresh();
+              setDataCounts({ stops: 0, routes: 0 });
             } catch (error) {
               console.error('[DataManagement] Clear error:', error);
               Alert.alert(t('common.error'), t('data.clearFailed'));
@@ -198,7 +158,7 @@ export function DataManagementScreen() {
   if (checking) {
     return (
       <ScreenContainer>
-        <ScreenHeader title={t('data.title')} showBack />
+        <ScreenHeader title={i18n.language === 'tr' ? 'Veri Yönetimi' : 'Data Management'} showBack />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -208,12 +168,18 @@ export function DataManagementScreen() {
 
   return (
     <ScreenContainer>
-      <ScreenHeader title={t('data.title')} showBack />
+      <ScreenHeader title={i18n.language === 'tr' ? 'Veri Yönetimi' : 'Data Management'} showBack />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Header */}
+        <View style={[styles.headerCard, { backgroundColor: '#0D47A1' }]}>
+          <Text style={styles.headerTitle}>İzmir Transit</Text>
+          <Text style={styles.headerSubtitle}>ESHOT • Metro • İZBAN</Text>
+        </View>
+
         {/* Current Data Status */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>
-            {t('data.currentData')}
+            {i18n.language === 'tr' ? 'Mevcut Veriler' : 'Current Data'}
           </Text>
 
           <View style={styles.statusRow}>
@@ -223,11 +189,13 @@ export function DataManagementScreen() {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: isLoaded ? colors.success : colors.error },
+                { backgroundColor: isLoaded ? '#10B981' : '#EF4444' },
               ]}
             >
               <Text style={styles.statusBadgeText}>
-                {isLoaded ? t('data.dataLoaded') : t('data.noData')}
+                {isLoaded
+                  ? (i18n.language === 'tr' ? 'Yüklendi' : 'Loaded')
+                  : (i18n.language === 'tr' ? 'Veri Yok' : 'No Data')}
               </Text>
             </View>
           </View>
@@ -237,7 +205,7 @@ export function DataManagementScreen() {
               {source && (
                 <View style={styles.infoRow}>
                   <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
-                    Source:
+                    {i18n.language === 'tr' ? 'Kaynak:' : 'Source:'}
                   </Text>
                   <Text style={[styles.infoValue, { color: colors.text }]}>
                     {source}
@@ -248,10 +216,10 @@ export function DataManagementScreen() {
               {lastUpdate && (
                 <View style={styles.infoRow}>
                   <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
-                    Last update:
+                    {i18n.language === 'tr' ? 'Son güncelleme:' : 'Last update:'}
                   </Text>
                   <Text style={[styles.infoValue, { color: colors.text }]}>
-                    {lastUpdate.toLocaleDateString()}
+                    {lastUpdate.toLocaleDateString(i18n.language)}
                   </Text>
                 </View>
               )}
@@ -259,10 +227,10 @@ export function DataManagementScreen() {
               <View style={styles.statsContainer}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.primary }]}>
-                    {dataCounts.stops}
+                    {dataCounts.stops.toLocaleString()}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                    {t('transit.stops')}
+                    {i18n.language === 'tr' ? 'Durak' : 'Stops'}
                   </Text>
                 </View>
 
@@ -271,7 +239,7 @@ export function DataManagementScreen() {
                     {dataCounts.routes}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                    {t('transit.lines')}
+                    {i18n.language === 'tr' ? 'Hat' : 'Routes'}
                   </Text>
                 </View>
               </View>
@@ -283,8 +251,13 @@ export function DataManagementScreen() {
         {importing && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>
-              {STAGE_LABELS[importStage]}
+              {getStageLabel(importStage)}
             </Text>
+            {currentSource && (
+              <Text style={[styles.sourceText, { color: colors.textSecondary }]}>
+                {currentSource}
+              </Text>
+            )}
             <View style={[styles.progressBar, { backgroundColor: colors.buttonBackground }]}>
               <View
                 style={[
@@ -301,26 +274,7 @@ export function DataManagementScreen() {
 
         {/* Actions */}
         <View style={styles.actionsContainer}>
-          {/* Test Data Button */}
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              { backgroundColor: '#10B981' },
-              importing && styles.actionButtonDisabled,
-            ]}
-            onPress={handleLoadTestData}
-            disabled={importing}
-          >
-            {importing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.actionButtonText}>
-                🚇 Charger données test (Métro Paris)
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Real GTFS Import Button */}
+          {/* Download İzmir Data */}
           <TouchableOpacity
             style={[
               styles.actionButton,
@@ -334,26 +288,32 @@ export function DataManagementScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.actionButtonText}>
-                {isLoaded ? t('data.updateData') : t('data.importRealData')}
+                {isLoaded
+                  ? (i18n.language === 'tr' ? '🔄 Verileri Güncelle' : '🔄 Update Data')
+                  : (i18n.language === 'tr' ? '📥 İzmir Verilerini İndir' : '📥 Download İzmir Data')}
               </Text>
             )}
           </TouchableOpacity>
 
           {isLoaded && !importing && (
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.error || '#DC2626' }]}
+              style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
               onPress={handleClearData}
             >
-              <Text style={styles.actionButtonText}>{t('data.clearData')}</Text>
+              <Text style={styles.actionButtonText}>
+                {i18n.language === 'tr' ? '🗑️ Verileri Sil' : '🗑️ Clear Data'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* Info */}
         <View style={[styles.infoCard, { backgroundColor: colors.buttonBackground }]}>
-          <Text style={[styles.infoIcon]}>ℹ️</Text>
+          <Text style={styles.infoIcon}>ℹ️</Text>
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            {t('data.infoMessage')}
+            {i18n.language === 'tr'
+              ? 'Veriler ESHOT, Metro İzmir ve İZBAN\'dan indirilir. İlk indirme birkaç dakika sürebilir.'
+              : 'Data is downloaded from ESHOT, Metro İzmir, and İZBAN. First download may take a few minutes.'}
           </Text>
         </View>
       </ScrollView>
@@ -373,6 +333,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerCard: {
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
   card: {
     borderRadius: 12,
     padding: 16,
@@ -387,6 +363,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  sourceText: {
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   statusRow: {
     flexDirection: 'row',
