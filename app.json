@@ -1,27 +1,32 @@
 {
   "expo": {
-    "name": "transit-app",
-    "slug": "transit-app",
+    "name": "İzmir Metro & Otobüs",
+    "slug": "izmir-metro-otobus",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "backgroundColor": "#ffffff",
+      "backgroundColor": "#0D47A1",
       "resizeMode": "contain"
     },
+    "scheme": "izmir-transit",
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.izmir.metro.otobus",
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Cette application utilise votre position pour trouver les arrêts de transport à proximité et calculer des itinéraires depuis votre position actuelle.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cette application utilise votre position pour trouver les arrêts de transport à proximité et calculer des itinéraires depuis votre position actuelle."
+        "CFBundleDisplayName": "İzmir Metro",
+        "NSLocationWhenInUseUsageDescription": "Bu uygulama, yakındaki ulaşım duraklarını bulmak ve mevcut konumunuzdan güzergahları hesaplamak için konumunuzu kullanır.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Bu uygulama, yakındaki ulaşım duraklarını bulmak ve mevcut konumunuzdan güzergahları hesaplamak için konumunuzu kullanır."
       }
     },
     "android": {
+      "package": "com.izmir.metro.otobus",
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0D47A1",
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",

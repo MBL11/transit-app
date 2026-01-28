@@ -9,13 +9,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Transit colors (restent les mêmes en light/dark)
+        // Transit colors - İzmir official colors
         transit: {
-          primary: '#0066CC',
-          metro: '#003366',
-          bus: '#00AA55',
-          tram: '#CC0000',
-          rer: '#7B68EE',
+          primary: '#E30613',     // İzmir Metro Red
+          secondary: '#0066CC',   // Blue
+          metro: '#E30613',       // Metro - Red
+          bus: '#0066CC',         // ESHOT Bus - Blue
+          tram: '#FF6600',        // Tramway - Orange
+          izban: '#00A651',       // İzBAN - Green
+          ferry: '#003366',       // Vapur - Dark Blue
           alert: '#FF6600',
         },
         // Semantic colors pour light/dark

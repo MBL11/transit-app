@@ -358,9 +358,14 @@ export function MapScreen({ navigation }: Props) {
           onRegionChangeComplete={handleRegionChangeComplete}
         />
 
-        {/* Floating Header */}
+        {/* Floating Header - İzmir Branding */}
         <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
-          <Text style={styles.headerTitle}>{t('tabs.map')}</Text>
+          <View style={styles.headerContent}>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoText}>İZMİR</Text>
+            </View>
+            <Text style={styles.headerTitle}>{t('tabs.map')}</Text>
+          </View>
         </View>
 
         {/* Offline Banner */}
@@ -485,25 +490,40 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#E30613', // İzmir Metro Red
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
     zIndex: 1,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  logoText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#E30613',
+    letterSpacing: 1,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
   },
   offlineBannerContainer: {
     position: 'absolute',
@@ -555,7 +575,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   importButton: {
-    backgroundColor: '#0066CC',
+    backgroundColor: '#E30613', // İzmir Metro Red
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
@@ -587,7 +607,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   dataManagementLinkText: {
-    color: '#0066CC',
+    color: '#E30613', // İzmir Metro Red
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -601,7 +621,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#0066CC',
+    backgroundColor: '#0066CC', // ESHOT Blue
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -681,7 +701,7 @@ const styles = StyleSheet.create({
   locationPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0066CC',
+    backgroundColor: '#00A651', // İZBAN Green
     borderRadius: 12,
     padding: 12,
     shadowColor: '#000',
@@ -717,7 +737,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   locationPromptButtonText: {
-    color: '#0066CC',
+    color: '#00A651', // İZBAN Green
     fontSize: 13,
     fontWeight: 'bold',
   },
