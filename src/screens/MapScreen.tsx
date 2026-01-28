@@ -53,6 +53,7 @@ export function MapScreen({ navigation }: Props) {
   const [stopsError, setStopsError] = useState<Error | null>(null);
   const [importing, setImporting] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [hasDataInDb, setHasDataInDb] = useState<boolean | null>(null); // null = unknown, true = has data, false = empty
 
   // Track current map center for loading stops
   const currentRegionRef = useRef<Region | null>(null);

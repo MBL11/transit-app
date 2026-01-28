@@ -19,16 +19,35 @@ import type { LinesStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<LinesStackParamList, 'LinesList'>;
 
-type TransitType = 'all' | 'metro' | 'bus' | 'tram' | 'rer';
+type TransitType = 'all' | 'metro' | 'bus' | 'tram' | 'izban' | 'ferry';
 
-// Map GTFS route types to our types
-const getTransitType = (gtfsType: number): 'metro' | 'bus' | 'tram' | 'rer' | 'train' => {
+// Map GTFS route types and names to our types (İzmir)
+// Uses both route_type and route name patterns for better detection
+const getTransitType = (gtfsType: number, shortName?: string, longName?: string): TransitType => {
+  const name = ((shortName || '') + ' ' + (longName || '')).toUpperCase();
+
+  // Detect by name patterns first (more reliable for İzmir)
+  if (name.includes('METRO') || /^M\d/.test(shortName?.toUpperCase() || '')) {
+    return 'metro';
+  }
+  if (name.includes('İZBAN') || name.includes('IZBAN')) {
+    return 'izban';
+  }
+  if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/.test(shortName?.toUpperCase() || '')) {
+    return 'tram';
+  }
+  if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('FERRY') || name.includes('İZDENİZ')) {
+    return 'ferry';
+  }
+
+  // Fallback to GTFS route_type
   switch (gtfsType) {
     case 0: return 'tram';
     case 1: return 'metro';
-    case 2: return 'rer';
+    case 2: return 'izban'; // İZBAN commuter rail
     case 3: return 'bus';
-    default: return 'train';
+    case 4: return 'ferry'; // İzdeniz ferry
+    default: return 'bus';
   }
 };
 
@@ -52,9 +71,10 @@ export function LinesScreen() {
   const typeLabels: Record<TransitType, string> = {
     all: t('transit.allTypes'),
     metro: t('transit.metro'),
-    bus: t('transit.bus'),
     tram: t('transit.tram'),
-    rer: t('transit.rer'),
+    izban: t('transit.izban', { defaultValue: 'İZBAN' }),
+    ferry: t('transit.ferry', { defaultValue: 'Vapur' }),
+    bus: t('transit.bus'),
   };
 
   // Filter routes by type AND search query
@@ -64,7 +84,7 @@ export function LinesScreen() {
     // Filter by type
     if (selectedType !== 'all') {
       filtered = filtered.filter(route => {
-        const type = getTransitType(route.type);
+        const type = getTransitType(route.type, route.shortName, route.longName);
         return type === selectedType;
       });
     }
@@ -73,8 +93,8 @@ export function LinesScreen() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(route => {
-        const matchesNumber = route.shortName.toLowerCase().includes(query);
-        const matchesName = route.longName.toLowerCase().includes(query);
+        const matchesNumber = (route.shortName || '').toLowerCase().includes(query);
+        const matchesName = (route.longName || '').toLowerCase().includes(query);
         return matchesNumber || matchesName;
       });
     }
@@ -96,15 +116,22 @@ export function LinesScreen() {
     navigation.navigate('LineDetails', { routeId: route.id });
   }, [navigation]);
 
-  const renderItem = useCallback(({ item }: { item: Route }) => (
-    <LineCard
-      lineNumber={item.shortName}
-      lineName={item.longName}
-      lineColor={item.color || '#FF6600'}
-      type={getTransitType(item.type)}
-      onPress={() => handleLinePress(item)}
-    />
-  ), [handleLinePress]);
+  const renderItem = useCallback(({ item }: { item: Route }) => {
+    // Map İzmir types to LineBadge types
+    const transitType = getTransitType(item.type, item.shortName, item.longName);
+    // Map İzmir-specific types to LineBadge types (rer = İZBAN, train = ferry)
+    const badgeType = transitType === 'izban' ? 'rer' : transitType === 'ferry' ? 'train' : transitType;
+
+    return (
+      <LineCard
+        lineNumber={item.shortName || item.id}
+        lineName={item.longName}
+        lineColor={item.color || '#0066CC'}
+        type={badgeType as any}
+        onPress={() => handleLinePress(item)}
+      />
+    );
+  }, [handleLinePress]);
 
   const keyExtractor = useCallback((item: Route) => item.id, []);
 

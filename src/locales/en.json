@@ -58,6 +58,8 @@
     "metro": "Metro",
     "bus": "Bus",
     "tram": "Tram",
+    "izban": "İZBAN",
+    "ferry": "Ferry",
     "rer": "Train",
     "train": "Train",
     "noctilien": "Night Bus",
