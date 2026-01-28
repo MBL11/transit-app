@@ -1,6 +1,7 @@
 /**
  * Splash Screen
  * Loading screen shown while app initializes
+ * Theme: İzmir - Aegean Sea & Turkish colors
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -14,37 +15,33 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
-// Metro line colors (Paris)
-const METRO_COLORS = [
-  '#FFCD00', // Line 1
-  '#003CA6', // Line 2
-  '#837902', // Line 3
-  '#CF009E', // Line 4
-  '#FF7E2E', // Line 5
-  '#6ECA97', // Line 6
-  '#FA9ABA', // Line 7
-  '#E19BDF', // Line 8
-  '#B6BD00', // Line 9
-  '#C9910D', // Line 10
-  '#704B1C', // Line 11
-  '#007852', // Line 12
-  '#6EC4E8', // Line 13
-  '#62259D', // Line 14
+// Transit colors - İzmir/Turkish theme (Aegean blue, Turkish red, white)
+const TRANSIT_COLORS = [
+  '#E30A17', // Turkish red
+  '#1E5AAF', // Aegean blue
+  '#FFFFFF', // White
+  '#E30A17', // Turkish red
+  '#2196F3', // Light blue (sea)
+  '#1E5AAF', // Aegean blue
+  '#E30A17', // Turkish red
+  '#00ACC1', // Cyan (Aegean coast)
+  '#1E5AAF', // Aegean blue
+  '#FFFFFF', // White
 ];
 
 interface Props {
   onReady?: () => void;
 }
 
-// Animated metro line component
-function MetroLine({
+// Animated transit line component
+function TransitLine({
   color,
-  startX,
+  startY,
   delay,
   duration
 }: {
   color: string;
-  startX: number;
+  startY: number;
   delay: number;
   duration: number;
 }) {
@@ -57,7 +54,7 @@ function MetroLine({
         Animated.delay(delay),
         Animated.parallel([
           Animated.timing(opacity, {
-            toValue: 0.15,
+            toValue: 0.2,
             duration: 200,
             useNativeDriver: true,
           }),
@@ -86,10 +83,10 @@ function MetroLine({
   return (
     <Animated.View
       style={[
-        styles.metroLine,
+        styles.transitLine,
         {
           backgroundColor: color,
-          top: startX,
+          top: startY,
           opacity,
           transform: [{ translateX }],
         },
@@ -103,6 +100,7 @@ export function SplashScreen({ onReady }: Props) {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const waveAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Animate logo entrance
@@ -125,12 +123,12 @@ export function SplashScreen({ onReady }: Props) {
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.05,
-          duration: 1000,
+          duration: 1200,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 1000,
+          duration: 1200,
           useNativeDriver: true,
         }),
       ])
@@ -151,29 +149,45 @@ export function SplashScreen({ onReady }: Props) {
         }),
       ])
     ).start();
+
+    // Wave animation for Aegean theme
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(waveAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(waveAnim, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, []);
 
-  // Generate metro lines at different positions
-  const metroLines = METRO_COLORS.map((color, index) => ({
+  // Generate transit lines at different positions
+  const transitLines = TRANSIT_COLORS.map((color, index) => ({
     color,
-    startX: (height / METRO_COLORS.length) * index + 20,
-    delay: index * 400,
-    duration: 3000 + Math.random() * 2000,
+    startY: (height / TRANSIT_COLORS.length) * index + 30,
+    delay: index * 350,
+    duration: 2500 + Math.random() * 1500,
   }));
 
   return (
     <View style={styles.container}>
-      {/* Gradient background layers */}
+      {/* Gradient background - Aegean sea theme */}
       <View style={styles.gradientLayer1} />
       <View style={styles.gradientLayer2} />
       <View style={styles.gradientLayer3} />
 
-      {/* Animated metro lines in background */}
-      {metroLines.map((line, index) => (
-        <MetroLine
+      {/* Animated transit lines in background */}
+      {transitLines.map((line, index) => (
+        <TransitLine
           key={index}
           color={line.color}
-          startX={line.startX}
+          startY={line.startY}
           delay={line.delay}
           duration={line.duration}
         />
@@ -191,15 +205,15 @@ export function SplashScreen({ onReady }: Props) {
           },
         ]}
       >
-        {/* Metro Logo */}
+        {/* İzmir Metro style logo */}
         <View style={styles.logoOuter}>
           <View style={styles.logoInner}>
-            <Text style={styles.logoM}>M</Text>
+            <Text style={styles.logoIcon}>İ</Text>
           </View>
         </View>
 
         <Text style={styles.appName}>Transit</Text>
-        <Text style={styles.cityName}>Votre compagnon de transport</Text>
+        <Text style={styles.cityName}>İZMİR</Text>
       </Animated.View>
 
       {/* Loading section */}
@@ -218,12 +232,12 @@ export function SplashScreen({ onReady }: Props) {
             ]}
           />
         </View>
-        <Text style={styles.loadingText}>Chargement des données...</Text>
+        <Text style={styles.loadingText}>Veriler yükleniyor...</Text>
       </View>
 
       {/* Footer */}
       <View style={styles.footer}>
-        <Text style={styles.poweredBy}>Données GTFS</Text>
+        <Text style={styles.poweredBy}>ESHOT • Metro • İZBAN</Text>
         <Text style={styles.version}>v1.0.0</Text>
       </View>
     </View>
@@ -233,7 +247,7 @@ export function SplashScreen({ onReady }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#0D47A1',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -243,7 +257,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '40%',
-    backgroundColor: '#16213e',
+    backgroundColor: '#1565C0', // Lighter blue (sky)
   },
   gradientLayer2: {
     position: 'absolute',
@@ -251,7 +265,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '40%',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#0D47A1', // Aegean blue
   },
   gradientLayer3: {
     position: 'absolute',
@@ -259,9 +273,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '40%',
-    backgroundColor: '#0f3460',
+    backgroundColor: '#0A3D91', // Deep Aegean
   },
-  metroLine: {
+  transitLine: {
     position: 'absolute',
     left: 0,
     width: width * 0.5,
@@ -276,11 +290,11 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: 65,
-    backgroundColor: '#FFCD00',
+    backgroundColor: '#E30A17', // Turkish red
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#FFCD00',
+    shadowColor: '#E30A17',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -290,16 +304,16 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: '#003CA6',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#FFFFFF',
+    borderColor: '#E30A17',
   },
-  logoM: {
-    fontSize: 60,
+  logoIcon: {
+    fontSize: 58,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#E30A17',
     letterSpacing: -2,
   },
   appName: {
@@ -310,10 +324,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cityName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255, 205, 0, 0.9)',
-    letterSpacing: 3,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 8,
     textTransform: 'uppercase',
   },
   loadingContainer: {
@@ -326,19 +340,19 @@ const styles = StyleSheet.create({
   progressBarContainer: {
     width: '100%',
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 2,
     overflow: 'hidden',
     marginBottom: 16,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#FFCD00',
+    backgroundColor: '#E30A17', // Turkish red
     borderRadius: 2,
   },
   loadingText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.7)',
     letterSpacing: 1,
   },
   footer: {
@@ -348,12 +362,12 @@ const styles = StyleSheet.create({
   },
   poweredBy: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: 'rgba(255, 255, 255, 0.5)',
     marginBottom: 4,
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   version: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.3)',
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 });
