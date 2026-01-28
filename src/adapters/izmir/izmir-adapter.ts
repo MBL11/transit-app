@@ -1,7 +1,7 @@
 /**
  * Izmir Transit Adapter
- * Implements the TransitAdapter interface for Izmir (ESHOT, Metro, IZBAN)
- * Uses Transitland API for data - no local GTFS download needed
+ * Implements the TransitAdapter interface for Izmir (Metro, Tram, İZBAN, Ferry)
+ * Uses local SQLite database populated from official İzmir GTFS feeds
  */
 
 import type {
@@ -12,30 +12,17 @@ import type {
   DataSource,
 } from '../../core/types/adapter';
 import type { Stop, Route, Trip, StopTime } from '../../core/types/models';
+import * as db from '../../core/database';
 import { izmirConfig, izmirDataSources } from './config';
-import * as transitland from '../../services/transitland-api';
-
-// Cache for API responses
-interface Cache<T> {
-  data: T | null;
-  timestamp: number;
-  ttl: number;
-}
-
-const CACHE_TTL = {
-  stops: 5 * 60 * 1000,      // 5 minutes
-  routes: 10 * 60 * 1000,    // 10 minutes
-  departures: 30 * 1000,     // 30 seconds
-};
+import { runMigrations } from '../../core/database-migration';
 
 /**
- * Izmir adapter implementation using Transitland API
+ * Izmir adapter implementation
+ * Loads data from the local SQLite database populated with Izmir GTFS data
  */
 export class IzmirAdapter implements TransitAdapter {
   private lastUpdateTime: Date;
-  private stopsCache: Cache<Stop[]> = { data: null, timestamp: 0, ttl: CACHE_TTL.stops };
-  private routesCache: Cache<Route[]> = { data: null, timestamp: 0, ttl: CACHE_TTL.routes };
-  private nearbyStopsCache: Map<string, Cache<Stop[]>> = new Map();
+  private initialized: boolean = false;
 
   constructor() {
     this.lastUpdateTime = new Date();
@@ -52,232 +39,198 @@ export class IzmirAdapter implements TransitAdapter {
    * Initialize the adapter
    */
   async initialize(): Promise<void> {
-    console.log('[IzmirAdapter] Initializing with Transitland API...');
-    this.lastUpdateTime = new Date();
-    console.log('[IzmirAdapter] ✅ Initialized successfully (using Transitland API)');
-  }
-
-  /**
-   * Check if cache is valid
-   */
-  private isCacheValid<T>(cache: Cache<T>): boolean {
-    return cache.data !== null && (Date.now() - cache.timestamp) < cache.ttl;
-  }
-
-  /**
-   * Load all stops from Transitland API
-   */
-  async loadStops(): Promise<Stop[]> {
-    console.log('[IzmirAdapter] Loading stops from Transitland...');
-
-    // Check cache
-    if (this.isCacheValid(this.stopsCache)) {
-      console.log('[IzmirAdapter] ✅ Returning cached stops');
-      return this.stopsCache.data!;
+    if (this.initialized) {
+      console.log('[IzmirAdapter] Already initialized');
+      return;
     }
 
+    console.log('[IzmirAdapter] Initializing...');
     try {
-      const transitlandStops = await transitland.getStopsInBbox();
-      const stops: Stop[] = transitlandStops.map(s => ({
-        id: s.onestop_id,
-        name: s.stop_name,
-        lat: s.geometry.coordinates[1],
-        lon: s.geometry.coordinates[0],
-        locationType: s.location_type || 0,
-        parentStation: s.parent?.stop_id || null,
-      }));
+      const database = db.openDatabase();
+      await runMigrations(database);
+      this.lastUpdateTime = new Date();
+      this.initialized = true;
+      console.log('[IzmirAdapter] ✅ Initialized successfully');
+    } catch (error) {
+      console.error('[IzmirAdapter] ❌ Initialization failed:', error);
+      throw error;
+    }
+  }
 
-      // Update cache
-      this.stopsCache = { data: stops, timestamp: Date.now(), ttl: CACHE_TTL.stops };
-
-      console.log(`[IzmirAdapter] ✅ Loaded ${stops.length} stops from Transitland`);
+  /**
+   * Load all stops from database
+   */
+  async loadStops(): Promise<Stop[]> {
+    console.log('[IzmirAdapter] Loading stops...');
+    try {
+      const stops = await db.getAllStops();
+      console.log(`[IzmirAdapter] ✅ Loaded ${stops.length} stops`);
       return stops;
     } catch (error) {
       console.error('[IzmirAdapter] ❌ Failed to load stops:', error);
-      // Return cached data if available, even if stale
-      if (this.stopsCache.data) {
-        console.log('[IzmirAdapter] Returning stale cached stops');
-        return this.stopsCache.data;
-      }
-      throw new Error('Failed to load stops from Transitland');
+      return [];
     }
   }
 
   /**
-   * Load all routes from Transitland API
+   * Load all routes from database
    */
   async loadRoutes(): Promise<Route[]> {
-    console.log('[IzmirAdapter] Loading routes from Transitland...');
-
-    // Check cache
-    if (this.isCacheValid(this.routesCache)) {
-      console.log('[IzmirAdapter] ✅ Returning cached routes');
-      return this.routesCache.data!;
-    }
-
+    console.log('[IzmirAdapter] Loading routes...');
     try {
-      const transitlandRoutes = await transitland.getIzmirRoutes();
-      const routes: Route[] = transitlandRoutes.map(r => ({
-        id: r.onestop_id,
-        shortName: r.route_short_name || '',
-        longName: r.route_long_name || '',
-        type: r.route_type,
-        color: r.route_color || null,
-        textColor: r.route_text_color || null,
-      }));
-
-      // Update cache
-      this.routesCache = { data: routes, timestamp: Date.now(), ttl: CACHE_TTL.routes };
-
-      console.log(`[IzmirAdapter] ✅ Loaded ${routes.length} routes from Transitland`);
+      const routes = await db.getAllRoutes();
+      console.log(`[IzmirAdapter] ✅ Loaded ${routes.length} routes`);
       return routes;
     } catch (error) {
       console.error('[IzmirAdapter] ❌ Failed to load routes:', error);
-      if (this.routesCache.data) {
-        console.log('[IzmirAdapter] Returning stale cached routes');
-        return this.routesCache.data;
-      }
-      throw new Error('Failed to load routes from Transitland');
+      return [];
     }
   }
 
   /**
-   * Load trips - not fully supported via Transitland REST API
-   * Returns empty array (trips are fetched on-demand with departures)
+   * Load all trips from database
    */
   async loadTrips(): Promise<Trip[]> {
-    console.log('[IzmirAdapter] Trips loaded on-demand via departures API');
-    return [];
+    console.log('[IzmirAdapter] Loading trips...');
+    try {
+      const database = db.openDatabase();
+      const rows = database.getAllSync<any>('SELECT * FROM trips');
+
+      const trips: Trip[] = rows.map((row) => ({
+        id: row.id,
+        routeId: row.route_id,
+        serviceId: row.service_id,
+        headsign: row.headsign,
+        directionId: row.direction_id,
+        shapeId: row.shape_id,
+      }));
+
+      console.log(`[IzmirAdapter] ✅ Loaded ${trips.length} trips`);
+      return trips;
+    } catch (error) {
+      console.error('[IzmirAdapter] ❌ Failed to load trips:', error);
+      return [];
+    }
   }
 
   /**
-   * Load stop times - not supported via Transitland REST API
-   * Returns empty array (stop times are fetched on-demand with departures)
+   * Load all stop times from database
    */
   async loadStopTimes(): Promise<StopTime[]> {
-    console.log('[IzmirAdapter] Stop times loaded on-demand via departures API');
-    return [];
+    console.log('[IzmirAdapter] Loading stop times...');
+    try {
+      const database = db.openDatabase();
+      const rows = database.getAllSync<any>('SELECT * FROM stop_times LIMIT 100000');
+
+      const stopTimes: StopTime[] = rows.map((row) => ({
+        tripId: row.trip_id,
+        arrivalTime: row.arrival_time,
+        departureTime: row.departure_time,
+        stopId: row.stop_id,
+        stopSequence: row.stop_sequence,
+      }));
+
+      console.log(`[IzmirAdapter] ✅ Loaded ${stopTimes.length} stop times`);
+      return stopTimes;
+    } catch (error) {
+      console.error('[IzmirAdapter] ❌ Failed to load stop times:', error);
+      return [];
+    }
   }
 
   /**
    * Get stop by ID
    */
   async getStopById(stopId: string): Promise<Stop | null> {
-    const stops = await this.loadStops();
-    return stops.find(s => s.id === stopId) || null;
+    return db.getStopById(stopId);
   }
 
   /**
    * Get route by ID
    */
   async getRouteById(routeId: string): Promise<Route | null> {
-    const routes = await this.loadRoutes();
-    return routes.find(r => r.id === routeId) || null;
+    return db.getRouteById(routeId);
   }
 
   /**
    * Search stops by name
    */
   async searchStops(query: string, limit: number = 20): Promise<Stop[]> {
-    if (!query || query.length < 2) return [];
-
-    try {
-      const transitlandStops = await transitland.searchStops(query);
-      return transitlandStops.slice(0, limit).map(s => ({
-        id: s.onestop_id,
-        name: s.stop_name,
-        lat: s.geometry.coordinates[1],
-        lon: s.geometry.coordinates[0],
-        locationType: s.location_type || 0,
-        parentStation: s.parent?.stop_id || null,
-      }));
-    } catch (error) {
-      console.error('[IzmirAdapter] Search stops failed:', error);
-      // Fallback to cached stops
-      const stops = this.stopsCache.data || [];
-      const queryLower = query.toLowerCase();
-      return stops.filter(s => s.name.toLowerCase().includes(queryLower)).slice(0, limit);
-    }
+    return db.searchStops(query, limit);
   }
 
   /**
    * Search routes by name
    */
   async searchRoutes(query: string, limit: number = 20): Promise<Route[]> {
-    if (!query) return [];
-
-    try {
-      const transitlandRoutes = await transitland.searchRoutes(query);
-      return transitlandRoutes.slice(0, limit).map(r => ({
-        id: r.onestop_id,
-        shortName: r.route_short_name || '',
-        longName: r.route_long_name || '',
-        type: r.route_type,
-        color: r.route_color || null,
-        textColor: r.route_text_color || null,
-      }));
-    } catch (error) {
-      console.error('[IzmirAdapter] Search routes failed:', error);
-      const routes = this.routesCache.data || [];
-      const queryLower = query.toLowerCase();
-      return routes.filter(r =>
-        r.shortName.toLowerCase().includes(queryLower) ||
-        r.longName.toLowerCase().includes(queryLower)
-      ).slice(0, limit);
-    }
+    return db.searchRoutes(query, limit);
   }
 
   /**
    * Get routes serving a stop
    */
   async getRoutesForStop(stopId: string): Promise<Route[]> {
-    // For now, return all routes (Transitland REST doesn't have direct stop->routes endpoint)
-    // TODO: Use GraphQL API for more precise queries
-    const routes = await this.loadRoutes();
-    return routes;
+    return db.getRoutesByStopId(stopId);
   }
 
   /**
    * Get stops along a route
    */
   async getStopsForRoute(routeId: string): Promise<Stop[]> {
-    // For now, return all stops (Transitland REST doesn't have direct route->stops endpoint)
-    // TODO: Use GraphQL API for more precise queries
-    const stops = await this.loadStops();
-    return stops;
+    try {
+      const database = db.openDatabase();
+      // Get distinct stops for this route via trips and stop_times
+      const query = `
+        SELECT DISTINCT s.*
+        FROM stops s
+        JOIN stop_times st ON s.id = st.stop_id
+        JOIN trips t ON st.trip_id = t.id
+        WHERE t.route_id = ?
+        ORDER BY st.stop_sequence
+      `;
+      const rows = database.getAllSync<any>(query, [routeId]);
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        lat: row.lat,
+        lon: row.lon,
+        locationType: row.location_type || 0,
+        parentStation: row.parent_station || null,
+      }));
+    } catch (error) {
+      console.error('[IzmirAdapter] getStopsForRoute failed:', error);
+      return [];
+    }
   }
 
   /**
-   * Get nearby stops using Transitland API
+   * Get nearby stops
    */
   async getNearbyStops(lat: number, lon: number, radiusMeters: number = 500): Promise<Stop[]> {
-    const cacheKey = `${lat.toFixed(3)}_${lon.toFixed(3)}_${radiusMeters}`;
-
-    // Check cache
-    const cached = this.nearbyStopsCache.get(cacheKey);
-    if (cached && this.isCacheValid(cached)) {
-      return cached.data!;
-    }
-
     try {
-      const transitlandStops = await transitland.getNearbyStops(lat, lon, radiusMeters);
-      const stops: Stop[] = transitlandStops.map(s => ({
-        id: s.onestop_id,
-        name: s.stop_name,
-        lat: s.geometry.coordinates[1],
-        lon: s.geometry.coordinates[0],
-        locationType: s.location_type || 0,
-        parentStation: s.parent?.stop_id || null,
+      // Simple bounding box search (approximate)
+      const latDelta = radiusMeters / 111000; // ~111km per degree
+      const lonDelta = radiusMeters / (111000 * Math.cos(lat * Math.PI / 180));
+
+      const database = db.openDatabase();
+      const query = `
+        SELECT * FROM stops
+        WHERE lat BETWEEN ? AND ?
+        AND lon BETWEEN ? AND ?
+      `;
+      const rows = database.getAllSync<any>(query, [
+        lat - latDelta, lat + latDelta,
+        lon - lonDelta, lon + lonDelta
+      ]);
+
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        lat: row.lat,
+        lon: row.lon,
+        locationType: row.location_type || 0,
+        parentStation: row.parent_station || null,
       }));
-
-      // Update cache
-      this.nearbyStopsCache.set(cacheKey, {
-        data: stops,
-        timestamp: Date.now(),
-        ttl: CACHE_TTL.stops,
-      });
-
-      return stops;
     } catch (error) {
       console.error('[IzmirAdapter] getNearbyStops failed:', error);
       return [];
@@ -285,37 +238,74 @@ export class IzmirAdapter implements TransitAdapter {
   }
 
   /**
-   * Get next departures for a stop using Transitland API
+   * Get next departures for a stop
+   * Uses theoretical schedules from GTFS static data
    */
   async getNextDepartures(stopId: string, useRealtime: boolean = true): Promise<NextDeparture[]> {
     console.log(`[IzmirAdapter] Getting departures for stop ${stopId}`);
+    return this.getTheoreticalDepartures(stopId);
+  }
 
+  /**
+   * Get theoretical departures from GTFS static data
+   */
+  private async getTheoreticalDepartures(stopId: string): Promise<NextDeparture[]> {
     try {
-      const departures = await transitland.getDepartures(stopId, 20);
+      const database = db.openDatabase();
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
 
-      return departures.map(d => {
-        const converted = transitland.convertDeparture(d);
+      const query = `
+        SELECT
+          st.trip_id,
+          st.departure_time,
+          t.headsign,
+          r.id as route_id,
+          r.short_name as route_short_name,
+          r.color as route_color
+        FROM stop_times st
+        JOIN trips t ON st.trip_id = t.id
+        JOIN routes r ON t.route_id = r.id
+        WHERE st.stop_id = ?
+          AND st.departure_time >= ?
+        ORDER BY st.departure_time
+        LIMIT 10
+      `;
+
+      const rows = database.getAllSync<any>(query, [stopId, currentTime]);
+
+      return rows.map((row) => {
+        const [hours, minutes] = row.departure_time.split(':').map(Number);
+        const departureTime = new Date(now);
+        departureTime.setHours(hours, minutes, 0, 0);
+
+        // Handle times after midnight (e.g., 25:30:00)
+        if (hours >= 24) {
+          departureTime.setDate(departureTime.getDate() + 1);
+          departureTime.setHours(hours - 24, minutes, 0, 0);
+        }
+
         return {
-          tripId: converted.tripId,
-          routeId: converted.routeId,
-          routeShortName: converted.routeShortName,
-          routeColor: converted.routeColor,
-          headsign: converted.headsign,
-          departureTime: converted.departureTime,
-          scheduledTime: converted.departureTime,
+          tripId: row.trip_id,
+          routeId: row.route_id,
+          routeShortName: row.route_short_name || '',
+          routeColor: row.route_color,
+          headsign: row.headsign || '',
+          departureTime,
+          scheduledTime: departureTime,
           isRealtime: false,
           delay: 0,
         };
       });
     } catch (error) {
-      console.error('[IzmirAdapter] Error getting departures:', error);
+      console.error('[IzmirAdapter] Error getting theoretical departures:', error);
       return [];
     }
   }
 
   /**
    * Get service alerts
-   * Transitland doesn't provide alerts via REST API
+   * Currently returns empty array (no alerts API for Izmir yet)
    */
   async getAlerts(): Promise<Alert[]> {
     return [];

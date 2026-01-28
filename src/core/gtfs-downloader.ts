@@ -8,28 +8,45 @@ import JSZip from 'jszip';
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
 
-// Available GTFS sources
+// Available GTFS sources - İzmir official open data
+// Source: https://acikveri.bizizmir.com/en/dataset/toplu-ulasim-gtfs-verileri
 export const GTFS_SOURCES = {
-  // İzmir sources
-  ESHOT: {
-    name: 'ESHOT (İzmir Otobüs)',
-    url: 'https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip',
-    size: '~50MB',
-  },
+  // İzmir Rail & Ferry sources (all working)
   METRO_IZMIR: {
     name: 'Metro İzmir',
     url: 'https://www.izmirmetro.com.tr/gtfs/rail-metro-gtfs.zip',
-    size: '~5MB',
+    size: '130 KB',
+    type: 'metro',
+  },
+  TRAM_IZMIR: {
+    name: 'Tramvay İzmir',
+    url: 'https://www.tramizmir.com/gtfs/rail-tramizmir-gtfs.zip',
+    size: '172 KB',
+    type: 'tram',
   },
   IZBAN: {
     name: 'İZBAN (Banliyö Treni)',
     url: 'https://www.izban.com.tr/gtfs/rail-izban-gtfs.zip',
-    size: '~5MB',
+    size: '40 KB',
+    type: 'rail',
   },
+  IZDENIZ: {
+    name: 'İzdeniz (Vapur/Ferry)',
+    url: 'https://www.izdeniz.com.tr/gtfs/ship-izdeniz-gtfs.zip',
+    size: '32 KB',
+    type: 'ferry',
+  },
+  // ESHOT bus - currently blocked (403), will add when available
+  // ESHOT: {
+  //   name: 'ESHOT (İzmir Otobüs)',
+  //   url: 'https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip',
+  //   size: '19 MB',
+  //   type: 'bus',
+  // },
 } as const;
 
-// İzmir sources list for combined download
-export const IZMIR_SOURCES: GTFSSourceKey[] = ['ESHOT', 'METRO_IZMIR', 'IZBAN'];
+// İzmir sources list for combined download (only working URLs)
+export const IZMIR_SOURCES: GTFSSourceKey[] = ['METRO_IZMIR', 'TRAM_IZMIR', 'IZBAN', 'IZDENIZ'];
 
 export type GTFSSourceKey = keyof typeof GTFS_SOURCES;
 

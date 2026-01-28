@@ -179,7 +179,7 @@ export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>İzmir Transit</Text>
-        <Text style={styles.subtitle}>ESHOT • Metro • İZBAN</Text>
+        <Text style={styles.subtitle}>Metro • Tram • İZBAN • Ferry</Text>
 
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>❌</Text>
@@ -203,7 +203,7 @@ export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>İzmir Transit</Text>
-        <Text style={styles.subtitle}>ESHOT • Metro • İZBAN</Text>
+        <Text style={styles.subtitle}>Metro • Tram • İZBAN • Ferry</Text>
 
         <View style={styles.successContainer}>
           <Text style={styles.successIcon}>✅</Text>
@@ -222,7 +222,7 @@ export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>İzmir Transit</Text>
-      <Text style={styles.subtitle}>ESHOT • Metro • İZBAN</Text>
+      <Text style={styles.subtitle}>Metro • Tram • İZBAN • Ferry</Text>
 
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 24 }} />
@@ -245,7 +245,7 @@ export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
 
       <View style={styles.sourceInfo}>
         <Text style={styles.sourceText}>
-          {i18n.language === 'tr' ? 'İlk yükleme biraz zaman alabilir' : 'First load may take a few minutes'}
+          {i18n.language === 'tr' ? 'Veriler yükleniyor (~375 KB)' : 'Loading data (~375 KB)'}
         </Text>
       </View>
     </View>
