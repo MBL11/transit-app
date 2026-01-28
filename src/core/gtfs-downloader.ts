@@ -209,7 +209,7 @@ export async function downloadAndImportGTFS(
 
     // Step 5: Clear existing data
     onProgress?.('clearing', 0);
-    db.clearAllData();
+    await db.clearAllData();
     onProgress?.('clearing', 1);
 
     // Step 6: Insert into database
@@ -274,7 +274,7 @@ export async function downloadAndImportAllIzmir(
   try {
     // Clear existing data before importing
     onProgress?.('clearing', 0);
-    db.clearAllData();
+    await db.clearAllData();
     onProgress?.('clearing', 1);
 
     for (let i = 0; i < IZMIR_SOURCES.length; i++) {

@@ -208,10 +208,15 @@ export function isDatabaseEmpty(): boolean {
 
 /**
  * Clear all GTFS data from database
+ * Creates tables first if they don't exist
  */
-export function clearAllData(): void {
-  const db = openDatabase();
+export async function clearAllData(): Promise<void> {
   console.log('[Database] Clearing all data...');
+
+  // First ensure tables exist
+  await initializeDatabase();
+
+  const db = openDatabase();
 
   try {
     db.execSync('BEGIN TRANSACTION;');
@@ -219,6 +224,7 @@ export function clearAllData(): void {
     db.execSync('DELETE FROM trips;');
     db.execSync('DELETE FROM routes;');
     db.execSync('DELETE FROM stops;');
+    db.execSync('DELETE FROM shapes;');
     db.execSync('COMMIT;');
     console.log('[Database] ✅ All data cleared');
   } catch (error) {
