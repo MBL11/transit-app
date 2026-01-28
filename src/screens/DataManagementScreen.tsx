@@ -70,8 +70,8 @@ export function DataManagementScreen() {
 
   const handleImportGTFS = async () => {
     const warningText = i18n.language === 'tr'
-      ? 'İzmir toplu taşıma verileri indirilecek (ESHOT, Metro, İZBAN).\n\nBu işlem internet bağlantısı gerektirir ve birkaç dakika sürebilir.\n\nDevam etmek istiyor musunuz?'
-      : 'İzmir transit data will be downloaded (ESHOT, Metro, İZBAN).\n\nThis requires an internet connection and may take a few minutes.\n\nContinue?';
+      ? 'İzmir toplu taşıma verileri indirilecek (ESHOT Otobüs, Metro, Tramvay, İZBAN, Vapur).\n\nBu işlem internet bağlantısı gerektirir ve birkaç dakika sürebilir.\n\nDevam etmek istiyor musunuz?'
+      : 'İzmir transit data will be downloaded (ESHOT Bus, Metro, Tram, İZBAN, Ferry).\n\nThis requires an internet connection and may take a few minutes.\n\nContinue?';
 
     Alert.alert(
       i18n.language === 'tr' ? 'Verileri İndir' : 'Download Data',
@@ -97,8 +97,8 @@ export function DataManagementScreen() {
               await markAsLoaded('İzmir');
 
               const successText = i18n.language === 'tr'
-                ? `Veriler başarıyla yüklendi!\n\nDurak: ${result.stops}\nHat: ${result.routes}\nSefer: ${result.trips}`
-                : `Data imported successfully!\n\nStops: ${result.stops}\nRoutes: ${result.routes}\nTrips: ${result.trips}`;
+                ? `Veriler başarıyla yüklendi!\n\nDurak: ${result.stops.toLocaleString()}\nHat: ${result.routes}\nSefer: ${result.trips.toLocaleString()}\nHareket: ${result.stopTimes.toLocaleString()}`
+                : `Data imported successfully!\n\nStops: ${result.stops.toLocaleString()}\nRoutes: ${result.routes}\nTrips: ${result.trips.toLocaleString()}\nStop Times: ${result.stopTimes.toLocaleString()}`;
 
               Alert.alert(t('common.success'), successText);
 
@@ -173,7 +173,7 @@ export function DataManagementScreen() {
         {/* Header */}
         <View style={[styles.headerCard, { backgroundColor: '#0D47A1' }]}>
           <Text style={styles.headerTitle}>İzmir Transit</Text>
-          <Text style={styles.headerSubtitle}>ESHOT • Metro • İZBAN</Text>
+          <Text style={styles.headerSubtitle}>ESHOT Otobüs • Metro • Tramvay • İZBAN • Vapur</Text>
         </View>
 
         {/* Current Data Status */}
@@ -312,8 +312,8 @@ export function DataManagementScreen() {
           <Text style={styles.infoIcon}>ℹ️</Text>
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             {i18n.language === 'tr'
-              ? 'Veriler ESHOT, Metro İzmir ve İZBAN\'dan indirilir. İlk indirme birkaç dakika sürebilir.'
-              : 'Data is downloaded from ESHOT, Metro İzmir, and İZBAN. First download may take a few minutes.'}
+              ? 'Veriler Metro, Tramvay, İZBAN, Vapur (GTFS) ve ESHOT Otobüs (açık veri portalı) kaynaklarından indirilir. İlk indirme birkaç dakika sürebilir.'
+              : 'Data is downloaded from Metro, Tram, İZBAN, Ferry (GTFS) and ESHOT Bus (open data portal). First download may take a few minutes.'}
           </Text>
         </View>
       </ScrollView>

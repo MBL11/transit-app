@@ -7,6 +7,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import JSZip from 'jszip';
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
+import { downloadAndImportEshot } from './eshot-data-fetcher';
 
 // Available GTFS sources - İzmir official open data
 // Source: https://acikveri.bizizmir.com/en/dataset/toplu-ulasim-gtfs-verileri
@@ -356,6 +357,28 @@ export async function downloadAndImportAllIzmir(
       totalStopTimes += parsedData.stopTimes.length;
 
       onProgress?.('importing', baseProgress + progressPerSource, sourceInfo.name);
+    }
+
+    // Import ESHOT bus data from open data portal
+    try {
+      console.log('[GTFSDownloader] Importing ESHOT bus data from open data portal...');
+      onProgress?.('downloading', 0.85, 'ESHOT Otobüs');
+
+      const eshotResult = await downloadAndImportEshot((stage, progress) => {
+        // Map ESHOT progress to the remaining 15% of total progress (0.85 → 1.0)
+        const mappedProgress = 0.85 + progress * 0.15;
+        onProgress?.(stage, mappedProgress, 'ESHOT Otobüs');
+      });
+
+      totalStops += eshotResult.stops;
+      totalRoutes += eshotResult.routes;
+      totalTrips += eshotResult.trips;
+      totalStopTimes += eshotResult.stopTimes;
+
+      console.log(`[GTFSDownloader] ✅ ESHOT bus data imported: ${eshotResult.stops} stops, ${eshotResult.routes} routes`);
+    } catch (eshotError) {
+      // ESHOT import failure is non-fatal - log and continue
+      console.warn('[GTFSDownloader] ⚠️ ESHOT bus import failed (non-fatal):', eshotError);
     }
 
     const result = {
