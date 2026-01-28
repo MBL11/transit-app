@@ -89,13 +89,16 @@ export function LinesScreen() {
       console.log(`[LinesScreen] Ferry (${byType.ferry.length}):`, byType.ferry.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
       console.log(`[LinesScreen] Bus (${byType.bus.length}):`, byType.bus.slice(0, 3).map(r => `${r.shortName}|${r.longName}|type=${r.type}`));
 
-      // Show routes with route_type=1 (should be metro)
-      const routeType1 = routes.filter(r => r.type === 1);
-      console.log(`[LinesScreen] Routes with route_type=1 (metro): ${routeType1.length}`, routeType1.map(r => `${r.shortName}|${r.longName}`));
-
-      // Show routes with route_type=2 (should be izban/rail)
-      const routeType2 = routes.filter(r => r.type === 2);
-      console.log(`[LinesScreen] Routes with route_type=2 (rail/izban): ${routeType2.length}`, routeType2.map(r => `${r.shortName}|${r.longName}`));
+      // Show ALL unique route_types in database
+      const typeMap = new Map<number, string[]>();
+      routes.forEach(r => {
+        if (!typeMap.has(r.type)) typeMap.set(r.type, []);
+        typeMap.get(r.type)!.push(r.shortName || r.id);
+      });
+      console.log(`[LinesScreen] ALL route_types in DB:`);
+      typeMap.forEach((names, type) => {
+        console.log(`  type=${type}: ${names.slice(0, 10).join(', ')} (${names.length} routes)`);
+      });
     }
   }, [routes]);
 
