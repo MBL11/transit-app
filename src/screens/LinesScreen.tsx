@@ -25,18 +25,28 @@ type TransitType = 'all' | 'metro' | 'bus' | 'tram' | 'izban' | 'ferry';
 // Uses both route_type and route name patterns for better detection
 const getTransitType = (gtfsType: number, shortName?: string, longName?: string): TransitType => {
   const name = ((shortName || '') + ' ' + (longName || '')).toUpperCase();
+  const shortUpper = (shortName || '').toUpperCase();
+
+  // Debug: log the first few routes to understand the data
+  if (shortName) {
+    console.log(`[LinesScreen] Route: shortName="${shortName}", longName="${longName}", type=${gtfsType}`);
+  }
 
   // Detect by name patterns first (more reliable for İzmir)
-  if (name.includes('METRO') || /^M\d/.test(shortName?.toUpperCase() || '')) {
+  // Metro: M1, M2, or contains "METRO"
+  if (name.includes('METRO') || /^M\d/i.test(shortUpper) || shortUpper === 'M1' || shortUpper === 'M2') {
     return 'metro';
   }
-  if (name.includes('İZBAN') || name.includes('IZBAN')) {
+  // İZBAN: contains İZBAN/IZBAN
+  if (name.includes('İZBAN') || name.includes('IZBAN') || shortUpper.includes('IZBAN')) {
     return 'izban';
   }
-  if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/.test(shortName?.toUpperCase() || '')) {
+  // Tram: T1, T2, or contains TRAM/TRAMVAY
+  if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) {
     return 'tram';
   }
-  if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('FERRY') || name.includes('İZDENİZ')) {
+  // Ferry: contains VAPUR, FERİ, FERRY, or İZDENİZ
+  if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('FERRY') || name.includes('İZDENİZ') || name.includes('IZDENIZ')) {
     return 'ferry';
   }
 
