@@ -23,7 +23,11 @@ const ESHOT_BUS_COLOR = '#FF6F00';
 const ESHOT_TEXT_COLOR = '#FFFFFF';
 
 // Maximum departures per route to keep database size manageable
-const MAX_DEPARTURES_PER_ROUTE = 10;
+// With ~73 stops/route avg, 5 departures * 2 directions * 73 stops * 428 routes ≈ 312K stop_times
+const MAX_DEPARTURES_PER_ROUTE = 5;
+
+// Maximum stops to link per route (some routes have 100+ stops, cap for performance)
+const MAX_STOPS_PER_ROUTE = 40;
 
 // ============================================================================
 // CKAN API Types
@@ -305,10 +309,12 @@ function convertToModels(
   for (const rawRoute of rawRoutes) {
     const routeNum = String(rawRoute.HAT_NO);
     const routeId = `bus_${rawRoute.HAT_NO}`;
-    const stopsOnRoute = routeStopsMap.get(routeNum) || [];
+    const allStopsOnRoute = routeStopsMap.get(routeNum) || [];
+    // Cap stops per route to limit stop_times volume
+    const stopsOnRoute = allStopsOnRoute.slice(0, MAX_STOPS_PER_ROUTE);
     const schedules = schedulesByRoute.get(rawRoute.HAT_NO) || [];
 
-    if (stopsOnRoute.length === 0 || schedules.length === 0) {
+    if (allStopsOnRoute.length === 0 || schedules.length === 0) {
       routesSkipped++;
       continue;
     }

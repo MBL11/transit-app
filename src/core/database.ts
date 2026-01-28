@@ -24,6 +24,9 @@ export async function initializeDatabase(): Promise<void> {
   console.log('[Database] Initializing database...');
 
   try {
+    // Enable WAL mode for concurrent reads during writes (prevents "database is locked" errors)
+    db.execSync('PRAGMA journal_mode=WAL;');
+
     // Create stops table
     db.execSync(`
       CREATE TABLE IF NOT EXISTS stops (
