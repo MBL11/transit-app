@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -14,46 +14,21 @@ import { LineCard } from '../components/transit/LineCard';
 import { SearchBar } from '../components/transit/SearchBar';
 import { useRoutes, usePagination } from '../hooks';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { detectTransitType } from '../utils/transport-detection';
+import type { TransitType } from '../utils/transport-detection';
 import type { Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<LinesStackParamList, 'LinesList'>;
 
-type TransitType = 'all' | 'metro' | 'bus' | 'tram' | 'izban' | 'ferry';
-
-// Map GTFS route types and names to our types (İzmir)
-// Uses BOTH route_type AND name patterns for best detection
-const getTransitType = (gtfsType: number, shortName?: string, longName?: string): TransitType => {
-  const name = ((shortName || '') + ' ' + (longName || '')).toUpperCase();
-  const shortUpper = (shortName || '').toUpperCase();
-
-  // 1. Metro: route_type=1 OR name patterns
-  if (gtfsType === 1 || name.includes('METRO') || /^M\d/i.test(shortUpper)) {
-    return 'metro';
-  }
-  // 2. İZBAN: route_type=2 OR name patterns
-  if (gtfsType === 2 || name.includes('İZBAN') || name.includes('IZBAN') || /^S\d/i.test(shortUpper)) {
-    return 'izban';
-  }
-  // 3. Tram: route_type=0 OR name patterns
-  if (gtfsType === 0 || name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) {
-    return 'tram';
-  }
-  // 4. Ferry: route_type=4 OR name patterns
-  if (gtfsType === 4 || name.includes('VAPUR') || name.includes('FERİ') || name.includes('FERRY') || name.includes('İZDENİZ') || name.includes('IZDENIZ')) {
-    return 'ferry';
-  }
-
-  // Default = bus
-  return 'bus';
-};
+type FilterType = 'all' | TransitType;
 
 export function LinesScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const navigation = useNavigation<NavigationProp>();
   const { routes, loading, error, refresh } = useRoutes();
-  const [selectedType, setSelectedType] = useState<TransitType>('all');
+  const [selectedType, setSelectedType] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Refresh routes when screen comes into focus (reloads after data import)
@@ -69,7 +44,7 @@ export function LinesScreen() {
       console.log(`[LinesScreen] ===== LOADED ${routes.length} ROUTES =====`);
 
       // Group routes by detected type
-      const byType: Record<TransitType, typeof routes> = {
+      const byType: Record<FilterType, typeof routes> = {
         all: [],
         metro: [],
         bus: [],
@@ -79,7 +54,7 @@ export function LinesScreen() {
       };
 
       routes.forEach(route => {
-        const type = getTransitType(route.type, route.shortName, route.longName);
+        const type = detectTransitType(route.type, route.shortName, route.longName);
         byType[type].push(route);
       });
 
@@ -104,13 +79,13 @@ export function LinesScreen() {
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const typeLabels: Record<TransitType, string> = {
-    all: t('transit.allTypes'),
-    metro: t('transit.metro'),
-    tram: t('transit.tram'),
-    izban: t('transit.izban', { defaultValue: 'İZBAN' }),
-    ferry: t('transit.ferry', { defaultValue: 'Vapur' }),
-    bus: t('transit.bus'),
+  const typeLabels: Record<FilterType, string> = {
+    all: `🚏 ${t('transit.allTypes')}`,
+    metro: `🚇 ${t('transit.metro')}`,
+    tram: `🚊 ${t('transit.tram')}`,
+    izban: `🚆 ${t('transit.izban', { defaultValue: 'İZBAN' })}`,
+    ferry: `⛴️ ${t('transit.ferry', { defaultValue: 'Vapur' })}`,
+    bus: `🚌 ${t('transit.bus')}`,
   };
 
   // Filter routes by type AND search query
@@ -120,7 +95,7 @@ export function LinesScreen() {
     // Filter by type
     if (selectedType !== 'all') {
       filtered = filtered.filter(route => {
-        const type = getTransitType(route.type, route.shortName, route.longName);
+        const type = detectTransitType(route.type, route.shortName, route.longName);
         return type === selectedType;
       });
     }
@@ -154,7 +129,7 @@ export function LinesScreen() {
 
   const renderItem = useCallback(({ item }: { item: Route }) => {
     // Get İzmir transport type
-    const transitType = getTransitType(item.type, item.shortName, item.longName);
+    const transitType = detectTransitType(item.type, item.shortName, item.longName);
 
     return (
       <LineCard
@@ -242,7 +217,7 @@ export function LinesScreen() {
         style={styles.filtersScroll}
         contentContainerStyle={styles.filtersContainer}
       >
-        {(Object.keys(typeLabels) as TransitType[]).map((type) => (
+        {(Object.keys(typeLabels) as FilterType[]).map((type) => (
           <TouchableOpacity
             key={type}
             activeOpacity={0.7}
@@ -328,9 +303,10 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderBottomColor: colors.border,
     },
     filtersScroll: {
-      backgroundColor: colors.background,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      backgroundColor: colors.isDark ? '#1A1A1A' : '#FFFFFF',
+      borderBottomWidth: 2,
+      borderBottomColor: colors.isDark ? '#444444' : '#E0E0E0',
+      maxHeight: 64,
     },
     filtersContainer: {
       flexDirection: 'row',
@@ -340,24 +316,24 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       alignItems: 'center',
     },
     filterButton: {
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: colors.isDark ? '#333333' : '#F0F0F0',
-      borderWidth: 1.5,
-      borderColor: colors.isDark ? '#555555' : '#DDDDDD',
+      borderRadius: 22,
+      backgroundColor: colors.isDark ? '#3A3A3A' : '#F0F0F0',
+      borderWidth: 2,
+      borderColor: colors.isDark ? '#666666' : '#CCCCCC',
     },
     filterButtonActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: '#0066CC',
+      borderColor: '#0066CC',
     },
     filterText: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.isDark ? '#FFFFFF' : '#333333',
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.isDark ? '#FFFFFF' : '#222222',
     },
     filterTextActive: {
-      color: 'white',
+      color: '#FFFFFF',
     },
     listContent: {
       padding: 12,

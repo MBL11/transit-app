@@ -26,6 +26,7 @@ import type { Stop, Route } from '../core/types/models';
 import type { NextDeparture } from '../core/types/adapter';
 import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
+import { detectTransitType, transitTypeToRouteType } from '../utils/transport-detection';
 
 // Note: İzmir has only ~50 stops, so we load all stops at once instead of nearby stops
 
@@ -104,42 +105,15 @@ export function MapScreen({ navigation }: Props) {
           const stopIds = allStops.map(s => s.id);
           const routesByStop = await db.getRoutesByStopIds(stopIds);
 
-          // Helper to detect İzmir transport type from route data
-          const detectTransportType = (route: Route): number => {
-            const name = ((route.shortName || '') + ' ' + (route.longName || '')).toUpperCase();
-            const shortUpper = (route.shortName || '').toUpperCase();
-
-            let detected: number;
-
-            // Metro: M1, M2, or contains "METRO"
-            if (name.includes('METRO') || /^M\d/i.test(shortUpper)) {
-              detected = 1;
-            // İZBAN: contains İZBAN/IZBAN, or S1/S2
-            } else if (name.includes('İZBAN') || name.includes('IZBAN') || /^S\d/i.test(shortUpper)) {
-              detected = 2;
-            // Tram: T1, T2, or contains TRAM/TRAMVAY
-            } else if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) {
-              detected = 0;
-            // Ferry: only if explicitly contains ferry-related words
-            } else if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('İZDENİZ') || name.includes('IZDENIZ')) {
-              detected = 4;
-            } else {
-              // Default: use GTFS type, but never default to ferry (4) - treat as bus
-              detected = route.type === 4 ? 3 : route.type;
-            }
-
-            // Debug: log non-bus detections
-            if (detected !== 3) {
-              console.log(`[MapScreen] Route "${route.shortName}" (${route.longName}) type=${route.type} -> detected=${detected}`);
-            }
-
-            return detected;
-          };
-
-          // Convert to Map of stopId -> detected route types array
+          // Convert to Map of stopId -> detected route types array (as GTFS numeric types)
           const routeTypesMap = new Map<string, number[]>();
           routesByStop.forEach((routes, stopId) => {
-            routeTypesMap.set(stopId, routes.map(r => detectTransportType(r)));
+            routeTypesMap.set(
+              stopId,
+              routes.map(r => transitTypeToRouteType(
+                detectTransitType(r.type, r.shortName, r.longName)
+              ))
+            );
           });
 
           console.log(`[MapScreen] Loaded route types for ${routeTypesMap.size} stops`);
