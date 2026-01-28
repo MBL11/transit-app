@@ -83,6 +83,7 @@ export function parseShapes(csvContent: string): GTFSShape[] {
 /**
  * Normalize GTFS stop to internal Stop model
  * Handles various column naming conventions (standard, lowercase, underscore variations)
+ * Also handles İzmir GTFS format where lat/lon may be swapped or in wrong columns
  */
 export function normalizeStop(gtfsStop: GTFSStop): Stop {
   // Handle various column name formats (lowercase transformed by parser)
@@ -92,13 +93,37 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
   const name = rawStop.stop_name || rawStop.stopname || rawStop.name || '';
 
   // Try multiple column names for coordinates
-  const latStr = rawStop.stop_lat || rawStop.stoplat || rawStop.lat || rawStop.latitude || '';
-  const lonStr = rawStop.stop_lon || rawStop.stoplon || rawStop.lon || rawStop.longitude || '';
+  let latStr = rawStop.stop_lat || rawStop.stoplat || rawStop.lat || rawStop.latitude || '';
+  let lonStr = rawStop.stop_lon || rawStop.stoplon || rawStop.lon || rawStop.longitude || '';
 
-  const lat = parseFloat(latStr);
-  const lon = parseFloat(lonStr);
+  let lat = parseFloat(latStr);
+  let lon = parseFloat(lonStr);
 
-  // Log warning if coordinates look wrong
+  // İzmir GTFS fix: detect when columns are shifted
+  // İzmir coordinates should be around lat: 38.x, lon: 27.x
+  // If stop_lat contains ~27 and zone_id contains ~38, columns are shifted
+  if (!isNaN(lat) && lat >= 26 && lat <= 28) {
+    // lat looks like longitude (27.x), check if zone_id has the real latitude
+    const zoneIdVal = parseFloat(rawStop.zone_id || '');
+    const stopUrlVal = parseFloat(rawStop.stop_url || '');
+
+    if (!isNaN(zoneIdVal) && zoneIdVal >= 38 && zoneIdVal <= 39) {
+      // zone_id has the latitude, stop_lat has longitude, stop_lon might have lat decimal
+      const latDecimal = parseFloat(rawStop.stop_lon || '0') / 10000; // 2289 -> 0.2289
+      lon = lat + latDecimal; // 27 + 0.2289 = 27.2289
+      lat = zoneIdVal + (stopUrlVal / 10000); // 38 + 0.4656 = 38.4656
+
+      console.log(`[GTFSParser] İzmir fix for ${id}: reconstructed lat=${lat}, lon=${lon}`);
+    }
+  }
+
+  // Also handle simple lat/lon swap (lat > 40 and lon < 30 for Turkey)
+  if (lat > 40 && lon < 30) {
+    // Probably swapped
+    [lat, lon] = [lon, lat];
+  }
+
+  // Log warning if coordinates still look wrong
   if (isNaN(lat) || isNaN(lon)) {
     console.warn(`[GTFSParser] Invalid coordinates for stop ${id}: lat=${latStr}, lon=${lonStr}`);
   }
@@ -114,12 +139,69 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
 }
 
 /**
+ * İzmir transit line colors (official)
+ */
+const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = {
+  // Metro
+  'M1': { color: '#E30613', textColor: '#FFFFFF' }, // Red
+  'M2': { color: '#E30613', textColor: '#FFFFFF' }, // Red
+  // Tramway
+  'T1': { color: '#FF6600', textColor: '#FFFFFF' }, // Orange
+  'T2': { color: '#FF6600', textColor: '#FFFFFF' }, // Orange
+  // İZBAN
+  'S1': { color: '#00A651', textColor: '#FFFFFF' }, // Green
+  'S2': { color: '#00A651', textColor: '#FFFFFF' }, // Green
+  // Ferry
+  'F1': { color: '#003366', textColor: '#FFFFFF' }, // Dark Blue
+  'F2': { color: '#003366', textColor: '#FFFFFF' }, // Dark Blue
+};
+
+/**
  * Normalize GTFS route to internal Route model
  */
 export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
-  // Default colors if not provided
-  let color = gtfsRoute.route_color || 'FFFFFF';
-  let textColor = gtfsRoute.route_text_color || '000000';
+  const shortName = gtfsRoute.route_short_name || '';
+
+  // Try to get İzmir-specific colors first
+  let color = gtfsRoute.route_color || '';
+  let textColor = gtfsRoute.route_text_color || '';
+
+  // If no color provided, use İzmir defaults based on short name or route type
+  if (!color || color === 'FFFFFF' || color === '') {
+    const izmirColor = IZMIR_LINE_COLORS[shortName.toUpperCase()];
+    if (izmirColor) {
+      color = izmirColor.color;
+      textColor = izmirColor.textColor;
+    } else {
+      // Fallback based on route type
+      const routeType = parseInt(gtfsRoute.route_type, 10);
+      switch (routeType) {
+        case 0: // Tram
+          color = '#FF6600';
+          textColor = '#FFFFFF';
+          break;
+        case 1: // Metro
+          color = '#E30613';
+          textColor = '#FFFFFF';
+          break;
+        case 2: // Rail (İZBAN)
+          color = '#00A651';
+          textColor = '#FFFFFF';
+          break;
+        case 3: // Bus
+          color = '#0066CC';
+          textColor = '#FFFFFF';
+          break;
+        case 4: // Ferry
+          color = '#003366';
+          textColor = '#FFFFFF';
+          break;
+        default:
+          color = '#666666';
+          textColor = '#FFFFFF';
+      }
+    }
+  }
 
   // Ensure # prefix for hex colors
   if (!color.startsWith('#')) {
@@ -131,7 +213,7 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
 
   return {
     id: gtfsRoute.route_id,
-    shortName: gtfsRoute.route_short_name,
+    shortName,
     longName: gtfsRoute.route_long_name,
     type: parseInt(gtfsRoute.route_type, 10),
     color,
