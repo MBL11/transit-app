@@ -27,10 +27,7 @@ import type { NextDeparture } from '../core/types/adapter';
 import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
 
-// Radius in meters for loading nearby stops
-const NEARBY_STOPS_RADIUS = 1500; // 1.5km radius (reduced for performance)
-const MAX_STOPS_ON_MAP = 50; // Maximum stops to display for performance
-const MIN_DISTANCE_TO_RELOAD = 300; // Minimum distance in meters before reloading stops
+// Note: İzmir has only ~50 stops, so we load all stops at once instead of nearby stops
 
 type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
@@ -47,18 +44,16 @@ export function MapScreen({ navigation }: Props) {
 
   const { isOffline } = useNetwork();
 
-  // Local state for nearby stops (instead of all stops)
+  // Local state for all stops (İzmir has only ~50 stops)
   const [nearbyStops, setNearbyStops] = useState<NearbyStop[]>([]);
   const [loadingStops, setLoadingStops] = useState(true);
   const [stopsError, setStopsError] = useState<Error | null>(null);
   const [importing, setImporting] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
-  const [hasDataInDb, setHasDataInDb] = useState<boolean | null>(null); // null = unknown, true = has data, false = empty
 
-  // Track current map center for loading stops
+  // Track current map region
   const currentRegionRef = useRef<Region | null>(null);
   const loadingRegionRef = useRef(false);
-  const lastLoadedPositionRef = useRef<{ lat: number; lon: number } | null>(null);
 
   // Ref to the map for animation
   const mapRef = useRef<TransitMapRef>(null);
@@ -76,8 +71,8 @@ export function MapScreen({ navigation }: Props) {
   const [stopDepartures, setStopDepartures] = useState<NextDeparture[]>([]);
   const [loadingStopData, setLoadingStopData] = useState(false);
 
-  // Load nearby stops around a given location
-  const loadNearbyStops = useCallback(async (lat: number, lon: number) => {
+  // Load ALL stops (İzmir has only ~50 stops, safe to load all)
+  const loadAllStops = useCallback(async () => {
     if (loadingRegionRef.current) {
       console.log('[MapScreen] Already loading stops, skipping...');
       return;
@@ -88,16 +83,21 @@ export function MapScreen({ navigation }: Props) {
       setLoadingStops(true);
       setStopsError(null);
 
-      console.log(`[MapScreen] Loading stops around (${lat.toFixed(4)}, ${lon.toFixed(4)})...`);
+      console.log('[MapScreen] Loading all stops...');
 
-      const stops = await findNearbyStops(lat, lon, NEARBY_STOPS_RADIUS, MAX_STOPS_ON_MAP);
+      // Load all stops from database
+      const allStops = await db.getAllStops();
 
-      console.log(`[MapScreen] Found ${stops.length} nearby stops`);
-      setNearbyStops(stops);
-      // Update last loaded position for distance check
-      lastLoadedPositionRef.current = { lat, lon };
+      // Convert to NearbyStop format (with distance = 0 since we're loading all)
+      const stopsWithDistance: NearbyStop[] = allStops.map(stop => ({
+        ...stop,
+        distance: 0,
+      }));
+
+      console.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops`);
+      setNearbyStops(stopsWithDistance);
     } catch (err) {
-      console.error('[MapScreen] Failed to load nearby stops:', err);
+      console.error('[MapScreen] Failed to load stops:', err);
       setStopsError(err instanceof Error ? err : new Error('Failed to load stops'));
     } finally {
       setLoadingStops(false);
@@ -105,40 +105,36 @@ export function MapScreen({ navigation }: Props) {
     }
   }, []);
 
-  // Initial location setup
+  // Initial load - load ALL stops once (İzmir has ~50 stops only)
   useEffect(() => {
     const initLocation = async () => {
-      console.log('[MapScreen] Initializing location...');
+      console.log('[MapScreen] Initializing...');
+
+      // Load all stops immediately
+      await loadAllStops();
 
       // If permission not granted, show prompt
       if (!permissionGranted) {
         console.log('[MapScreen] Location permission not granted, showing prompt');
         setShowLocationPrompt(true);
-        // Load stops around İzmir center as fallback
-        await loadNearbyStops(38.4237, 27.1428); // İzmir center (Konak)
         return;
       }
 
-      // Get current location
+      // Get current location and animate to it
       const userLocation = await getCurrentLocation();
       if (userLocation) {
         console.log('[MapScreen] Got user location:', userLocation.latitude, userLocation.longitude);
-        await loadNearbyStops(userLocation.latitude, userLocation.longitude);
         // Animate map to user location with a small delay to ensure map is mounted
         setTimeout(() => {
           mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude, 1000);
         }, 100);
-      } else {
-        // Fallback to İzmir center
-        console.log('[MapScreen] No user location, using İzmir center');
-        await loadNearbyStops(38.4237, 27.1428); // İzmir center (Konak)
       }
     };
 
     if (!adapterLoading) {
       initLocation();
     }
-  }, [adapterLoading, permissionGranted]);
+  }, [adapterLoading, permissionGranted, loadAllStops]);
 
   // Handle location permission request
   const handleEnableLocation = useCallback(async () => {
@@ -147,49 +143,17 @@ export function MapScreen({ navigation }: Props) {
     if (granted) {
       const userLocation = await getCurrentLocation();
       if (userLocation) {
-        // Load stops around user location
-        await loadNearbyStops(userLocation.latitude, userLocation.longitude);
         // Animate map to user location
         mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude, 1000);
       }
     }
-  }, [requestPermission, getCurrentLocation, loadNearbyStops]);
+  }, [requestPermission, getCurrentLocation]);
 
-  // Handle map region change (debounced)
-  const regionChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  // Handle map region change - just track the region, no reload needed
+  // (we load all stops once since İzmir has only ~50 stops)
   const handleRegionChangeComplete = useCallback((region: Region) => {
     currentRegionRef.current = region;
-
-    // Debounce the stop loading
-    if (regionChangeTimeoutRef.current) {
-      clearTimeout(regionChangeTimeoutRef.current);
-    }
-
-    regionChangeTimeoutRef.current = setTimeout(() => {
-      // Check if we've moved enough to reload
-      const lastPos = lastLoadedPositionRef.current;
-      if (lastPos) {
-        // Simple distance calculation (Haversine approximation)
-        const R = 6371000; // Earth radius in meters
-        const dLat = (region.latitude - lastPos.lat) * Math.PI / 180;
-        const dLon = (region.longitude - lastPos.lon) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lastPos.lat * Math.PI / 180) * Math.cos(region.latitude * Math.PI / 180) *
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-        if (distance < MIN_DISTANCE_TO_RELOAD) {
-          console.log(`[MapScreen] Moved only ${Math.round(distance)}m, skipping reload`);
-          return;
-        }
-      }
-
-      console.log('[MapScreen] Region changed, reloading stops...');
-      lastLoadedPositionRef.current = { lat: region.latitude, lon: region.longitude };
-      loadNearbyStops(region.latitude, region.longitude);
-    }, 800); // Wait 800ms after user stops moving the map
-  }, [loadNearbyStops]);
+  }, []);
 
   // Load stop details when a stop is selected
   useEffect(() => {
@@ -259,17 +223,15 @@ export function MapScreen({ navigation }: Props) {
         t('common.dataImported', { defaultValue: 'İzmir transit data imported successfully!' })
       );
 
-      // Reload stops around current location or İzmir center
-      const lat = location?.latitude || 38.4237;
-      const lon = location?.longitude || 27.1428;
-      await loadNearbyStops(lat, lon);
+      // Reload all stops
+      await loadAllStops();
     } catch (err) {
       console.error('[MapScreen] Import error:', err);
       Alert.alert(t('common.error'), t('common.importFailed'));
     } finally {
       setImporting(false);
     }
-  }, [t, location?.latitude, location?.longitude, loadNearbyStops]);
+  }, [t, loadAllStops]);
 
   // Calculate initial region based on user location or default to İzmir (memoized)
   // IMPORTANT: Must be before early returns to respect Rules of Hooks

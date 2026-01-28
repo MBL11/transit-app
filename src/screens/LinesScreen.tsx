@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -201,8 +201,13 @@ export function LinesScreen() {
         />
       </View>
 
-      {/* Type Filters */}
-      <View style={styles.filtersContainer}>
+      {/* Type Filters - Scrollable */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtersScroll}
+        contentContainerStyle={styles.filtersContainer}
+      >
         {(Object.keys(typeLabels) as TransitType[]).map((type) => (
           <Pressable
             key={type}
@@ -222,7 +227,7 @@ export function LinesScreen() {
             </Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Lines List */}
       <FlatList
@@ -287,12 +292,15 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    filtersContainer: {
-      flexDirection: 'row',
-      padding: 12,
+    filtersScroll: {
       backgroundColor: colors.background,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+    },
+    filtersContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
       gap: 8,
     },
     filterButton: {
