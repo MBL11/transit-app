@@ -30,11 +30,11 @@ import type { ThemeMode } from '../hooks/useColorScheme';
 import type { SettingsStackParamList } from '../navigation/SettingsStackNavigator';
 
 const LANGUAGES = [
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
   { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
   { code: 'es', name: 'Español', flag: '🇪🇸' },
   { code: 'ru', name: 'Русский', flag: '🇷🇺' },
-  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
 ];
 
 const THEMES: Array<{ mode: ThemeMode; icon: string }> = [

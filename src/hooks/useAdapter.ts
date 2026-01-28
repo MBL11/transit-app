@@ -1,22 +1,22 @@
 /**
  * React Hook to use the Transit Adapter
- * Provides easy access to the Paris adapter in React components
+ * Provides easy access to the İzmir adapter in React components
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ParisAdapter, parisAdapter } from '../adapters/paris';
+import { IzmirAdapter, izmirAdapter } from '../adapters/izmir';
 import * as db from '../core/database';
 
-let adapterInstance: ParisAdapter | null = null;
+let adapterInstance: IzmirAdapter | null = null;
 let initPromise: Promise<void> | null = null;
 
 /**
- * Hook to access the Paris Transit Adapter
+ * Hook to access the İzmir Transit Adapter
  * Automatically initializes the database and adapter
  * Uses a singleton pattern to avoid duplicate initialization
  */
 export function useAdapter() {
-  const [adapter, setAdapter] = useState<ParisAdapter | null>(adapterInstance);
+  const [adapter, setAdapter] = useState<IzmirAdapter | null>(adapterInstance);
   const [loading, setLoading] = useState(!adapterInstance);
   const [error, setError] = useState<Error | null>(null);
 
@@ -35,9 +35,9 @@ export function useAdapter() {
           initPromise = (async () => {
             console.log('[useAdapter] Initializing database and adapter...');
             await db.initializeDatabase();
-            adapterInstance = parisAdapter;
+            adapterInstance = izmirAdapter;
             await adapterInstance.initialize();
-            console.log('[useAdapter] ✅ Adapter ready');
+            console.log('[useAdapter] ✅ İzmir adapter ready');
           })();
         }
 

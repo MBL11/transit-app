@@ -29,8 +29,8 @@ const supportedLanguages = ['fr', 'en', 'es', 'ru', 'tr'];
 // Get device locale (first 2 chars: 'en-US' -> 'en')
 const deviceLocale = Localization.getLocales()[0]?.languageCode || 'en';
 
-// Fallback to 'en' if device language not supported
-const fallbackLocale = supportedLanguages.includes(deviceLocale) ? deviceLocale : 'en';
+// Fallback to 'tr' (Turkish) if device language not supported - İzmir-focused app
+const fallbackLocale = supportedLanguages.includes(deviceLocale) ? deviceLocale : 'tr';
 
 // Initialize i18n with async storage
 const initI18n = async () => {
@@ -43,7 +43,7 @@ const initI18n = async () => {
     .init({
       resources,
       lng: initialLanguage,
-      fallbackLng: 'en',
+      fallbackLng: 'tr', // İzmir-focused app defaults to Turkish
       interpolation: {
         escapeValue: false, // React already escapes
       },

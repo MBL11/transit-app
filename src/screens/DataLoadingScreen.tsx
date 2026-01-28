@@ -7,24 +7,23 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { downloadAndImportGTFS, GTFS_SOURCES, type GTFSSourceKey } from '../core/gtfs-downloader';
+import { downloadAndImportAllIzmir, GTFS_SOURCES } from '../core/gtfs-downloader';
 import { useThemeColors } from '../hooks/useThemeColors';
 
 interface DataLoadingScreenProps {
   onComplete: (sourceName: string) => void;
-  source?: GTFSSourceKey;
 }
 
-const STAGE_LABELS: Record<string, { fr: string; en: string }> = {
-  downloading: { fr: 'Téléchargement des données...', en: 'Downloading data...' },
-  extracting: { fr: 'Extraction des fichiers...', en: 'Extracting files...' },
-  parsing: { fr: 'Analyse des données GTFS...', en: 'Parsing GTFS data...' },
-  validating: { fr: 'Validation des données...', en: 'Validating data...' },
-  clearing: { fr: 'Préparation de la base de données...', en: 'Preparing database...' },
-  importing: { fr: 'Importation dans la base de données...', en: 'Importing to database...' },
+const STAGE_LABELS: Record<string, { tr: string; fr: string; en: string }> = {
+  downloading: { tr: 'Veriler indiriliyor...', fr: 'Téléchargement des données...', en: 'Downloading data...' },
+  extracting: { tr: 'Dosyalar çıkarılıyor...', fr: 'Extraction des fichiers...', en: 'Extracting files...' },
+  parsing: { tr: 'GTFS verileri analiz ediliyor...', fr: 'Analyse des données GTFS...', en: 'Parsing GTFS data...' },
+  validating: { tr: 'Veriler doğrulanıyor...', fr: 'Validation des données...', en: 'Validating data...' },
+  clearing: { tr: 'Veritabanı hazırlanıyor...', fr: 'Préparation de la base de données...', en: 'Preparing database...' },
+  importing: { tr: 'Veritabanına aktarılıyor...', fr: 'Importation dans la base de données...', en: 'Importing to database...' },
 };
 
-export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingScreenProps) {
+export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const { t, i18n } = useTranslation();
@@ -32,6 +31,7 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{ stops: number; routes: number; trips: number; stopTimes: number } | null>(null);
+  const [currentSource, setCurrentSource] = useState<string | undefined>(undefined);
 
   const styles = StyleSheet.create({
     container: {
@@ -145,10 +145,12 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
       setError(null);
       setStage('downloading');
       setProgress(0);
+      setCurrentSource(undefined);
 
-      const result = await downloadAndImportGTFS(source, (currentStage, currentProgress) => {
+      const result = await downloadAndImportAllIzmir((currentStage, currentProgress, sourceName) => {
         setStage(currentStage);
         setProgress(currentProgress);
+        setCurrentSource(sourceName);
       });
 
       setStats(result);
@@ -157,7 +159,7 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
 
       // Wait a bit then complete
       setTimeout(() => {
-        onComplete(GTFS_SOURCES[source].name);
+        onComplete('İzmir');
       }, 2000);
 
     } catch (err) {
@@ -167,15 +169,17 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
   };
 
   const getStageLabel = (stageName: string): string => {
-    const lang = i18n.language === 'fr' ? 'fr' : 'en';
+    let lang: 'tr' | 'fr' | 'en' = 'tr';
+    if (i18n.language === 'fr') lang = 'fr';
+    else if (i18n.language === 'en') lang = 'en';
     return STAGE_LABELS[stageName]?.[lang] || stageName;
   };
 
   if (error) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Transit App</Text>
-        <Text style={styles.subtitle}>{GTFS_SOURCES[source].name}</Text>
+        <Text style={styles.title}>İzmir Transit</Text>
+        <Text style={styles.subtitle}>ESHOT • Metro • İZBAN</Text>
 
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>❌</Text>
@@ -187,7 +191,7 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
 
         <View style={styles.sourceInfo}>
           <Text style={styles.sourceText}>
-            {t('data.importWarning')}
+            {i18n.language === 'tr' ? 'İnternet bağlantınızı kontrol edin' : t('data.importWarning')}
           </Text>
         </View>
       </View>
@@ -195,19 +199,20 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
   }
 
   if (stage === 'complete' && stats) {
+    const successText = i18n.language === 'tr' ? 'Veriler başarıyla yüklendi!' : t('data.importSuccess');
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Transit App</Text>
-        <Text style={styles.subtitle}>{GTFS_SOURCES[source].name}</Text>
+        <Text style={styles.title}>İzmir Transit</Text>
+        <Text style={styles.subtitle}>ESHOT • Metro • İZBAN</Text>
 
         <View style={styles.successContainer}>
           <Text style={styles.successIcon}>✅</Text>
-          <Text style={styles.successText}>{t('data.importSuccess')}</Text>
+          <Text style={styles.successText}>{successText}</Text>
           <Text style={styles.statsText}>
-            {stats.stops} {t('transit.stops')}{'\n'}
-            {stats.routes} {t('transit.routes')}{'\n'}
-            {stats.trips} {t('transit.trips')}{'\n'}
-            {stats.stopTimes.toLocaleString()} stop times
+            {stats.stops} {i18n.language === 'tr' ? 'durak' : t('transit.stops')}{'\n'}
+            {stats.routes} {i18n.language === 'tr' ? 'hat' : t('transit.routes')}{'\n'}
+            {stats.trips} {i18n.language === 'tr' ? 'sefer' : t('transit.trips')}{'\n'}
+            {stats.stopTimes.toLocaleString()} {i18n.language === 'tr' ? 'kalkış saati' : 'stop times'}
           </Text>
         </View>
       </View>
@@ -216,13 +221,19 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Transit App</Text>
-      <Text style={styles.subtitle}>{GTFS_SOURCES[source].name}</Text>
+      <Text style={styles.title}>İzmir Transit</Text>
+      <Text style={styles.subtitle}>ESHOT • Metro • İZBAN</Text>
 
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 24 }} />
 
         <Text style={styles.stageText}>{getStageLabel(stage)}</Text>
+
+        {currentSource && (
+          <Text style={[styles.sourceText, { marginBottom: 16 }]}>
+            {currentSource}
+          </Text>
+        )}
 
         {/* Progress bar */}
         <View style={styles.progressBarContainer}>
@@ -234,7 +245,7 @@ export function DataLoadingScreen({ onComplete, source = 'IDFM' }: DataLoadingSc
 
       <View style={styles.sourceInfo}>
         <Text style={styles.sourceText}>
-          {GTFS_SOURCES[source].size}
+          {i18n.language === 'tr' ? 'İlk yükleme biraz zaman alabilir' : 'First load may take a few minutes'}
         </Text>
       </View>
     </View>

@@ -10,18 +10,26 @@ import * as db from './database';
 
 // Available GTFS sources
 export const GTFS_SOURCES = {
-  IDFM: {
-    name: 'Île-de-France (Paris)',
-    url: 'https://data.iledefrance-mobilites.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/files/b96344c7c21bf0efb1eb37f169e0a630/download/',
-    size: '~800MB',
+  // İzmir sources
+  ESHOT: {
+    name: 'ESHOT (İzmir Otobüs)',
+    url: 'https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip',
+    size: '~50MB',
   },
-  // Add more cities later
-  // IZMIR: {
-  //   name: 'İzmir',
-  //   url: 'https://example.com/izmir-gtfs.zip',
-  //   size: '~20-40MB',
-  // },
+  METRO_IZMIR: {
+    name: 'Metro İzmir',
+    url: 'https://www.izmirmetro.com.tr/gtfs/rail-metro-gtfs.zip',
+    size: '~5MB',
+  },
+  IZBAN: {
+    name: 'İZBAN (Banliyö Treni)',
+    url: 'https://www.izban.com.tr/gtfs/rail-izban-gtfs.zip',
+    size: '~5MB',
+  },
 } as const;
+
+// İzmir sources list for combined download
+export const IZMIR_SOURCES: GTFSSourceKey[] = ['ESHOT', 'METRO_IZMIR', 'IZBAN'];
 
 export type GTFSSourceKey = keyof typeof GTFS_SOURCES;
 
@@ -126,7 +134,7 @@ export async function extractGTFSZip(zipUri: string): Promise<{
  * Download and import GTFS data into database
  */
 export async function downloadAndImportGTFS(
-  source: GTFSSourceKey = 'IDFM',
+  source: GTFSSourceKey = 'ESHOT',
   onProgress?: (stage: string, progress: number) => void
 ): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
   console.log(`[GTFSDownloader] Starting GTFS import from ${GTFS_SOURCES[source].name}...`);
@@ -204,6 +212,96 @@ export async function downloadAndImportGTFS(
     return result;
   } catch (error) {
     console.error('[GTFSDownloader] ❌ Import failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Download and import all İzmir GTFS sources (ESHOT, Metro, İZBAN)
+ */
+export async function downloadAndImportAllIzmir(
+  onProgress?: (stage: string, progress: number, currentSource?: string) => void
+): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
+  console.log('[GTFSDownloader] Starting İzmir combined GTFS import...');
+
+  const totalSources = IZMIR_SOURCES.length;
+  let totalStops = 0;
+  let totalRoutes = 0;
+  let totalTrips = 0;
+  let totalStopTimes = 0;
+
+  try {
+    // Clear existing data before importing
+    onProgress?.('clearing', 0);
+    db.clearAllData();
+    onProgress?.('clearing', 1);
+
+    for (let i = 0; i < IZMIR_SOURCES.length; i++) {
+      const source = IZMIR_SOURCES[i];
+      const sourceInfo = GTFS_SOURCES[source];
+      const baseProgress = i / totalSources;
+      const progressPerSource = 1 / totalSources;
+
+      console.log(`[GTFSDownloader] Importing ${sourceInfo.name} (${i + 1}/${totalSources})...`);
+
+      // Download ZIP
+      onProgress?.('downloading', baseProgress, sourceInfo.name);
+      const zipUri = await downloadGTFSZip(sourceInfo.url, (progress) => {
+        onProgress?.('downloading', baseProgress + progress * progressPerSource * 0.3, sourceInfo.name);
+      });
+
+      // Extract ZIP
+      onProgress?.('extracting', baseProgress + progressPerSource * 0.3, sourceInfo.name);
+      const gtfsFiles = await extractGTFSZip(zipUri);
+
+      // Parse GTFS data
+      onProgress?.('parsing', baseProgress + progressPerSource * 0.5, sourceInfo.name);
+      const parsedData = parseGTFSFeed(gtfsFiles);
+
+      // Validate data
+      const validation = validateGTFSData(parsedData);
+      if (!validation.isValid) {
+        console.warn(`[GTFSDownloader] Validation warnings for ${sourceInfo.name}:`, validation.errors);
+        // Continue anyway, some sources might have minor issues
+      }
+
+      // Insert into database (append, don't clear)
+      onProgress?.('importing', baseProgress + progressPerSource * 0.6, sourceInfo.name);
+
+      console.log(`[GTFSDownloader] Inserting ${sourceInfo.name} data...`);
+      await db.insertRoutes(parsedData.routes);
+      await db.insertStops(parsedData.stops);
+      await db.insertTrips(parsedData.trips);
+
+      // Insert stop times in batches
+      const batchSize = 10000;
+      for (let j = 0; j < parsedData.stopTimes.length; j += batchSize) {
+        const batch = parsedData.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+
+      // Cleanup ZIP
+      await FileSystem.deleteAsync(zipUri, { idempotent: true });
+
+      totalStops += parsedData.stops.length;
+      totalRoutes += parsedData.routes.length;
+      totalTrips += parsedData.trips.length;
+      totalStopTimes += parsedData.stopTimes.length;
+
+      onProgress?.('importing', baseProgress + progressPerSource, sourceInfo.name);
+    }
+
+    const result = {
+      stops: totalStops,
+      routes: totalRoutes,
+      trips: totalTrips,
+      stopTimes: totalStopTimes,
+    };
+
+    console.log('[GTFSDownloader] ✅ İzmir combined import complete:', result);
+    return result;
+  } catch (error) {
+    console.error('[GTFSDownloader] ❌ İzmir import failed:', error);
     throw error;
   }
 }
