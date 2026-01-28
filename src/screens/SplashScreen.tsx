@@ -205,15 +205,14 @@ export function SplashScreen({ onReady }: Props) {
           },
         ]}
       >
-        {/* İzmir Metro style logo */}
-        <View style={styles.logoOuter}>
-          <View style={styles.logoInner}>
-            <Text style={styles.logoIcon}>İ</Text>
-          </View>
+        {/* İzmir Transit Logo */}
+        <View style={styles.logoBox}>
+          <Text style={styles.logoText}>İZMİR</Text>
+          <View style={styles.logoUnderline} />
         </View>
 
         <Text style={styles.appName}>Transit</Text>
-        <Text style={styles.cityName}>İZMİR</Text>
+        <Text style={styles.tagline}>Toplu Taşıma Rehberi</Text>
       </Animated.View>
 
       {/* Loading section */}
@@ -286,35 +285,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-  logoOuter: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: '#E30A17', // Turkish red
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#E30A17',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 15,
-  },
-  logoInner: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+  logoBox: {
     backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#E30A17',
   },
-  logoIcon: {
-    fontSize: 58,
+  logoText: {
+    fontSize: 36,
     fontWeight: '900',
-    color: '#E30A17',
-    letterSpacing: -2,
+    color: '#0D47A1', // Aegean blue
+    letterSpacing: 4,
+  },
+  logoUnderline: {
+    width: '100%',
+    height: 4,
+    backgroundColor: '#E30A17', // Turkish red accent
+    borderRadius: 2,
+    marginTop: 8,
   },
   appName: {
     fontSize: 42,
@@ -323,12 +318,11 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 8,
   },
-  cityName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 8,
-    textTransform: 'uppercase',
+  tagline: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.8)',
+    letterSpacing: 2,
   },
   loadingContainer: {
     position: 'absolute',
