@@ -26,11 +26,14 @@ export async function importGTFSToDatabase(feedData: {
 
     // Step 2: Validate data
     console.log('[GTFSImporter] Step 2/4: Validating data...');
-    const { isValid, errors } = validateGTFSData(data);
+    const { isValid, errors, warnings } = validateGTFSData(data);
 
     if (!isValid) {
       console.error('[GTFSImporter] ❌ Validation failed:', errors);
       throw new Error(`GTFS validation failed: ${errors.join(', ')}`);
+    }
+    if (warnings && warnings.length > 0) {
+      console.warn('[GTFSImporter] ⚠️ Validation warnings:', warnings);
     }
 
     // Step 3: Initialize database

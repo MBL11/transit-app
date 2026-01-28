@@ -1,7 +1,6 @@
 /**
- * Izmir Transit Adapter
- * Implements the TransitAdapter interface for Izmir (Metro, Tram, İZBAN, Ferry)
- * Uses local SQLite database populated from official İzmir GTFS feeds
+ * İzmir Transit Adapter
+ * Implements the TransitAdapter interface for İzmir/ESHOT
  */
 
 import type {
@@ -13,16 +12,16 @@ import type {
 } from '../../core/types/adapter';
 import type { Stop, Route, Trip, StopTime } from '../../core/types/models';
 import * as db from '../../core/database';
-import { izmirConfig, izmirDataSources } from './config';
+import { izmirConfig, izmirDataSource } from './config';
 import { runMigrations } from '../../core/database-migration';
+import { getLineColor, formatTime } from './utils';
 
 /**
- * Izmir adapter implementation
- * Loads data from the local SQLite database populated with Izmir GTFS data
+ * İzmir adapter implementation
+ * Loads data from the local SQLite database (Metro, Tramway, İzBAN, ESHOT)
  */
 export class IzmirAdapter implements TransitAdapter {
   private lastUpdateTime: Date;
-  private initialized: boolean = false;
 
   constructor() {
     this.lastUpdateTime = new Date();
@@ -36,39 +35,17 @@ export class IzmirAdapter implements TransitAdapter {
   }
 
   /**
-   * Initialize the adapter
-   */
-  async initialize(): Promise<void> {
-    if (this.initialized) {
-      console.log('[IzmirAdapter] Already initialized');
-      return;
-    }
-
-    console.log('[IzmirAdapter] Initializing...');
-    try {
-      const database = db.openDatabase();
-      await runMigrations(database);
-      this.lastUpdateTime = new Date();
-      this.initialized = true;
-      console.log('[IzmirAdapter] ✅ Initialized successfully');
-    } catch (error) {
-      console.error('[IzmirAdapter] ❌ Initialization failed:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Load all stops from database
    */
   async loadStops(): Promise<Stop[]> {
     console.log('[IzmirAdapter] Loading stops...');
     try {
       const stops = await db.getAllStops();
-      console.log(`[IzmirAdapter] ✅ Loaded ${stops.length} stops`);
+      console.log(`[IzmirAdapter] Loaded ${stops.length} stops`);
       return stops;
     } catch (error) {
-      console.error('[IzmirAdapter] ❌ Failed to load stops:', error);
-      return [];
+      console.error('[IzmirAdapter] Failed to load stops:', error);
+      throw new Error('Failed to load stops');
     }
   }
 
@@ -78,12 +55,23 @@ export class IzmirAdapter implements TransitAdapter {
   async loadRoutes(): Promise<Route[]> {
     console.log('[IzmirAdapter] Loading routes...');
     try {
-      const routes = await db.getAllRoutes();
-      console.log(`[IzmirAdapter] ✅ Loaded ${routes.length} routes`);
+      const database = db.openDatabase();
+      const rows = database.getAllSync<any>('SELECT * FROM routes');
+
+      const routes: Route[] = rows.map((row) => ({
+        id: row.id,
+        shortName: row.short_name,
+        longName: row.long_name,
+        type: row.type,
+        color: row.color || getLineColor(row.short_name, row.type),
+        textColor: row.text_color || '#FFFFFF',
+      }));
+
+      console.log(`[IzmirAdapter] Loaded ${routes.length} routes`);
       return routes;
     } catch (error) {
-      console.error('[IzmirAdapter] ❌ Failed to load routes:', error);
-      return [];
+      console.error('[IzmirAdapter] Failed to load routes:', error);
+      throw new Error('Failed to load routes');
     }
   }
 
@@ -105,11 +93,11 @@ export class IzmirAdapter implements TransitAdapter {
         shapeId: row.shape_id,
       }));
 
-      console.log(`[IzmirAdapter] ✅ Loaded ${trips.length} trips`);
+      console.log(`[IzmirAdapter] Loaded ${trips.length} trips`);
       return trips;
     } catch (error) {
-      console.error('[IzmirAdapter] ❌ Failed to load trips:', error);
-      return [];
+      console.error('[IzmirAdapter] Failed to load trips:', error);
+      throw new Error('Failed to load trips');
     }
   }
 
@@ -120,7 +108,7 @@ export class IzmirAdapter implements TransitAdapter {
     console.log('[IzmirAdapter] Loading stop times...');
     try {
       const database = db.openDatabase();
-      const rows = database.getAllSync<any>('SELECT * FROM stop_times LIMIT 100000');
+      const rows = database.getAllSync<any>('SELECT * FROM stop_times LIMIT 10000');
 
       const stopTimes: StopTime[] = rows.map((row) => ({
         tripId: row.trip_id,
@@ -130,184 +118,124 @@ export class IzmirAdapter implements TransitAdapter {
         stopSequence: row.stop_sequence,
       }));
 
-      console.log(`[IzmirAdapter] ✅ Loaded ${stopTimes.length} stop times`);
+      console.log(`[IzmirAdapter] Loaded ${stopTimes.length} stop times`);
       return stopTimes;
     } catch (error) {
-      console.error('[IzmirAdapter] ❌ Failed to load stop times:', error);
-      return [];
+      console.error('[IzmirAdapter] Failed to load stop times:', error);
+      throw new Error('Failed to load stop times');
     }
   }
 
   /**
-   * Get stop by ID
+   * Load shapes from database (optional)
    */
-  async getStopById(stopId: string): Promise<Stop | null> {
-    return db.getStopById(stopId);
-  }
-
-  /**
-   * Get route by ID
-   */
-  async getRouteById(routeId: string): Promise<Route | null> {
-    return db.getRouteById(routeId);
-  }
-
-  /**
-   * Search stops by name
-   */
-  async searchStops(query: string, limit: number = 20): Promise<Stop[]> {
-    return db.searchStops(query, limit);
-  }
-
-  /**
-   * Search routes by name
-   */
-  async searchRoutes(query: string, limit: number = 20): Promise<Route[]> {
-    return db.searchRoutes(query, limit);
-  }
-
-  /**
-   * Get routes serving a stop
-   */
-  async getRoutesForStop(stopId: string): Promise<Route[]> {
-    return db.getRoutesByStopId(stopId);
-  }
-
-  /**
-   * Get stops along a route
-   */
-  async getStopsForRoute(routeId: string): Promise<Stop[]> {
+  async loadShapes(): Promise<any[]> {
+    console.log('[IzmirAdapter] Loading shapes...');
     try {
       const database = db.openDatabase();
-      // Get distinct stops for this route via trips and stop_times
-      const query = `
-        SELECT DISTINCT s.*
-        FROM stops s
-        JOIN stop_times st ON s.id = st.stop_id
-        JOIN trips t ON st.trip_id = t.id
-        WHERE t.route_id = ?
-        ORDER BY st.stop_sequence
-      `;
-      const rows = database.getAllSync<any>(query, [routeId]);
-      return rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        lat: row.lat,
-        lon: row.lon,
-        locationType: row.location_type || 0,
-        parentStation: row.parent_station || null,
-      }));
+      const rows = database.getAllSync<any>('SELECT * FROM shapes LIMIT 5000');
+      console.log(`[IzmirAdapter] Loaded ${rows.length} shape points`);
+      return rows;
     } catch (error) {
-      console.error('[IzmirAdapter] getStopsForRoute failed:', error);
+      console.error('[IzmirAdapter] Failed to load shapes:', error);
       return [];
     }
   }
 
   /**
-   * Get nearby stops
+   * Get next departures for a stop (theoretical schedule)
+   * Note: İzmir doesn't have a public real-time API
    */
-  async getNearbyStops(lat: number, lon: number, radiusMeters: number = 500): Promise<Stop[]> {
-    try {
-      // Simple bounding box search (approximate)
-      const latDelta = radiusMeters / 111000; // ~111km per degree
-      const lonDelta = radiusMeters / (111000 * Math.cos(lat * Math.PI / 180));
-
-      const database = db.openDatabase();
-      const query = `
-        SELECT * FROM stops
-        WHERE lat BETWEEN ? AND ?
-        AND lon BETWEEN ? AND ?
-      `;
-      const rows = database.getAllSync<any>(query, [
-        lat - latDelta, lat + latDelta,
-        lon - lonDelta, lon + lonDelta
-      ]);
-
-      return rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        lat: row.lat,
-        lon: row.lon,
-        locationType: row.location_type || 0,
-        parentStation: row.parent_station || null,
-      }));
-    } catch (error) {
-      console.error('[IzmirAdapter] getNearbyStops failed:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get next departures for a stop
-   * Uses theoretical schedules from GTFS static data
-   */
-  async getNextDepartures(stopId: string, useRealtime: boolean = true): Promise<NextDeparture[]> {
-    console.log(`[IzmirAdapter] Getting departures for stop ${stopId}`);
+  async getNextDepartures(stopId: string): Promise<NextDeparture[]> {
+    console.log(`[IzmirAdapter] Getting next departures for stop ${stopId}...`);
     return this.getTheoreticalDepartures(stopId);
   }
 
   /**
-   * Get theoretical departures from GTFS static data
+   * Get theoretical departures from static GTFS schedule
    */
   private async getTheoreticalDepartures(stopId: string): Promise<NextDeparture[]> {
     try {
       const database = db.openDatabase();
-      const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
 
-      const query = `
-        SELECT
+      // Get current time in HH:MM:SS format
+      const now = new Date();
+      const currentTime = now.toTimeString().split(' ')[0];
+
+      // Query next departures from stop_times
+      const rows = database.getAllSync<any>(
+        `SELECT
           st.trip_id,
           st.departure_time,
           t.headsign,
           r.id as route_id,
           r.short_name as route_short_name,
-          r.color as route_color
-        FROM stop_times st
-        JOIN trips t ON st.trip_id = t.id
-        JOIN routes r ON t.route_id = r.id
-        WHERE st.stop_id = ?
-          AND st.departure_time >= ?
-        ORDER BY st.departure_time
-        LIMIT 10
-      `;
+          r.color as route_color,
+          r.type as route_type
+         FROM stop_times st
+         JOIN trips t ON st.trip_id = t.id
+         JOIN routes r ON t.route_id = r.id
+         WHERE st.stop_id = ?
+           AND st.departure_time >= ?
+         ORDER BY st.departure_time
+         LIMIT 10`,
+        [stopId, currentTime]
+      );
 
-      const rows = database.getAllSync<any>(query, [stopId, currentTime]);
+      const departures: NextDeparture[] = rows
+        .map((row) => {
+          // Parse time string "HH:MM:SS"
+          const timeParts = row.departure_time.split(':');
+          const hours = parseInt(timeParts[0], 10);
+          const minutes = parseInt(timeParts[1], 10);
+          const seconds = parseInt(timeParts[2] || '0', 10);
 
-      return rows.map((row) => {
-        const [hours, minutes] = row.departure_time.split(':').map(Number);
-        const departureTime = new Date(now);
-        departureTime.setHours(hours, minutes, 0, 0);
+          if (isNaN(hours) || isNaN(minutes)) {
+            console.warn(`[IzmirAdapter] Invalid time: ${row.departure_time}`);
+            return null;
+          }
 
-        // Handle times after midnight (e.g., 25:30:00)
-        if (hours >= 24) {
-          departureTime.setDate(departureTime.getDate() + 1);
-          departureTime.setHours(hours - 24, minutes, 0, 0);
-        }
+          const departureDate = new Date();
+          departureDate.setHours(hours % 24, minutes, seconds, 0);
 
-        return {
-          tripId: row.trip_id,
-          routeId: row.route_id,
-          routeShortName: row.route_short_name || '',
-          routeColor: row.route_color,
-          headsign: row.headsign || '',
-          departureTime,
-          scheduledTime: departureTime,
-          isRealtime: false,
-          delay: 0,
-        };
-      });
+          // Handle next-day trips (hours >= 24)
+          if (hours >= 24) {
+            departureDate.setDate(departureDate.getDate() + 1);
+          }
+
+          // Use official colors or default
+          const routeColor = row.route_color || getLineColor(row.route_short_name, row.route_type);
+
+          return {
+            tripId: row.trip_id,
+            routeId: row.route_id,
+            routeShortName: row.route_short_name,
+            routeColor,
+            headsign: row.headsign || 'Bilinmeyen',
+            departureTime: departureDate,
+            scheduledTime: departureDate,
+            isRealtime: false, // Static schedule only
+            delay: 0,
+          };
+        })
+        .filter((dep): dep is NextDeparture => dep !== null);
+
+      console.log(`[IzmirAdapter] Found ${departures.length} departures`);
+      return departures;
     } catch (error) {
-      console.error('[IzmirAdapter] Error getting theoretical departures:', error);
+      console.error('[IzmirAdapter] Failed to get departures:', error);
       return [];
     }
   }
 
   /**
    * Get service alerts
-   * Currently returns empty array (no alerts API for Izmir yet)
+   * Note: İzmir doesn't have a public alerts API
+   * Returns empty array for now
    */
-  async getAlerts(): Promise<Alert[]> {
+  async getAlerts(routeIds?: string[]): Promise<Alert[]> {
+    console.log('[IzmirAdapter] Getting alerts...');
+    // TODO: Implement web scraping or RSS feed for ESHOT announcements
     return [];
   }
 
@@ -315,30 +243,46 @@ export class IzmirAdapter implements TransitAdapter {
    * Get data source information
    */
   getDataSource(): DataSource {
-    return izmirDataSources[0];
+    return izmirDataSource;
   }
 
   /**
-   * Get all data sources
-   */
-  getAllDataSources(): DataSource[] {
-    return izmirDataSources;
-  }
-
-  /**
-   * Get last update time (required by TransitAdapter interface)
+   * Get last update timestamp
    */
   getLastUpdate(): Date {
     return this.lastUpdateTime;
   }
 
   /**
-   * Get last update time (legacy method name)
+   * Initialize adapter - ensure database is set up
    */
-  getLastUpdateTime(): Date {
-    return this.lastUpdateTime;
+  async initialize(): Promise<void> {
+    console.log('[IzmirAdapter] Initializing adapter...');
+    try {
+      await db.initializeDatabase();
+
+      // Check if database has data
+      const isEmpty = db.isDatabaseEmpty();
+      if (isEmpty) {
+        console.warn('[IzmirAdapter] Database is empty - need to import GTFS data');
+      } else {
+        const stats = db.getDatabaseStats();
+        console.log('[IzmirAdapter] Database initialized with data:', stats);
+
+        // Run database migrations
+        const database = db.openDatabase();
+        await runMigrations(database);
+      }
+
+      this.lastUpdateTime = new Date();
+    } catch (error) {
+      console.error('[IzmirAdapter] Failed to initialize:', error);
+      throw error;
+    }
   }
 }
 
-// Singleton instance
+/**
+ * Singleton instance of İzmir adapter
+ */
 export const izmirAdapter = new IzmirAdapter();

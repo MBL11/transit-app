@@ -16,18 +16,29 @@ import type { Stop, Route, Trip, StopTime } from './types/models';
 
 /**
  * Parse CSV string to typed objects
+ * Handles malformed CSVs with extra fields (common in Turkish GTFS feeds)
  */
 function parseCSV<T>(csvContent: string, fileName: string): T[] {
   console.log(`[GTFSParser] Parsing ${fileName}...`);
 
   const result = Papa.parse<T>(csvContent, {
     header: true,
-    skipEmptyLines: true,
-    transformHeader: (header: string) => header.trim(),
+    skipEmptyLines: 'greedy',
+    transformHeader: (header: string) => header.trim().toLowerCase(),
+    transform: (value: string) => value.trim(),
+    // Don't fail on field count mismatches - common in İzmir GTFS
+    delimiter: ',',
+    quoteChar: '"',
   });
 
+  // Only log real errors, not field mismatch warnings
+  const realErrors = result.errors?.filter(e => e.code !== 'TooManyFields' && e.code !== 'TooFewFields') || [];
+  if (realErrors.length > 0) {
+    console.warn(`[GTFSParser] Errors in ${fileName}:`, realErrors.slice(0, 5));
+  }
+
   if (result.errors && result.errors.length > 0) {
-    console.warn(`[GTFSParser] Errors in ${fileName}:`, result.errors.slice(0, 5));
+    console.log(`[GTFSParser] Note: ${result.errors.length} field count warnings in ${fileName} (handled)`);
   }
 
   console.log(`[GTFSParser] ✅ Parsed ${result.data.length} rows from ${fileName}`);
@@ -71,15 +82,34 @@ export function parseShapes(csvContent: string): GTFSShape[] {
 
 /**
  * Normalize GTFS stop to internal Stop model
+ * Handles various column naming conventions (standard, lowercase, underscore variations)
  */
 export function normalizeStop(gtfsStop: GTFSStop): Stop {
+  // Handle various column name formats (lowercase transformed by parser)
+  const rawStop = gtfsStop as Record<string, string>;
+
+  const id = rawStop.stop_id || rawStop.stopid || rawStop.id || '';
+  const name = rawStop.stop_name || rawStop.stopname || rawStop.name || '';
+
+  // Try multiple column names for coordinates
+  const latStr = rawStop.stop_lat || rawStop.stoplat || rawStop.lat || rawStop.latitude || '';
+  const lonStr = rawStop.stop_lon || rawStop.stoplon || rawStop.lon || rawStop.longitude || '';
+
+  const lat = parseFloat(latStr);
+  const lon = parseFloat(lonStr);
+
+  // Log warning if coordinates look wrong
+  if (isNaN(lat) || isNaN(lon)) {
+    console.warn(`[GTFSParser] Invalid coordinates for stop ${id}: lat=${latStr}, lon=${lonStr}`);
+  }
+
   return {
-    id: gtfsStop.stop_id,
-    name: gtfsStop.stop_name,
-    lat: parseFloat(gtfsStop.stop_lat),
-    lon: parseFloat(gtfsStop.stop_lon),
-    locationType: parseInt(gtfsStop.location_type || '0', 10),
-    parentStation: gtfsStop.parent_station || undefined,
+    id,
+    name,
+    lat,
+    lon,
+    locationType: parseInt(rawStop.location_type || rawStop.locationtype || '0', 10),
+    parentStation: rawStop.parent_station || rawStop.parentstation || undefined,
   };
 }
 
@@ -138,6 +168,7 @@ export function normalizeStopTime(gtfsStopTime: GTFSStopTime): StopTime {
 
 /**
  * Parse and normalize all GTFS data
+ * Automatically filters out stops with invalid coordinates
  */
 export function parseGTFSFeed(feedData: {
   stops: string;
@@ -159,15 +190,27 @@ export function parseGTFSFeed(feedData: {
   const rawTrips = parseTrips(feedData.trips);
   const rawStopTimes = parseStopTimes(feedData.stopTimes);
 
+  // Debug: log first raw stop to see column names
+  if (rawStops.length > 0) {
+    console.log('[GTFSParser] Sample raw stop:', JSON.stringify(rawStops[0]));
+  }
+
   // Normalize to internal models
   console.log('[GTFSParser] Normalizing data...');
-  const stops = rawStops.map(normalizeStop);
+  const allStops = rawStops.map(normalizeStop);
   const routes = rawRoutes.map(normalizeRoute);
   const trips = rawTrips.map(normalizeTrip);
   const stopTimes = rawStopTimes.map(normalizeStopTime);
 
+  // Filter out stops with invalid coordinates
+  const stops = filterValidStops(allStops);
+  const filteredCount = allStops.length - stops.length;
+  if (filteredCount > 0) {
+    console.warn(`[GTFSParser] Filtered out ${filteredCount} stops with invalid coordinates`);
+  }
+
   console.log('[GTFSParser] ✅ GTFS feed parsed successfully');
-  console.log(`  - ${stops.length} stops`);
+  console.log(`  - ${stops.length} stops (${filteredCount} filtered)`);
   console.log(`  - ${routes.length} routes`);
   console.log(`  - ${trips.length} trips`);
   console.log(`  - ${stopTimes.length} stop times`);
@@ -210,14 +253,16 @@ export async function loadGTFSFromURLs(urls: {
 
 /**
  * Validate GTFS data structure
+ * Returns warnings for invalid data but doesn't fail unless there's no valid data at all
  */
 export function validateGTFSData(data: {
   stops: Stop[];
   routes: Route[];
   trips: Trip[];
   stopTimes: StopTime[];
-}): { isValid: boolean; errors: string[] } {
+}): { isValid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   // Check for required data
   if (data.stops.length === 0) {
@@ -233,26 +278,49 @@ export function validateGTFSData(data: {
     errors.push('No stop times found');
   }
 
-  // Check for invalid coordinates
+  // Check for invalid coordinates - warn but don't fail
   const invalidStops = data.stops.filter(
     (s) => isNaN(s.lat) || isNaN(s.lon) || s.lat < -90 || s.lat > 90 || s.lon < -180 || s.lon > 180
   );
   if (invalidStops.length > 0) {
-    errors.push(`${invalidStops.length} stops with invalid coordinates`);
+    const validStops = data.stops.length - invalidStops.length;
+    if (validStops === 0) {
+      errors.push(`All ${invalidStops.length} stops have invalid coordinates`);
+    } else {
+      warnings.push(`${invalidStops.length} stops with invalid coordinates (will be filtered out)`);
+      console.warn(`[GTFSParser] ⚠️ ${invalidStops.length} stops with invalid coordinates:`);
+      invalidStops.slice(0, 5).forEach(s => {
+        console.warn(`  - ${s.id}: lat=${s.lat}, lon=${s.lon}`);
+      });
+    }
   }
 
   // Check for missing route colors
   const missingColors = data.routes.filter((r) => !r.color || r.color === '#FFFFFF');
   if (missingColors.length > 0) {
-    console.warn(`[GTFSParser] ⚠️ ${missingColors.length} routes missing colors`);
+    warnings.push(`${missingColors.length} routes missing colors`);
   }
 
   const isValid = errors.length === 0;
   if (!isValid) {
     console.error('[GTFSParser] ❌ Validation failed:', errors);
+  } else if (warnings.length > 0) {
+    console.warn('[GTFSParser] ⚠️ Validation passed with warnings:', warnings);
   } else {
     console.log('[GTFSParser] ✅ Validation passed');
   }
 
-  return { isValid, errors };
+  return { isValid, errors, warnings };
+}
+
+/**
+ * Filter stops with valid coordinates
+ * İzmir GTFS bbox: approximately lat 38.2-38.6, lon 26.7-27.5
+ */
+export function filterValidStops(stops: Stop[]): Stop[] {
+  return stops.filter(s => {
+    const validLat = !isNaN(s.lat) && s.lat >= -90 && s.lat <= 90;
+    const validLon = !isNaN(s.lon) && s.lon >= -180 && s.lon <= 180;
+    return validLat && validLon;
+  });
 }

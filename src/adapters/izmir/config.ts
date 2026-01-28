@@ -1,91 +1,127 @@
 /**
- * Izmir Transit Configuration
- * ESHOT, Metro Izmir, IZBAN - Izmir public transport
+ * İzmir Transit Configuration
+ * ESHOT (İzmir Metropolitan Municipality Transportation)
+ * İzBAN (Commuter Rail)
+ * Metro İzmir
  */
 
 import type { AdapterConfig, DataSource } from '../../core/types/adapter';
 
 /**
- * Izmir region configuration
+ * İzmir region configuration
  */
 export const izmirConfig: AdapterConfig = {
   cityName: 'İzmir',
   defaultLocale: 'tr',
   supportedLocales: ['tr', 'en'],
   timezone: 'Europe/Istanbul',
-  // Bounding box for Izmir metropolitan area
-  boundingBox: [38.2, 26.6, 38.7, 27.4], // [minLat, minLon, maxLat, maxLon]
+  // Bounding box for İzmir metropolitan area
+  // Covers from Aliağa (north) to Selçuk (south), Ödemiş (east) to coast (west)
+  boundingBox: [38.2, 26.7, 38.7, 27.5], // [minLat, minLon, maxLat, maxLon]
   defaultZoom: 12,
-  defaultCenter: [38.4237, 27.1428], // Izmir center (Konak)
+  defaultCenter: [38.4192, 27.1287], // İzmir center (Konak)
   currency: 'TRY',
   distanceUnit: 'metric',
 };
 
 /**
- * Izmir data sources
+ * ESHOT Data source information
  */
-export const izmirDataSources: DataSource[] = [
-  {
-    name: 'ESHOT',
-    url: 'https://www.eshot.gov.tr',
-    license: 'Public Domain',
-    attribution: '© ESHOT - İzmir Büyükşehir Belediyesi',
-  },
-  {
-    name: 'Metro İzmir',
-    url: 'https://www.izmirmetro.com.tr',
-    license: 'Public Domain',
-    attribution: '© İzmir Metro A.Ş.',
-  },
-  {
-    name: 'İZBAN',
-    url: 'https://www.izban.com.tr',
-    license: 'Public Domain',
-    attribution: '© İZBAN A.Ş.',
-  },
-];
-
-/**
- * GTFS feed URLs for Izmir
- */
-export const izmirGTFSUrls = {
-  // ESHOT Bus
-  eshot: 'https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip',
-  // Metro Izmir
-  metro: 'https://www.izmirmetro.com.tr/gtfs/rail-metro-gtfs.zip',
-  // IZBAN commuter rail
-  izban: 'https://www.izban.com.tr/gtfs/rail-izban-gtfs.zip',
+export const izmirDataSource: DataSource = {
+  name: 'ESHOT - İzmir Büyükşehir Belediyesi',
+  url: 'https://www.eshot.gov.tr',
+  license: 'Open Data',
+  attribution: '© ESHOT - İzmir Büyükşehir Belediyesi Ulaşım Koordinasyon Merkezi',
 };
 
 /**
- * Izmir transport types mapping
+ * GTFS feed URLs for İzmir
+ * Multiple sources: ESHOT (bus), Metro İzmir, Tramway, İzBAN
+ */
+export const izmirGTFSUrls = {
+  // ESHOT Open Data page
+  openDataPage: 'https://www.eshot.gov.tr/tr/UlasimVerisi/288',
+
+  // Metro İzmir GTFS
+  metro: 'https://www.izmirmetro.com.tr/gtfs/rail-metro-gtfs.zip',
+
+  // Tramway İzmir GTFS
+  tramway: 'https://www.tramizmir.com/gtfs/rail-tramizmir-gtfs.zip',
+
+  // İzBAN commuter rail (if available)
+  izban: 'https://www.izban.com.tr/gtfs/rail-izban-gtfs.zip',
+
+  // ESHOT bus (main GTFS - large file)
+  bus: 'https://www.eshot.gov.tr/gtfs/eshot-gtfs.zip',
+};
+
+/**
+ * İzmir transport types mapping
  * GTFS route_type -> Display name (Turkish)
  */
 export const izmirTransportTypes = {
   0: 'Tramvay',
   1: 'Metro',
-  2: 'Banliyö Treni', // IZBAN
+  2: 'İzBAN', // Commuter rail
   3: 'Otobüs',
-  4: 'Feribot',
-  5: 'Teleferik',
-  6: 'Füniküler',
+  4: 'Vapur/Feribot', // Ferry
+  5: 'Teleferik', // Aerial lift
+  6: 'Füniküler', // Funicular
   7: 'Füniküler',
+  11: 'Troleybüs', // Trolleybus
+  12: 'Monoray', // Monorail
 } as const;
 
 /**
- * Izmir line colors (official colors from operators)
+ * İzmir transport type colors (official colors)
  */
-export const izmirLineColors = {
-  // Metro lines
-  'M1': '#E30613', // Red - Üçyol-Bornova
-  'M2': '#00A651', // Green - planned
+export const izmirTransportColors: Record<number, string> = {
+  0: '#FF6600', // Tramway - Orange
+  1: '#E30613', // Metro - Red
+  2: '#00A651', // İzBAN - Green
+  3: '#0066CC', // Bus - Blue
+  4: '#003366', // Ferry - Dark Blue
+};
 
-  // IZBAN
-  'S1': '#1E3A8A', // Blue - Aliağa-Menderes
+/**
+ * İzmir Metro lines
+ */
+export const izmirMetroLines = {
+  M1: {
+    name: 'Fahrettin Altay - Evka 3',
+    color: '#E30613',
+    stations: 21,
+  },
+  M2: {
+    name: 'Bornova - Fahrettin Altay',
+    color: '#0066CC',
+    stations: 11,
+  },
+};
 
-  // Tram
-  'T1': '#F7941D', // Orange - Konak tram
+/**
+ * İzBAN lines
+ */
+export const izbanLines = {
+  IZBAN: {
+    name: 'Aliağa - Selçuk/Torbalı',
+    color: '#00A651',
+    stations: 42,
+  },
+};
 
-  // Default bus color
-  'bus': '#4A90D9',
+/**
+ * Tramway lines
+ */
+export const izmirTramwayLines = {
+  T1: {
+    name: 'Karşıyaka Tramvayı',
+    color: '#FF6600',
+    stations: 15,
+  },
+  T2: {
+    name: 'Konak Tramvayı',
+    color: '#FF9900',
+    stations: 12,
+  },
 };

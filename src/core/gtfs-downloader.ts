@@ -202,6 +202,9 @@ export async function downloadAndImportGTFS(
     if (!validation.isValid) {
       throw new Error(`GTFS validation failed: ${validation.errors.join(', ')}`);
     }
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.warn('[GTFSDownloader] Validation warnings:', validation.warnings);
+    }
     onProgress?.('validating', 1);
 
     // Step 5: Clear existing data
