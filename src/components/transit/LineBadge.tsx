@@ -17,9 +17,8 @@ export interface LineBadgeProps {
   size?: 'small' | 'medium' | 'large';
 }
 
-// İzmir Metro line colors (official)
+// İzmir Metro line colors - Red (official)
 const METRO_COLORS: Record<string, { bg: string; text: string }> = {
-  // İzmir Metro (Red theme)
   'M1': { bg: '#E30613', text: '#FFFFFF' },
   'M2': { bg: '#E30613', text: '#FFFFFF' },
   'M3': { bg: '#E30613', text: '#FFFFFF' },
@@ -30,24 +29,24 @@ const METRO_COLORS: Record<string, { bg: string; text: string }> = {
   '4': { bg: '#E30613', text: '#FFFFFF' },
 };
 
-// İZBAN (İzmir commuter rail) colors - Green theme
+// İZBAN (İzmir commuter rail) colors - Blue (official)
 const RER_COLORS: Record<string, { bg: string; text: string }> = {
-  // İZBAN lines
-  'S1': { bg: '#00A651', text: '#FFFFFF' },
-  'S2': { bg: '#00A651', text: '#FFFFFF' },
-  'IZBAN': { bg: '#00A651', text: '#FFFFFF' },
-  'İZBAN': { bg: '#00A651', text: '#FFFFFF' },
-  // Default for any commuter rail
-  'A': { bg: '#00A651', text: '#FFFFFF' },
-  'B': { bg: '#00A651', text: '#FFFFFF' },
+  'S1': { bg: '#0066B3', text: '#FFFFFF' },
+  'S2': { bg: '#0066B3', text: '#FFFFFF' },
+  'IZBAN': { bg: '#0066B3', text: '#FFFFFF' },
+  'İZBAN': { bg: '#0066B3', text: '#FFFFFF' },
+  'A': { bg: '#0066B3', text: '#FFFFFF' },
+  'B': { bg: '#0066B3', text: '#FFFFFF' },
 };
 
-// İzmir Tramway colors - Orange theme
+// İzmir Tramway colors - Green (official), Çiğli has light blue/pink
 const TRAM_COLORS: Record<string, { bg: string; text: string }> = {
-  'T1': { bg: '#FF6600', text: '#FFFFFF' },
-  'T2': { bg: '#FF6600', text: '#FFFFFF' },
-  '1': { bg: '#FF6600', text: '#FFFFFF' },
-  '2': { bg: '#FF6600', text: '#FFFFFF' },
+  'T1': { bg: '#00A651', text: '#FFFFFF' },
+  'T2': { bg: '#00A651', text: '#FFFFFF' },
+  '1': { bg: '#00A651', text: '#FFFFFF' },
+  '2': { bg: '#00A651', text: '#FFFFFF' },
+  'CIGLI-IC': { bg: '#5BC0DE', text: '#000000' }, // Light blue (inner)
+  'CIGLI-DIS': { bg: '#FF69B4', text: '#000000' }, // Pink (outer)
 };
 
 // İzdeniz (Ferry) colors - Dark blue theme

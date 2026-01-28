@@ -155,18 +155,25 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
  * İzmir transit line colors (official)
  */
 const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = {
-  // Metro
-  'M1': { color: '#E30613', textColor: '#FFFFFF' }, // Red
-  'M2': { color: '#E30613', textColor: '#FFFFFF' }, // Red
-  // Tramway
-  'T1': { color: '#FF6600', textColor: '#FFFFFF' }, // Orange
-  'T2': { color: '#FF6600', textColor: '#FFFFFF' }, // Orange
-  // İZBAN
-  'S1': { color: '#00A651', textColor: '#FFFFFF' }, // Green
-  'S2': { color: '#00A651', textColor: '#FFFFFF' }, // Green
-  // Ferry
-  'F1': { color: '#003366', textColor: '#FFFFFF' }, // Dark Blue
-  'F2': { color: '#003366', textColor: '#FFFFFF' }, // Dark Blue
+  // Metro - Red (official)
+  'M1': { color: '#E30613', textColor: '#FFFFFF' },
+  'M2': { color: '#E30613', textColor: '#FFFFFF' },
+  'M3': { color: '#E30613', textColor: '#FFFFFF' },
+  'M4': { color: '#E30613', textColor: '#FFFFFF' },
+  // Tramway - Green (official), Çiğli has light blue/pink for directions
+  'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Green
+  'T2': { color: '#00A651', textColor: '#FFFFFF' }, // Green
+  'CIGLI-IC': { color: '#5BC0DE', textColor: '#000000' }, // Light Blue (inner)
+  'CIGLI-DIS': { color: '#FF69B4', textColor: '#000000' }, // Pink (outer)
+  // İZBAN - Blue (official)
+  'S1': { color: '#0066B3', textColor: '#FFFFFF' },
+  'S2': { color: '#0066B3', textColor: '#FFFFFF' },
+  'IZBAN': { color: '#0066B3', textColor: '#FFFFFF' },
+  'İZBAN': { color: '#0066B3', textColor: '#FFFFFF' },
+  // Ferry - Dark Blue
+  'F1': { color: '#003366', textColor: '#FFFFFF' },
+  'F2': { color: '#003366', textColor: '#FFFFFF' },
+  'VAPUR': { color: '#003366', textColor: '#FFFFFF' },
 };
 
 /**
