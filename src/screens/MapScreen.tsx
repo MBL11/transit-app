@@ -109,16 +109,31 @@ export function MapScreen({ navigation }: Props) {
             const name = ((route.shortName || '') + ' ' + (route.longName || '')).toUpperCase();
             const shortUpper = (route.shortName || '').toUpperCase();
 
+            let detected: number;
+
             // Metro: M1, M2, or contains "METRO"
-            if (name.includes('METRO') || /^M\d/i.test(shortUpper)) return 1;
+            if (name.includes('METRO') || /^M\d/i.test(shortUpper)) {
+              detected = 1;
             // İZBAN: contains İZBAN/IZBAN, or S1/S2
-            if (name.includes('İZBAN') || name.includes('IZBAN') || /^S\d/i.test(shortUpper)) return 2;
+            } else if (name.includes('İZBAN') || name.includes('IZBAN') || /^S\d/i.test(shortUpper)) {
+              detected = 2;
             // Tram: T1, T2, or contains TRAM/TRAMVAY
-            if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) return 0;
+            } else if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) {
+              detected = 0;
             // Ferry: only if explicitly contains ferry-related words
-            if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('İZDENİZ')) return 4;
-            // Default to original type, but treat type 4 as bus if not explicitly ferry
-            return route.type === 4 ? 3 : route.type;
+            } else if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('İZDENİZ') || name.includes('IZDENIZ')) {
+              detected = 4;
+            } else {
+              // Default: use GTFS type, but never default to ferry (4) - treat as bus
+              detected = route.type === 4 ? 3 : route.type;
+            }
+
+            // Debug: log non-bus detections
+            if (detected !== 3) {
+              console.log(`[MapScreen] Route "${route.shortName}" (${route.longName}) type=${route.type} -> detected=${detected}`);
+            }
+
+            return detected;
           };
 
           // Convert to Map of stopId -> detected route types array

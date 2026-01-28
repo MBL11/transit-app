@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -248,8 +248,9 @@ export function LinesScreen() {
         contentContainerStyle={styles.filtersContainer}
       >
         {(Object.keys(typeLabels) as TransitType[]).map((type) => (
-          <Pressable
+          <TouchableOpacity
             key={type}
+            activeOpacity={0.7}
             onPress={() => setSelectedType(type)}
             style={[
               styles.filterButton,
@@ -264,7 +265,7 @@ export function LinesScreen() {
             >
               {typeLabels[type]}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
@@ -335,24 +336,29 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       backgroundColor: colors.background,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      maxHeight: 56,
     },
     filtersContainer: {
       flexDirection: 'row',
       paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingVertical: 8,
       gap: 8,
+      alignItems: 'center',
     },
     filterButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: colors.buttonBackground,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     filterButtonActive: {
       backgroundColor: colors.primary,
+      borderColor: colors.primary,
     },
     filterText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
       color: colors.textSecondary,
     },
