@@ -61,6 +61,8 @@
     "rer": "RER/Train",
     "train": "Train",
     "noctilien": "Noctilien",
+    "izban": "İZBAN",
+    "ferry": "Vapur",
     "linesServing": "Lignes desservant cet arrêt",
     "stopsOnLine": "Arrêts de cette ligne",
     "loadingStops": "Chargement des arrêts...",

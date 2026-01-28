@@ -299,6 +299,20 @@ export async function downloadAndImportAllIzmir(
       onProgress?.('parsing', baseProgress + progressPerSource * 0.5, sourceInfo.name);
       const parsedData = parseGTFSFeed(gtfsFiles);
 
+      // Override route_type based on source (İzmir GTFS uses route_type=0 for everything)
+      const routeTypeOverride: Record<string, number> = {
+        metro: 1,   // Metro İzmir → route_type=1 (subway)
+        tram: 0,    // Tram İzmir → route_type=0 (tram)
+        rail: 2,    // İZBAN → route_type=2 (rail)
+        ferry: 4,   // İzdeniz → route_type=4 (ferry)
+        bus: 3,     // ESHOT → route_type=3 (bus)
+      };
+      const overrideType = routeTypeOverride[sourceInfo.type];
+      if (overrideType !== undefined) {
+        console.log(`[GTFSDownloader] Overriding route_type to ${overrideType} for ${sourceInfo.name} (source type: ${sourceInfo.type})`);
+        parsedData.routes.forEach(r => { r.type = overrideType; });
+      }
+
       // Validate data
       const validation = validateGTFSData(parsedData);
       if (!validation.isValid) {

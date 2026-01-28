@@ -340,21 +340,21 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       alignItems: 'center',
     },
     filterButton: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 18,
       paddingVertical: 10,
       borderRadius: 20,
-      backgroundColor: colors.card,
+      backgroundColor: colors.isDark ? '#333333' : '#F0F0F0',
       borderWidth: 1.5,
-      borderColor: colors.border,
+      borderColor: colors.isDark ? '#555555' : '#DDDDDD',
     },
     filterButtonActive: {
       backgroundColor: colors.primary,
       borderColor: colors.primary,
     },
     filterText: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: '600',
-      color: colors.textSecondary,
+      color: colors.isDark ? '#FFFFFF' : '#333333',
     },
     filterTextActive: {
       color: 'white',
