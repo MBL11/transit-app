@@ -199,7 +199,7 @@ export function SplashScreen({ onReady }: Props) {
         </View>
 
         <Text style={styles.appName}>Transit</Text>
-        <Text style={styles.cityName}>Paris - Île-de-France</Text>
+        <Text style={styles.cityName}>Votre compagnon de transport</Text>
       </Animated.View>
 
       {/* Loading section */}
@@ -223,7 +223,7 @@ export function SplashScreen({ onReady }: Props) {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <Text style={styles.poweredBy}>Données IDFM</Text>
+        <Text style={styles.poweredBy}>Données GTFS</Text>
         <Text style={styles.version}>v1.0.0</Text>
       </View>
     </View>
