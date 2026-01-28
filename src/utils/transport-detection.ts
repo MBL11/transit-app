@@ -92,7 +92,11 @@ export function detectTransitType(
   if (IZBAN_KEYWORDS.some(kw => combinedName.includes(kw))) return 'izban';
   if (TRAM_KEYWORDS.some(kw => combinedName.includes(kw))) return 'tram';
 
-  // 5. Default to bus (most common type)
+  // 5. After re-import, route_type=0 means tram (metro=1, izban=2, ferry=4 already caught above).
+  //    Before re-import all types are 0, but metro/izban/ferry are caught by name patterns above.
+  if (gtfsType === 0) return 'tram';
+
+  // 6. Default to bus (only for route_type=3 or truly unknown)
   return 'bus';
 }
 
