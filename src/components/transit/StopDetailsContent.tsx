@@ -74,8 +74,9 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
 
         // Convert to Departure format
         const formattedDepartures: Departure[] = departuresData.map((dep) => ({
-          routeShortName: dep.routeShortName,
+          routeShortName: dep.routeShortName || dep.routeId || 'Unknown',
           routeColor: dep.routeColor || '#CCCCCC',
+          routeType: dep.routeType,
           headsign: dep.headsign,
           departureTime: dep.departureTime,
           isRealtime: dep.isRealtime,
@@ -104,8 +105,9 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
 
       // Convert to Departure format
       const formattedDepartures: Departure[] = departuresData.map((dep) => ({
-        routeShortName: dep.routeShortName,
+        routeShortName: dep.routeShortName || dep.routeId || 'Unknown',
         routeColor: dep.routeColor || '#CCCCCC',
+        routeType: dep.routeType,
         headsign: dep.headsign,
         departureTime: dep.departureTime,
         isRealtime: dep.isRealtime,

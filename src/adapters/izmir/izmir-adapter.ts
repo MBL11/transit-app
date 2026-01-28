@@ -209,8 +209,9 @@ export class IzmirAdapter implements TransitAdapter {
           return {
             tripId: row.trip_id,
             routeId: row.route_id,
-            routeShortName: row.route_short_name,
+            routeShortName: row.route_short_name || row.route_id || 'Unknown',
             routeColor,
+            routeType: row.route_type,
             headsign: row.headsign || 'Bilinmeyen',
             departureTime: departureDate,
             scheduledTime: departureDate,

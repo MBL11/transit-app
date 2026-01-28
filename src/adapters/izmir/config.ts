@@ -74,12 +74,13 @@ export const izmirTransportTypes = {
 
 /**
  * İzmir transport type colors (official colors)
+ * Metro: Red, İZBAN: Blue, Tram: Green, Bus: ESHOT Blue, Ferry: Dark Blue
  */
 export const izmirTransportColors: Record<number, string> = {
-  0: '#FF6600', // Tramway - Orange
-  1: '#E30613', // Metro - Red
-  2: '#00A651', // İzBAN - Green
-  3: '#0066CC', // Bus - Blue
+  0: '#00A651', // Tramway - Green (official)
+  1: '#E30613', // Metro - Red (official)
+  2: '#0066B3', // İZBAN - Blue (official)
+  3: '#0066CC', // Bus - ESHOT Blue
   4: '#003366', // Ferry - Dark Blue
 };
 
@@ -100,28 +101,28 @@ export const izmirMetroLines = {
 };
 
 /**
- * İzBAN lines
+ * İZBAN lines (Blue - official)
  */
 export const izbanLines = {
   IZBAN: {
     name: 'Aliağa - Selçuk/Torbalı',
-    color: '#00A651',
+    color: '#0066B3', // Blue (official)
     stations: 42,
   },
 };
 
 /**
- * Tramway lines
+ * Tramway lines (Green - official)
  */
 export const izmirTramwayLines = {
   T1: {
     name: 'Karşıyaka Tramvayı',
-    color: '#FF6600',
+    color: '#00A651', // Green (official)
     stations: 15,
   },
   T2: {
     name: 'Konak Tramvayı',
-    color: '#FF9900',
+    color: '#00A651', // Green (official)
     stations: 12,
   },
 };

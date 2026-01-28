@@ -29,6 +29,7 @@ export interface NextDeparture {
   routeId: string;
   routeShortName: string;
   routeColor?: string; // Hex color (optional)
+  routeType?: number; // GTFS route type (0=tram, 1=metro, 2=rail, 3=bus, 4=ferry)
   headsign: string;
   departureTime: Date;
   scheduledTime?: Date;

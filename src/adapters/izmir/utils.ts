@@ -104,21 +104,31 @@ export function formatDuration(minutes: number): string {
  * Uses official colors when available
  */
 export function getLineColor(routeShortName: string, routeType: number): string {
-  // Metro lines
-  if (routeShortName === 'M1') return '#E30613';
-  if (routeShortName === 'M2') return '#0066CC';
+  const name = (routeShortName || '').toUpperCase();
 
-  // İzBAN
-  if (routeShortName?.includes('İZBAN') || routeShortName?.includes('IZBAN')) {
+  // Metro lines - Red (official)
+  if (name.startsWith('M') || routeType === 1) return '#E30613';
+
+  // İZBAN - Blue (official)
+  if (name.includes('İZBAN') || name.includes('IZBAN') || name.includes('S1') || name.includes('S2')) {
+    return '#0066B3';
+  }
+
+  // Rail type 2 = İZBAN
+  if (routeType === 2) return '#0066B3';
+
+  // Tramway - Green (official)
+  if (name.startsWith('T') || routeType === 0) {
     return '#00A651';
   }
 
-  // Tramway
-  if (routeShortName === 'T1' || routeShortName === 'T2') {
-    return '#FF6600';
-  }
+  // Ferry - Dark Blue
+  if (routeType === 4) return '#003366';
 
-  // Default by transport type
+  // Bus - ESHOT Blue
+  if (routeType === 3) return '#0066CC';
+
+  // Default
   return getTransportTypeColor(routeType);
 }
 
