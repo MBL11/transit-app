@@ -4,26 +4,42 @@
  * İzmir GTFS sources ALL use route_type=0 regardless of actual transport type.
  * This module provides name-based detection as a fallback when route_type
  * hasn't been overridden during import.
+ *
+ * After re-import, route_type is overridden per source:
+ *   metro=1, tram=0, izban=2, ferry=4, bus=3
  */
 
 export type TransitType = 'metro' | 'bus' | 'tram' | 'izban' | 'ferry';
 
-// Known İzmir metro line terminus/key station names
-// These appear in route longNames like "Fahrettin Altay - Halkapınar"
+// Metro-UNIQUE terminus names (NOT shared with tram)
+// Metro line 1: Evka-3 ↔ Narlıdere Kaymakamlık
+// NOTE: Fahrettin Altay and Halkapınar are shared with T2 tram, do NOT include here
 const METRO_KEYWORDS = [
-  'FAHRETTIN ALTAY', 'FAHRETTİN ALTAY',
   'EVKA 3', 'EVKA3', 'EVKA-3',
-  'ÜÇYOL', 'UCYOL', 'ÜCYOL',
-  'HALKAPINAR', 'HALKAPINAR',
+  'NARLIDERE', 'NARLÍDERE', 'NARLÍDERE',
+  'KAYMAKAMLIK', 'KAYMAKAMLÍK', 'KAYMAKAMLIK',
 ];
 
-// Known İZBAN indicators
+// Tram-specific keywords and terminus names
+// T1 Karşıyaka: Alaybey ↔ Ataşehir/Flamingo
+// T2 Konak: Halkapınar ↔ Fahrettin Altay
+// T3 Çiğli: around Çiğli area
+const TRAM_KEYWORDS = [
+  'ALAYBEY', 'ATASEHIR', 'ATAŞEHİR', 'ATAŞEHIR',
+  'FLAMINGO',
+  'ÇİĞLİ', 'CIGLI',
+  'KARŞIYAKA TRAM', 'KARSIYAKA TRAM',
+  'KONAK TRAM',
+];
+
+// Known İZBAN indicators (unique to İZBAN commuter rail)
 const IZBAN_KEYWORDS = [
   'İZBAN', 'IZBAN',
   'ALİAĞA', 'ALIAGA', 'ALIAĞA',
   'CUMAOVASI', 'CUMAOVAS',
   'SELÇUK', 'SELCUK',
   'TORBALÍ', 'TORBALI',
+  'TEPEKÖY', 'TEPEKOY',
 ];
 
 // Known ferry indicators
@@ -41,7 +57,7 @@ const FERRY_KEYWORDS = [
  * 1. Trust specific route_types (1=metro, 2=izban, 4=ferry) from import overrides
  * 2. Check shortName prefix patterns (M1, T1, S1, F1)
  * 3. Check explicit keywords in name (METRO, İZBAN, TRAM, VAPUR)
- * 4. Check İzmir-specific station names in longName
+ * 4. Check İzmir-specific UNIQUE station/terminus names
  * 5. Default to bus
  */
 export function detectTransitType(
@@ -57,7 +73,7 @@ export function detectTransitType(
   if (gtfsType === 2) return 'izban';
   if (gtfsType === 4) return 'ferry';
   // NOTE: Do NOT use gtfsType === 0 or gtfsType === 3 as broad matchers
-  // İzmir GTFS uses route_type=0 for ALL transport types
+  // İzmir GTFS uses route_type=0 for ALL transport types before re-import
 
   // 2. Check shortName prefix patterns (M1, T1, S1, F1)
   if (/^M\d/i.test(shortUpper)) return 'metro';
@@ -71,9 +87,10 @@ export function detectTransitType(
   if (combinedName.includes('TRAM') || combinedName.includes('TRAMVAY')) return 'tram';
   if (FERRY_KEYWORDS.some(kw => combinedName.includes(kw))) return 'ferry';
 
-  // 4. Check İzmir-specific station/line names in the combined name
+  // 4. Check İzmir-specific UNIQUE terminus/station names
   if (METRO_KEYWORDS.some(kw => combinedName.includes(kw))) return 'metro';
   if (IZBAN_KEYWORDS.some(kw => combinedName.includes(kw))) return 'izban';
+  if (TRAM_KEYWORDS.some(kw => combinedName.includes(kw))) return 'tram';
 
   // 5. Default to bus (most common type)
   return 'bus';
