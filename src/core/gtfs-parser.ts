@@ -92,13 +92,6 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
   const id = rawStop.stop_id || rawStop.stopid || rawStop.id || '';
   const name = rawStop.stop_name || rawStop.stopname || rawStop.name || '';
 
-  // Debug: log all keys in the raw stop to understand the structure
-  const keys = Object.keys(rawStop);
-  if (id === '12' || id === '1') {
-    console.log(`[GTFSParser] DEBUG stop ${id} keys:`, keys.join(', '));
-    console.log(`[GTFSParser] DEBUG stop ${id} values:`, JSON.stringify(rawStop));
-  }
-
   // Try multiple column names for coordinates
   let latStr = rawStop.stop_lat || rawStop.stoplat || rawStop.lat || rawStop.latitude || '';
   let lonStr = rawStop.stop_lon || rawStop.stoplon || rawStop.lon || rawStop.longitude || '';
@@ -106,47 +99,46 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
   let lat = parseFloat(latStr);
   let lon = parseFloat(lonStr);
 
-  // İzmir GTFS fix: The CSV seems to have shifted columns
-  // Looking at: stop_lat:"27", stop_lon:"2289", zone_id:"38", stop_url:"4656"
-  // Real İzmir coords: lat ~38.4, lon ~27.2
-  // It looks like the data is: lon_int, lon_decimal*10000, lat_int, lat_decimal*10000
+  // İzmir area bounding box (extended for safety)
+  const IZMIR_LAT_MIN = 37.5;
+  const IZMIR_LAT_MAX = 39.5;
+  const IZMIR_LON_MIN = 26.0;
+  const IZMIR_LON_MAX = 28.5;
 
-  // Check if we have the İzmir shifted format
-  const zoneIdVal = parseFloat(rawStop.zone_id || '');
-  const stopUrlVal = parseFloat(rawStop.stop_url || '');
+  // Check if coordinates are already valid for İzmir
+  const isAlreadyValidIzmir = (
+    !isNaN(lat) && !isNaN(lon) &&
+    lat >= IZMIR_LAT_MIN && lat <= IZMIR_LAT_MAX &&
+    lon >= IZMIR_LON_MIN && lon <= IZMIR_LON_MAX
+  );
 
-  if (!isNaN(lat) && lat >= 26 && lat <= 28 && !isNaN(zoneIdVal) && zoneIdVal >= 38 && zoneIdVal <= 40) {
-    // İzmir shifted format detected
-    // stop_lat (27) = longitude integer
-    // stop_lon (2289) = longitude decimal (needs to be /10000)
-    // zone_id (38) = latitude integer
-    // stop_url (4656) = latitude decimal (needs to be /10000)
+  if (!isAlreadyValidIzmir) {
+    // Check if we have the İzmir shifted format (ESHOT specific issue)
+    // Looking at: stop_lat:"27", stop_lon:"2289", zone_id:"38", stop_url:"4656"
+    // Real İzmir coords: lat ~38.4, lon ~27.2
+    const zoneIdVal = parseFloat(rawStop.zone_id || '');
+    const stopUrlVal = parseFloat(rawStop.stop_url || '');
 
-    const lonInt = lat; // stop_lat has lon integer
-    const lonDec = lon / 10000; // stop_lon has lon decimal
-    const latInt = zoneIdVal; // zone_id has lat integer
-    const latDec = stopUrlVal / 10000; // stop_url has lat decimal
+    const hasShiftedFormat = (
+      !isNaN(lat) && lat >= 26 && lat <= 28 &&
+      !isNaN(zoneIdVal) && zoneIdVal >= 37 && zoneIdVal <= 40 &&
+      !isNaN(lon) && lon > 100 && // lon decimal is large number
+      !isNaN(stopUrlVal) && stopUrlVal > 100 // lat decimal is large number
+    );
 
-    lat = latInt + latDec;
-    lon = lonInt + lonDec;
+    if (hasShiftedFormat) {
+      // İzmir shifted format detected
+      const lonInt = lat; // stop_lat has lon integer
+      const lonDec = lon / 10000; // stop_lon has lon decimal
+      const latInt = zoneIdVal; // zone_id has lat integer
+      const latDec = stopUrlVal / 10000; // stop_url has lat decimal
 
-    if (id === '12' || id === '1') {
-      console.log(`[GTFSParser] İzmir fix for ${id}: lat=${lat}, lon=${lon}`);
+      lat = latInt + latDec;
+      lon = lonInt + lonDec;
+    } else if (lat > 40 && lon < 30) {
+      // Simple lat/lon swap detection
+      [lat, lon] = [lon, lat];
     }
-  }
-
-  // Also handle simple lat/lon swap (lat > 40 and lon < 30 for Turkey)
-  if (lat > 40 && lon < 30) {
-    // Probably swapped
-    [lat, lon] = [lon, lat];
-  }
-
-  // Final validation for İzmir area (lat: 38-39, lon: 26-28)
-  const isValidIzmir = lat >= 37 && lat <= 40 && lon >= 26 && lon <= 29;
-
-  // Log warning if coordinates still look wrong
-  if (isNaN(lat) || isNaN(lon) || !isValidIzmir) {
-    console.warn(`[GTFSParser] Invalid/non-İzmir coordinates for stop ${id} "${name}": lat=${lat}, lon=${lon}`);
   }
 
   return {
@@ -181,11 +173,29 @@ const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = 
  * Normalize GTFS route to internal Route model
  */
 export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
-  const shortName = gtfsRoute.route_short_name || '';
+  const rawRoute = gtfsRoute as Record<string, string>;
+
+  // Try multiple column names for shortName (handle different GTFS formats)
+  let shortName = rawRoute.route_short_name || rawRoute.routeshortname || rawRoute.short_name || '';
+
+  // If shortName is empty, use route_id or long_name as fallback
+  if (!shortName || shortName.trim() === '') {
+    shortName = rawRoute.route_id || rawRoute.route_long_name || 'Unknown';
+    // Truncate if too long
+    if (shortName.length > 10) {
+      shortName = shortName.substring(0, 10);
+    }
+  }
+
+  // Debug first few routes only
+  const routeId = rawRoute.route_id || '';
+  if (routeId === '1' || routeId === '2' || routeId.toLowerCase().includes('m1')) {
+    console.log(`[GTFSParser] Route ${routeId}: shortName="${shortName}", longName="${rawRoute.route_long_name}"`);
+  }
 
   // Try to get İzmir-specific colors first
-  let color = gtfsRoute.route_color || '';
-  let textColor = gtfsRoute.route_text_color || '';
+  let color = rawRoute.route_color || '';
+  let textColor = rawRoute.route_text_color || '';
 
   // If no color provided, use İzmir defaults based on short name or route type
   if (!color || color === 'FFFFFF' || color === '') {
@@ -195,7 +205,7 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
       textColor = izmirColor.textColor;
     } else {
       // Fallback based on route type
-      const routeType = parseInt(gtfsRoute.route_type, 10);
+      const routeType = parseInt(rawRoute.route_type || '3', 10);
       switch (routeType) {
         case 0: // Tram
           color = '#FF6600';
@@ -233,10 +243,10 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
   }
 
   return {
-    id: gtfsRoute.route_id,
+    id: rawRoute.route_id || '',
     shortName,
-    longName: gtfsRoute.route_long_name,
-    type: parseInt(gtfsRoute.route_type, 10),
+    longName: rawRoute.route_long_name || shortName,
+    type: parseInt(rawRoute.route_type || '3', 10),
     color,
     textColor,
   };
@@ -293,9 +303,12 @@ export function parseGTFSFeed(feedData: {
   const rawTrips = parseTrips(feedData.trips);
   const rawStopTimes = parseStopTimes(feedData.stopTimes);
 
-  // Debug: log first raw stop to see column names
+  // Debug: log first few raw stops to see column names and values
   if (rawStops.length > 0) {
-    console.log('[GTFSParser] Sample raw stop:', JSON.stringify(rawStops[0]));
+    console.log('[GTFSParser] Sample raw stop 0:', JSON.stringify(rawStops[0]));
+    if (rawStops.length > 1) {
+      console.log('[GTFSParser] Sample raw stop 1:', JSON.stringify(rawStops[1]));
+    }
   }
 
   // Normalize to internal models
@@ -305,11 +318,24 @@ export function parseGTFSFeed(feedData: {
   const trips = rawTrips.map(normalizeTrip);
   const stopTimes = rawStopTimes.map(normalizeStopTime);
 
+  // Debug: log first few normalized stops
+  if (allStops.length > 0) {
+    console.log('[GTFSParser] Normalized stop 0:', JSON.stringify(allStops[0]));
+    if (allStops.length > 1) {
+      console.log('[GTFSParser] Normalized stop 1:', JSON.stringify(allStops[1]));
+    }
+  }
+
   // Filter out stops with invalid coordinates
   const stops = filterValidStops(allStops);
   const filteredCount = allStops.length - stops.length;
   if (filteredCount > 0) {
     console.warn(`[GTFSParser] Filtered out ${filteredCount} stops with invalid coordinates`);
+    // Log some filtered stops for debugging
+    const invalidStops = allStops.filter(s => !stops.includes(s)).slice(0, 3);
+    invalidStops.forEach(s => {
+      console.warn(`[GTFSParser] Filtered stop: id=${s.id}, name=${s.name}, lat=${s.lat}, lon=${s.lon}`);
+    });
   }
 
   console.log('[GTFSParser] ✅ GTFS feed parsed successfully');

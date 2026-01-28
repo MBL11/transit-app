@@ -17,63 +17,45 @@ export interface LineBadgeProps {
   size?: 'small' | 'medium' | 'large';
 }
 
-// Official IDFM Metro line colors
+// İzmir Metro line colors (official)
 const METRO_COLORS: Record<string, { bg: string; text: string }> = {
-  '1': { bg: '#FFCD00', text: '#000000' },
-  '2': { bg: '#003CA6', text: '#FFFFFF' },
-  '3': { bg: '#837902', text: '#FFFFFF' },
-  '3bis': { bg: '#6EC4E8', text: '#000000' },
-  '4': { bg: '#CF009E', text: '#FFFFFF' },
-  '5': { bg: '#FF7E2E', text: '#000000' },
-  '6': { bg: '#6ECA97', text: '#000000' },
-  '7': { bg: '#FA9ABA', text: '#000000' },
-  '7bis': { bg: '#6ECA97', text: '#000000' },
-  '8': { bg: '#E19BDF', text: '#000000' },
-  '9': { bg: '#B6BD00', text: '#000000' },
-  '10': { bg: '#C9910D', text: '#000000' },
-  '11': { bg: '#704B1C', text: '#FFFFFF' },
-  '12': { bg: '#007852', text: '#FFFFFF' },
-  '13': { bg: '#6EC4E8', text: '#000000' },
-  '14': { bg: '#62259D', text: '#FFFFFF' },
+  // İzmir Metro (Red theme)
+  'M1': { bg: '#E30613', text: '#FFFFFF' },
+  'M2': { bg: '#E30613', text: '#FFFFFF' },
+  'M3': { bg: '#E30613', text: '#FFFFFF' },
+  'M4': { bg: '#E30613', text: '#FFFFFF' },
+  '1': { bg: '#E30613', text: '#FFFFFF' },
+  '2': { bg: '#E30613', text: '#FFFFFF' },
+  '3': { bg: '#E30613', text: '#FFFFFF' },
+  '4': { bg: '#E30613', text: '#FFFFFF' },
 };
 
-// Official IDFM RER line colors
+// İZBAN (İzmir commuter rail) colors - Green theme
 const RER_COLORS: Record<string, { bg: string; text: string }> = {
-  'A': { bg: '#E3051C', text: '#FFFFFF' },
-  'B': { bg: '#5291CE', text: '#FFFFFF' },
-  'C': { bg: '#FFCD00', text: '#000000' },
-  'D': { bg: '#00814F', text: '#FFFFFF' },
-  'E': { bg: '#CF76C8', text: '#000000' },
+  // İZBAN lines
+  'S1': { bg: '#00A651', text: '#FFFFFF' },
+  'S2': { bg: '#00A651', text: '#FFFFFF' },
+  'IZBAN': { bg: '#00A651', text: '#FFFFFF' },
+  'İZBAN': { bg: '#00A651', text: '#FFFFFF' },
+  // Default for any commuter rail
+  'A': { bg: '#00A651', text: '#FFFFFF' },
+  'B': { bg: '#00A651', text: '#FFFFFF' },
 };
 
-// Official IDFM Tram line colors
+// İzmir Tramway colors - Orange theme
 const TRAM_COLORS: Record<string, { bg: string; text: string }> = {
-  'T1': { bg: '#003CA6', text: '#FFFFFF' },
-  'T2': { bg: '#CF009E', text: '#FFFFFF' },
-  'T3A': { bg: '#FF7E2E', text: '#000000' },
-  'T3B': { bg: '#00814F', text: '#FFFFFF' },
-  'T4': { bg: '#E19BDF', text: '#000000' },
-  'T5': { bg: '#837902', text: '#FFFFFF' },
-  'T6': { bg: '#E3051C', text: '#FFFFFF' },
-  'T7': { bg: '#704B1C', text: '#FFFFFF' },
-  'T8': { bg: '#837902', text: '#FFFFFF' },
-  'T9': { bg: '#5291CE', text: '#FFFFFF' },
-  'T10': { bg: '#FFCD00', text: '#000000' },
-  'T11': { bg: '#FF7E2E', text: '#000000' },
-  'T12': { bg: '#B90845', text: '#FFFFFF' },
-  'T13': { bg: '#8D5E2A', text: '#FFFFFF' },
+  'T1': { bg: '#FF6600', text: '#FFFFFF' },
+  'T2': { bg: '#FF6600', text: '#FFFFFF' },
+  '1': { bg: '#FF6600', text: '#FFFFFF' },
+  '2': { bg: '#FF6600', text: '#FFFFFF' },
 };
 
-// Transilien line colors
+// İzdeniz (Ferry) colors - Dark blue theme
 const TRANSILIEN_COLORS: Record<string, { bg: string; text: string }> = {
-  'H': { bg: '#704B1C', text: '#FFFFFF' },
-  'J': { bg: '#CEAF00', text: '#000000' },
-  'K': { bg: '#C1B400', text: '#000000' },
-  'L': { bg: '#6E4C9F', text: '#FFFFFF' },
-  'N': { bg: '#00A092', text: '#FFFFFF' },
-  'P': { bg: '#FFBE00', text: '#000000' },
-  'R': { bg: '#E6007E', text: '#FFFFFF' },
-  'U': { bg: '#B90845', text: '#FFFFFF' },
+  'F1': { bg: '#003366', text: '#FFFFFF' },
+  'F2': { bg: '#003366', text: '#FFFFFF' },
+  'VAPUR': { bg: '#003366', text: '#FFFFFF' },
+  'FERRY': { bg: '#003366', text: '#FFFFFF' },
 };
 
 const SIZES = {
