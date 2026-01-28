@@ -18,8 +18,8 @@ const STOPS_RESOURCE_ID = '0c791266-a2e4-4f14-82b8-9a9b102fbf94';
 const ROUTES_RESOURCE_ID = 'bd6c84f8-49ba-4cf4-81f8-81a0fbb5caa3';
 const SCHEDULES_RESOURCE_ID = 'c6fa6046-f755-47d7-b69e-db6bb06a8b5a';
 
-// ESHOT bus color (distinct amber/orange to differentiate from other transit types)
-const ESHOT_BUS_COLOR = '#FF6F00';
+// ESHOT bus color (official ESHOT blue, matching UI components)
+const ESHOT_BUS_COLOR = '#0066CC';
 const ESHOT_TEXT_COLOR = '#FFFFFF';
 
 // Maximum departures per route to keep database size manageable
