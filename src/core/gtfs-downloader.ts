@@ -313,6 +313,18 @@ export async function downloadAndImportAllIzmir(
         parsedData.routes.forEach(r => { r.type = overrideType; });
       }
 
+      // Prefix route and trip IDs with source type to prevent collisions
+      // (e.g. metro route "1" vs tram route "1" would overwrite each other)
+      const prefix = `${sourceInfo.type}_`;
+      console.log(`[GTFSDownloader] Prefixing IDs with "${prefix}" for ${sourceInfo.name}`);
+      parsedData.routes.forEach(r => { r.id = prefix + r.id; });
+      parsedData.trips.forEach(t => {
+        t.id = prefix + t.id;
+        t.routeId = prefix + t.routeId;
+      });
+      parsedData.stopTimes.forEach(st => { st.tripId = prefix + st.tripId; });
+      // NOTE: stop IDs are NOT prefixed - stations can be shared between sources
+
       // Validate data
       const validation = validateGTFSData(parsedData);
       if (!validation.isValid) {
