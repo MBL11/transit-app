@@ -39,27 +39,27 @@ interface TransitAdapter {
 
 ## Available Adapters
 
-### Paris (IDFM)
+### İzmir
 
-- **Location**: `src/adapters/paris/`
-- **Data Source**: Île-de-France Mobilités Open Data
-- **Coverage**: Paris region (Île-de-France)
-- **Transport modes**: Metro, RER, Tram, Bus, Train
-- **Real-time**: Static schedules for now (SIRI-Lite API planned for step 10)
+- **Location**: `src/adapters/izmir/`
+- **Data Source**: ESHOT, Metro İzmir, İZBAN GTFS feeds
+- **Coverage**: İzmir metropolitan area
+- **Transport modes**: Bus (ESHOT), Metro, İZBAN (commuter rail)
+- **Real-time**: Static schedules (GTFS-RT planned)
 
 **Usage**:
 ```typescript
-import { parisAdapter } from './adapters/paris';
+import { izmirAdapter } from './adapters/izmir';
 
 // Initialize
-await parisAdapter.initialize();
+await izmirAdapter.initialize();
 
 // Load data
-const stops = await parisAdapter.loadStops();
-const routes = await parisAdapter.loadRoutes();
+const stops = await izmirAdapter.loadStops();
+const routes = await izmirAdapter.loadRoutes();
 
 // Get next departures
-const departures = await parisAdapter.getNextDepartures(stopId);
+const departures = await izmirAdapter.getNextDepartures(stopId);
 ```
 
 ## Adding a New City
@@ -72,14 +72,14 @@ To add support for a new city:
 4. Export from `index.ts`
 5. Add to `src/adapters/index.ts`
 
-See the Paris adapter as a reference implementation.
+See the İzmir adapter as a reference implementation.
 
 ## Configuration
 
 Each adapter has an `AdapterConfig` that defines:
 
 - **cityName**: Display name
-- **timezone**: IANA timezone (e.g., "Europe/Paris")
+- **timezone**: IANA timezone (e.g., "Europe/Istanbul")
 - **boundingBox**: Geographic bounds [minLat, minLon, maxLat, maxLon]
 - **defaultCenter**: Map center coordinates [lat, lon]
 - **defaultZoom**: Initial map zoom level
@@ -92,7 +92,7 @@ Each adapter has an `AdapterConfig` that defines:
 ```
 GTFS Static Data (CSV files)
     ↓
-Parser (future: gtfs-parser.ts)
+Parser (gtfs-parser.ts)
     ↓
 Database (SQLite via database.ts)
     ↓
@@ -103,15 +103,14 @@ App Components
 
 ## Status
 
-- ✅ Step 5: Adapter interface defined
-- ✅ Step 5: Paris adapter implemented (static data)
-- ⏳ Step 10: Real-time SIRI-Lite API integration (planned)
-- ⏳ Step 13: Alerts and disruptions (planned)
-- ⏳ Step 18: Second city adapter for validation (planned)
+- ✅ Adapter interface defined
+- ✅ İzmir adapter implemented (ESHOT, Metro, İZBAN)
+- ⏳ Real-time GTFS-RT integration (planned)
+- ⏳ Alerts and disruptions (planned)
 
 ## Notes
 
-- The Paris adapter currently loads data from SQLite
-- GTFS download and import will be added later
+- The İzmir adapter loads data from SQLite
+- GTFS download and import is supported for ESHOT, Metro İzmir, and İZBAN
 - Real-time departures currently use static schedule data
-- Alerts API integration is planned for step 13
+- Alerts API integration is planned

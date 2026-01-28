@@ -6,12 +6,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import type { Stop, Route } from '../../core/types/models';
-import type { NextDeparture } from '../../core/types/adapter';
+import type { NextDeparture, Alert } from '../../core/types/adapter';
 import { DepartureRow } from './DepartureRow';
 import { AlertBanner } from './AlertBanner';
 import { useAlerts, useFavorites } from '../../hooks';
-import { isStopAffected, isRouteAffected } from '../../adapters/paris/alerts';
 import { useTranslation } from 'react-i18next';
+
+// Helper functions to check if stop or route is affected by alerts
+const isStopAffected = (stopId: string, alerts: Alert[]): boolean => {
+  return alerts.some(alert => alert.affectedStops?.includes(stopId));
+};
+
+const isRouteAffected = (routeId: string, alerts: Alert[]): boolean => {
+  return alerts.some(alert => alert.affectedRoutes?.includes(routeId));
+};
 
 // Helper to ensure color has # prefix
 const formatColor = (color: string | undefined, fallback: string = '666666'): string => {

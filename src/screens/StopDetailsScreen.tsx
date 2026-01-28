@@ -16,22 +16,23 @@ import { useNetwork } from '../contexts/NetworkContext';
 import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDeparture } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
-import { parisAdapter } from '../adapters/paris/paris-adapter';
+import { useAdapter } from '../hooks/useAdapter';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'StopDetails'>;
 
 // Mock departures for testing
 const getMockDepartures = (): Departure[] => [
-  { routeShortName: '1', routeColor: '#FFCD00', headsign: 'La Défense', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '1', routeColor: '#FFCD00', headsign: 'Château de Vincennes', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '4', routeColor: '#A0006E', headsign: 'Porte de Clignancourt', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '14', routeColor: '#62259D', headsign: 'Olympiades', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '35', routeColor: '#E31E24', headsign: 'Konak', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '35', routeColor: '#E31E24', headsign: 'Karşıyaka', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
+  { routeShortName: 'M1', routeColor: '#FF6600', headsign: 'Fahrettin Altay', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
+  { routeShortName: 'İZBAN', routeColor: '#00A650', headsign: 'Aliağa', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
 ];
 
 export function StopDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { stopId } = route.params;
   const { isOffline } = useNetwork();
+  const { adapter } = useAdapter();
   const [stop, setStop] = useState<Stop | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
@@ -41,9 +42,10 @@ export function StopDetailsScreen({ route, navigation }: Props) {
 
   // Refresh only departures (for pull-to-refresh and auto-refresh)
   const refreshDepartures = useCallback(async () => {
+    if (!adapter) return;
     try {
       // Get departures from adapter (real-time or theoretical)
-      const departuresData = await parisAdapter.getNextDepartures(stopId);
+      const departuresData = await adapter.getNextDepartures(stopId);
 
       // Convert to Departure format
       const formattedDepartures: Departure[] = departuresData.map((dep) => ({
@@ -60,7 +62,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
     } catch (err) {
       console.error('[StopDetailsScreen] Error refreshing departures:', err);
     }
-  }, [stopId]);
+  }, [stopId, adapter]);
 
   // Initial load
   useEffect(() => {
@@ -94,20 +96,24 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       setRoutes(routesData);
 
       // Get departures from adapter (real-time or theoretical)
-      const departuresData = await parisAdapter.getNextDepartures(stopId);
+      if (adapter) {
+        const departuresData = await adapter.getNextDepartures(stopId);
 
-      // Convert to Departure format
-      const formattedDepartures: Departure[] = departuresData.map((dep) => ({
-        routeShortName: dep.routeShortName,
-        routeColor: dep.routeColor || '#CCCCCC',
-        headsign: dep.headsign,
-        departureTime: dep.departureTime,
-        isRealtime: dep.isRealtime,
-        delay: dep.delay,
-      }));
+        // Convert to Departure format
+        const formattedDepartures: Departure[] = departuresData.map((dep) => ({
+          routeShortName: dep.routeShortName,
+          routeColor: dep.routeColor || '#CCCCCC',
+          headsign: dep.headsign,
+          departureTime: dep.departureTime,
+          isRealtime: dep.isRealtime,
+          delay: dep.delay,
+        }));
 
-      // Use mock data if no real data available (for testing)
-      setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
+        // Use mock data if no real data available (for testing)
+        setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
+      } else {
+        setDepartures(getMockDepartures());
+      }
     } catch (err) {
       console.error('[StopDetailsScreen] Error loading stop data:', err);
       setError(err instanceof Error ? err : new Error(t('transit.loadingError')));

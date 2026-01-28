@@ -8,7 +8,7 @@ import { View, Text, ActivityIndicator, StyleSheet, ScrollView, Pressable, Refre
 import { DepartureRow, type Departure } from './DepartureRow';
 import { getStopById, getRoutesByStopId } from '../../core/database';
 import type { Stop, Route } from '../../core/types/models';
-import { parisAdapter } from '../../adapters/paris/paris-adapter';
+import { useAdapter } from '../../hooks/useAdapter';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
 
@@ -19,15 +19,16 @@ interface StopDetailsContentProps {
 
 // Mock departures for testing
 const getMockDepartures = (): Departure[] => [
-  { routeShortName: '1', routeColor: '#FFCD00', headsign: 'La Défense', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '1', routeColor: '#FFCD00', headsign: 'Château de Vincennes', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '4', routeColor: '#A0006E', headsign: 'Porte de Clignancourt', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '14', routeColor: '#62259D', headsign: 'Olympiades', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '35', routeColor: '#E31E24', headsign: 'Konak', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '35', routeColor: '#E31E24', headsign: 'Karşıyaka', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
+  { routeShortName: 'M1', routeColor: '#FF6600', headsign: 'Fahrettin Altay', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
+  { routeShortName: 'İZBAN', routeColor: '#00A650', headsign: 'Aliağa', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
 ];
 
 export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const { adapter } = useAdapter();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [stop, setStop] = useState<Stop | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -68,20 +69,24 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
       setRoutes(routesData);
 
       // Get departures from adapter (real-time or theoretical)
-      const departuresData = await parisAdapter.getNextDepartures(stopId);
+      if (adapter) {
+        const departuresData = await adapter.getNextDepartures(stopId);
 
-      // Convert to Departure format
-      const formattedDepartures: Departure[] = departuresData.map((dep) => ({
-        routeShortName: dep.routeShortName,
-        routeColor: dep.routeColor || '#CCCCCC',
-        headsign: dep.headsign,
-        departureTime: dep.departureTime,
-        isRealtime: dep.isRealtime,
-        delay: dep.delay,
-      }));
+        // Convert to Departure format
+        const formattedDepartures: Departure[] = departuresData.map((dep) => ({
+          routeShortName: dep.routeShortName,
+          routeColor: dep.routeColor || '#CCCCCC',
+          headsign: dep.headsign,
+          departureTime: dep.departureTime,
+          isRealtime: dep.isRealtime,
+          delay: dep.delay,
+        }));
 
-      // Use mock data if no real data available (for testing)
-      setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
+        // Use mock data if no real data available (for testing)
+        setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
+      } else {
+        setDepartures(getMockDepartures());
+      }
     } catch (err) {
       console.error('[StopDetailsContent] Error loading stop data:', err);
       setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
@@ -92,9 +97,10 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
 
   // Refresh only departures (for pull-to-refresh and auto-refresh)
   const refreshDepartures = async () => {
+    if (!adapter) return;
     try {
       // Get departures from adapter (real-time or theoretical)
-      const departuresData = await parisAdapter.getNextDepartures(stopId);
+      const departuresData = await adapter.getNextDepartures(stopId);
 
       // Convert to Departure format
       const formattedDepartures: Departure[] = departuresData.map((dep) => ({

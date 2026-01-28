@@ -12,9 +12,9 @@ const USER_AGENT = 'TransitApp/1.0 (+https://github.com/transit-app; contact@tra
 // Referer header (required by some Nominatim instances)
 const REFERER = 'https://transit-app.dev';
 
-// Bounding box for Île-de-France region (to limit search area)
+// Bounding box for İzmir region (to limit search area)
 // Format: [west, north, east, south]
-const ILE_DE_FRANCE_BBOX = [1.45, 49.24, 3.56, 48.12];
+const IZMIR_BBOX = [26.6, 38.7, 27.4, 38.2];
 
 // Rate limiting: max 1 request per second (Nominatim usage policy)
 // Using 1.5 seconds to be conservative and avoid blocks
@@ -116,7 +116,7 @@ export async function geocodeAddress(
       format: 'json',
       limit: limit.toString(),
       addressdetails: '1',
-      viewbox: ILE_DE_FRANCE_BBOX.join(','), // Limit to Île-de-France
+      viewbox: IZMIR_BBOX.join(','), // Limit to İzmir
       bounded: '1', // Only return results within viewbox
       ...(countryCode && { countrycodes: countryCode }),
     });
@@ -125,7 +125,7 @@ export async function geocodeAddress(
       headers: {
         'User-Agent': USER_AGENT,
         'Referer': REFERER,
-        'Accept-Language': 'fr,en', // Prefer French, fallback to English
+        'Accept-Language': 'tr,en', // Prefer French, fallback to English
       },
     });
 
@@ -192,7 +192,7 @@ export async function reverseGeocode(
       headers: {
         'User-Agent': USER_AGENT,
         'Referer': REFERER,
-        'Accept-Language': 'fr,en',
+        'Accept-Language': 'tr,en',
       },
     });
 
@@ -259,9 +259,9 @@ export async function searchPlaces(
       format: 'json',
       limit: '10',
       addressdetails: '1',
-      viewbox: ILE_DE_FRANCE_BBOX.join(','),
-      bounded: '0', // Don't strictly limit, just bias towards Île-de-France
-      countrycodes: 'fr', // Limit to France
+      viewbox: IZMIR_BBOX.join(','),
+      bounded: '0', // Don't strictly limit, just bias towards İzmir
+      countrycodes: 'tr', // Limit to Turkey
       ...(lat && lon && {
         lat: lat.toString(),
         lon: lon.toString(),
@@ -273,7 +273,7 @@ export async function searchPlaces(
       headers: {
         'User-Agent': USER_AGENT,
         'Referer': REFERER,
-        'Accept-Language': 'fr,en',
+        'Accept-Language': 'tr,en',
       },
     });
 

@@ -113,7 +113,7 @@ export function MapScreen({ navigation }: Props) {
       if (!permissionGranted) {
         console.log('[MapScreen] Location permission not granted, showing prompt');
         setShowLocationPrompt(true);
-        // Load stops around Paris center as fallback
+        // Load stops around İzmir center as fallback
         await loadNearbyStops(38.4237, 27.1428); // İzmir center (Konak)
         return;
       }
@@ -128,8 +128,8 @@ export function MapScreen({ navigation }: Props) {
           mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude, 1000);
         }, 100);
       } else {
-        // Fallback to Paris center
-        console.log('[MapScreen] No user location, using Paris center');
+        // Fallback to İzmir center
+        console.log('[MapScreen] No user location, using İzmir center');
         await loadNearbyStops(38.4237, 27.1428); // İzmir center (Konak)
       }
     };
