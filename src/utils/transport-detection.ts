@@ -71,9 +71,10 @@ export function detectTransitType(
   // 1. Trust specific route_types (reliable when data was imported with overrides)
   if (gtfsType === 1) return 'metro';
   if (gtfsType === 2) return 'izban';
+  if (gtfsType === 3) return 'bus';
   if (gtfsType === 4) return 'ferry';
-  // NOTE: Do NOT use gtfsType === 0 or gtfsType === 3 as broad matchers
-  // İzmir GTFS uses route_type=0 for ALL transport types before re-import
+  // NOTE: gtfsType === 0 falls through to name-based checks below
+  // İzmir GTFS uses route_type=0 for ALL transport types before override
 
   // 2. Check shortName prefix patterns (M1, T1, S1, F1)
   if (/^M\d/i.test(shortUpper)) return 'metro';
