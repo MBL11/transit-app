@@ -306,6 +306,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       backgroundColor: colors.isDark ? '#1A1A1A' : '#FFFFFF',
       borderBottomWidth: 2,
       borderBottomColor: colors.isDark ? '#444444' : '#E0E0E0',
+      flexShrink: 0,
     },
     filtersContainer: {
       flexDirection: 'row',
@@ -321,6 +322,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       backgroundColor: colors.isDark ? '#3A3A3A' : '#F0F0F0',
       borderWidth: 1.5,
       borderColor: colors.isDark ? '#666666' : '#CCCCCC',
+      flexShrink: 0,
     },
     filterButtonActive: {
       backgroundColor: '#0066CC',
