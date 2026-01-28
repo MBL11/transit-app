@@ -39,7 +39,8 @@ export class IzmirAdapter implements TransitAdapter {
   async initialize(): Promise<void> {
     console.log('[IzmirAdapter] Initializing...');
     try {
-      await runMigrations();
+      const database = db.openDatabase();
+      await runMigrations(database);
       this.lastUpdateTime = new Date();
       console.log('[IzmirAdapter] ✅ Initialized successfully');
     } catch (error) {

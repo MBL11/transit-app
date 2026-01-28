@@ -328,17 +328,17 @@ export function MapScreen({ navigation }: Props) {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.importButtonText}>🔄 Load Sample Data</Text>
-                <Text style={styles.importButtonSubtext}>7 stops • 5 routes</Text>
+                <Text style={styles.importButtonText}>🔄 {t('data.downloadIzmir', { defaultValue: 'Download İzmir Data' })}</Text>
+                <Text style={styles.importButtonSubtext}>ESHOT • Metro • İZBAN</Text>
               </>
             )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dataManagementLink}
-            onPress={() => navigation.navigate('DataManagement')}
+            onPress={() => navigation.navigate('Settings', { screen: 'DataManagement' })}
           >
             <Text style={styles.dataManagementLinkText}>
-              Or import real GTFS data →
+              {t('data.manageData', { defaultValue: 'Manage data in settings →' })}
             </Text>
           </TouchableOpacity>
         </View>
