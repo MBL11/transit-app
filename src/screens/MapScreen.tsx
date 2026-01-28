@@ -46,6 +46,7 @@ export function MapScreen({ navigation }: Props) {
 
   // Local state for all stops (İzmir has only ~50 stops)
   const [nearbyStops, setNearbyStops] = useState<NearbyStop[]>([]);
+  const [stopRouteTypesMap, setStopRouteTypesMap] = useState<Map<string, number[]>>(new Map());
   const [loadingStops, setLoadingStops] = useState(true);
   const [stopsError, setStopsError] = useState<Error | null>(null);
   const [importing, setImporting] = useState(false);
@@ -96,6 +97,26 @@ export function MapScreen({ navigation }: Props) {
 
       console.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops`);
       setNearbyStops(stopsWithDistance);
+
+      // Load route types for all stops (for transport type icons on markers)
+      if (allStops.length > 0) {
+        try {
+          const stopIds = allStops.map(s => s.id);
+          const routesByStop = await db.getRoutesByStopIds(stopIds);
+
+          // Convert to Map of stopId -> route types array
+          const routeTypesMap = new Map<string, number[]>();
+          routesByStop.forEach((routes, stopId) => {
+            routeTypesMap.set(stopId, routes.map(r => r.type));
+          });
+
+          console.log(`[MapScreen] Loaded route types for ${routeTypesMap.size} stops`);
+          setStopRouteTypesMap(routeTypesMap);
+        } catch (err) {
+          console.warn('[MapScreen] Failed to load route types (non-critical):', err);
+          // Non-critical error - markers will show default icons
+        }
+      }
     } catch (err) {
       console.error('[MapScreen] Failed to load stops:', err);
       setStopsError(err instanceof Error ? err : new Error('Failed to load stops'));
@@ -316,6 +337,7 @@ export function MapScreen({ navigation }: Props) {
         <TransitMap
           ref={mapRef}
           stops={nearbyStops}
+          stopRouteTypes={stopRouteTypesMap}
           onStopPress={handleStopPress}
           initialRegion={initialRegion}
           onRegionChangeComplete={handleRegionChangeComplete}

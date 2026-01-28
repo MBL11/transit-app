@@ -11,6 +11,7 @@ import type { Stop } from '../../core/types/models';
 
 interface TransitMapProps {
   stops: Stop[];
+  stopRouteTypes?: Map<string, number[]>; // Map of stopId -> array of route types
   onStopPress: (stop: Stop) => void;
   initialRegion?: Region;
   onRegionChange?: (region: Region) => void;
@@ -30,7 +31,7 @@ const DEFAULT_REGION: Region = {
 };
 
 export const TransitMap = memo(forwardRef<TransitMapRef, TransitMapProps>(function TransitMap(
-  { stops, onStopPress, initialRegion, onRegionChange, onRegionChangeComplete },
+  { stops, stopRouteTypes, onStopPress, initialRegion, onRegionChange, onRegionChangeComplete },
   ref
 ) {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
@@ -79,6 +80,7 @@ export const TransitMap = memo(forwardRef<TransitMapRef, TransitMapProps>(functi
             key={stop.id}
             stop={stop}
             isSelected={selectedStopId === stop.id}
+            routeTypes={stopRouteTypes?.get(stop.id)}
             onPress={handleMarkerPress}
           />
         ))}

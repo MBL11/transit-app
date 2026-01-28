@@ -27,18 +27,13 @@ const getTransitType = (gtfsType: number, shortName?: string, longName?: string)
   const name = ((shortName || '') + ' ' + (longName || '')).toUpperCase();
   const shortUpper = (shortName || '').toUpperCase();
 
-  // Debug: log the first few routes to understand the data
-  if (shortName) {
-    console.log(`[LinesScreen] Route: shortName="${shortName}", longName="${longName}", type=${gtfsType}`);
-  }
-
   // Detect by name patterns first (more reliable for İzmir)
-  // Metro: M1, M2, or contains "METRO"
+  // Metro: M1, M2, or contains "METRO", or starts with numeric but route_type is 1
   if (name.includes('METRO') || /^M\d/i.test(shortUpper) || shortUpper === 'M1' || shortUpper === 'M2') {
     return 'metro';
   }
-  // İZBAN: contains İZBAN/IZBAN
-  if (name.includes('İZBAN') || name.includes('IZBAN') || shortUpper.includes('IZBAN')) {
+  // İZBAN: contains İZBAN/IZBAN, or S1/S2 pattern
+  if (name.includes('İZBAN') || name.includes('IZBAN') || shortUpper.includes('IZBAN') || /^S\d/i.test(shortUpper)) {
     return 'izban';
   }
   // Tram: T1, T2, or contains TRAM/TRAMVAY
@@ -50,7 +45,7 @@ const getTransitType = (gtfsType: number, shortName?: string, longName?: string)
     return 'ferry';
   }
 
-  // Fallback to GTFS route_type
+  // Fallback to GTFS route_type - this is important for routes without clear name patterns
   switch (gtfsType) {
     case 0: return 'tram';
     case 1: return 'metro';
@@ -75,6 +70,42 @@ export function LinesScreen() {
       refresh();
     }, [refresh])
   );
+
+  // Debug: Log all routes once when loaded
+  useEffect(() => {
+    if (routes.length > 0) {
+      console.log(`[LinesScreen] ===== LOADED ${routes.length} ROUTES =====`);
+
+      // Group routes by detected type
+      const byType: Record<TransitType, typeof routes> = {
+        all: [],
+        metro: [],
+        bus: [],
+        tram: [],
+        izban: [],
+        ferry: [],
+      };
+
+      routes.forEach(route => {
+        const type = getTransitType(route.type, route.shortName, route.longName);
+        byType[type].push(route);
+      });
+
+      console.log(`[LinesScreen] Metro (${byType.metro.length}):`, byType.metro.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      console.log(`[LinesScreen] İZBAN (${byType.izban.length}):`, byType.izban.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      console.log(`[LinesScreen] Tram (${byType.tram.length}):`, byType.tram.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      console.log(`[LinesScreen] Ferry (${byType.ferry.length}):`, byType.ferry.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      console.log(`[LinesScreen] Bus (${byType.bus.length}):`, byType.bus.slice(0, 3).map(r => `${r.shortName}|${r.longName}|type=${r.type}`));
+
+      // Show routes with route_type=1 (should be metro)
+      const routeType1 = routes.filter(r => r.type === 1);
+      console.log(`[LinesScreen] Routes with route_type=1 (metro): ${routeType1.length}`, routeType1.map(r => `${r.shortName}|${r.longName}`));
+
+      // Show routes with route_type=2 (should be izban/rail)
+      const routeType2 = routes.filter(r => r.type === 2);
+      console.log(`[LinesScreen] Routes with route_type=2 (rail/izban): ${routeType2.length}`, routeType2.map(r => `${r.shortName}|${r.longName}`));
+    }
+  }, [routes]);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 

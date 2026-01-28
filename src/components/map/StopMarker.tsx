@@ -1,9 +1,10 @@
 /**
  * Stop Marker Component
  * Custom marker for stops on the map
+ * Supports showing multiple transport type icons for stops serving multiple lines
  */
 
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import type { Stop } from '../../core/types/models';
@@ -11,38 +12,80 @@ import type { Stop } from '../../core/types/models';
 interface StopMarkerProps {
   stop: Stop;
   isSelected?: boolean;
-  routeType?: number; // 1=metro, 3=bus, etc.
+  routeTypes?: number[]; // Array of route types serving this stop
   onPress: (stop: Stop) => void;
 }
 
+// İzmir official colors for transport types
+const TRANSPORT_COLORS: Record<number, string> = {
+  0: '#00A651', // Tram - Green (official)
+  1: '#E30613', // Metro - Red (official)
+  2: '#0066B3', // İZBAN - Blue (official)
+  3: '#0066CC', // Bus - ESHOT Blue
+  4: '#003366', // Ferry - Dark Blue
+};
+
+// Transport icons
+const TRANSPORT_ICONS: Record<number, string> = {
+  0: '🚊', // Tram
+  1: '🚇', // Metro
+  2: '🚆', // İZBAN/Rail
+  3: '🚌', // Bus
+  4: '⛴️', // Ferry
+};
+
+// Priority order for displaying transport types (lower = higher priority)
+const TYPE_PRIORITY: Record<number, number> = {
+  1: 1, // Metro - highest priority
+  2: 2, // İZBAN
+  0: 3, // Tram
+  4: 4, // Ferry
+  3: 5, // Bus - lowest priority
+};
+
 // Memoized marker component to prevent unnecessary re-renders
-export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType, onPress }: StopMarkerProps) {
+export const StopMarker = memo(function StopMarker({ stop, isSelected, routeTypes = [], onPress }: StopMarkerProps) {
   // Memoize the press handler
   const handlePress = useCallback(() => {
     onPress(stop);
   }, [stop, onPress]);
-  // Icon based on route type
-  const getIcon = () => {
-    switch (routeType) {
-      case 0: return '🚊'; // Tram
-      case 1: return '🚇'; // Metro
-      case 2: return '🚆'; // RER/Train
-      case 3: return '🚌'; // Bus
-      default: return '📍';
-    }
-  };
 
-  // Color based on route type
-  const getColor = () => {
+  // Get unique transport types, sorted by priority (show most important first)
+  const uniqueTypes = useMemo(() => {
+    const types = [...new Set(routeTypes)].sort((a, b) =>
+      (TYPE_PRIORITY[a] || 99) - (TYPE_PRIORITY[b] || 99)
+    );
+    // Limit to 3 types max to avoid overcrowding
+    return types.slice(0, 3);
+  }, [routeTypes]);
+
+  // Get primary color (first/highest priority type)
+  const primaryColor = useMemo(() => {
     if (isSelected) return '#0066CC';
+    if (uniqueTypes.length === 0) return '#FF6600'; // Default orange
+    return TRANSPORT_COLORS[uniqueTypes[0]] || '#FF6600';
+  }, [isSelected, uniqueTypes]);
 
-    switch (routeType) {
-      case 0: return '#CC0000'; // Tram - red
-      case 1: return '#003366'; // Metro - dark blue
-      case 2: return '#7B68EE'; // RER - purple
-      case 3: return '#00AA55'; // Bus - green
-      default: return '#FF6600'; // Default - orange
-    }
+  // Render a single transport type icon with background
+  const renderTransportIcon = (type: number, index: number) => {
+    const icon = TRANSPORT_ICONS[type] || '📍';
+    const color = TRANSPORT_COLORS[type] || '#666666';
+
+    return (
+      <View
+        key={`${type}-${index}`}
+        style={[
+          styles.iconBadge,
+          {
+            backgroundColor: color,
+            marginLeft: index > 0 ? -6 : 0, // Overlap for multiple icons
+            zIndex: 10 - index, // First icon on top
+          },
+        ]}
+      >
+        <Text style={styles.iconText}>{icon}</Text>
+      </View>
+    );
   };
 
   return (
@@ -54,20 +97,29 @@ export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType
       onPress={handlePress}
     >
       <View style={styles.container}>
-        <View
-          style={[
-            styles.marker,
-            {
-              backgroundColor: getColor(),
-              width: isSelected ? 40 : 32,
-              height: isSelected ? 40 : 32,
-              borderRadius: isSelected ? 20 : 16,
-            },
-          ]}
-        >
-          <Text style={styles.icon}>{getIcon()}</Text>
-        </View>
+        {/* Multiple transport type icons */}
+        {uniqueTypes.length > 0 ? (
+          <View style={[styles.iconsRow, isSelected && styles.iconsRowSelected]}>
+            {uniqueTypes.map((type, index) => renderTransportIcon(type, index))}
+          </View>
+        ) : (
+          // Fallback to single marker if no route types
+          <View
+            style={[
+              styles.marker,
+              {
+                backgroundColor: primaryColor,
+                width: isSelected ? 36 : 28,
+                height: isSelected ? 36 : 28,
+                borderRadius: isSelected ? 18 : 14,
+              },
+            ]}
+          >
+            <Text style={styles.defaultIcon}>📍</Text>
+          </View>
+        )}
 
+        {/* Stop name label when selected */}
         {isSelected && (
           <View style={styles.labelContainer}>
             <Text style={styles.label} numberOfLines={1}>
@@ -85,6 +137,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconsRowSelected: {
+    transform: [{ scale: 1.15 }],
+  },
+  iconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  iconText: {
+    fontSize: 13,
+  },
   marker: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -96,8 +172,8 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
-  icon: {
-    fontSize: 16,
+  defaultIcon: {
+    fontSize: 14,
   },
   labelContainer: {
     marginTop: 4,
