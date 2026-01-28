@@ -92,6 +92,13 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
   const id = rawStop.stop_id || rawStop.stopid || rawStop.id || '';
   const name = rawStop.stop_name || rawStop.stopname || rawStop.name || '';
 
+  // Debug: log all keys in the raw stop to understand the structure
+  const keys = Object.keys(rawStop);
+  if (id === '12' || id === '1') {
+    console.log(`[GTFSParser] DEBUG stop ${id} keys:`, keys.join(', '));
+    console.log(`[GTFSParser] DEBUG stop ${id} values:`, JSON.stringify(rawStop));
+  }
+
   // Try multiple column names for coordinates
   let latStr = rawStop.stop_lat || rawStop.stoplat || rawStop.lat || rawStop.latitude || '';
   let lonStr = rawStop.stop_lon || rawStop.stoplon || rawStop.lon || rawStop.longitude || '';
@@ -99,21 +106,32 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
   let lat = parseFloat(latStr);
   let lon = parseFloat(lonStr);
 
-  // İzmir GTFS fix: detect when columns are shifted
-  // İzmir coordinates should be around lat: 38.x, lon: 27.x
-  // If stop_lat contains ~27 and zone_id contains ~38, columns are shifted
-  if (!isNaN(lat) && lat >= 26 && lat <= 28) {
-    // lat looks like longitude (27.x), check if zone_id has the real latitude
-    const zoneIdVal = parseFloat(rawStop.zone_id || '');
-    const stopUrlVal = parseFloat(rawStop.stop_url || '');
+  // İzmir GTFS fix: The CSV seems to have shifted columns
+  // Looking at: stop_lat:"27", stop_lon:"2289", zone_id:"38", stop_url:"4656"
+  // Real İzmir coords: lat ~38.4, lon ~27.2
+  // It looks like the data is: lon_int, lon_decimal*10000, lat_int, lat_decimal*10000
 
-    if (!isNaN(zoneIdVal) && zoneIdVal >= 38 && zoneIdVal <= 39) {
-      // zone_id has the latitude, stop_lat has longitude, stop_lon might have lat decimal
-      const latDecimal = parseFloat(rawStop.stop_lon || '0') / 10000; // 2289 -> 0.2289
-      lon = lat + latDecimal; // 27 + 0.2289 = 27.2289
-      lat = zoneIdVal + (stopUrlVal / 10000); // 38 + 0.4656 = 38.4656
+  // Check if we have the İzmir shifted format
+  const zoneIdVal = parseFloat(rawStop.zone_id || '');
+  const stopUrlVal = parseFloat(rawStop.stop_url || '');
 
-      console.log(`[GTFSParser] İzmir fix for ${id}: reconstructed lat=${lat}, lon=${lon}`);
+  if (!isNaN(lat) && lat >= 26 && lat <= 28 && !isNaN(zoneIdVal) && zoneIdVal >= 38 && zoneIdVal <= 40) {
+    // İzmir shifted format detected
+    // stop_lat (27) = longitude integer
+    // stop_lon (2289) = longitude decimal (needs to be /10000)
+    // zone_id (38) = latitude integer
+    // stop_url (4656) = latitude decimal (needs to be /10000)
+
+    const lonInt = lat; // stop_lat has lon integer
+    const lonDec = lon / 10000; // stop_lon has lon decimal
+    const latInt = zoneIdVal; // zone_id has lat integer
+    const latDec = stopUrlVal / 10000; // stop_url has lat decimal
+
+    lat = latInt + latDec;
+    lon = lonInt + lonDec;
+
+    if (id === '12' || id === '1') {
+      console.log(`[GTFSParser] İzmir fix for ${id}: lat=${lat}, lon=${lon}`);
     }
   }
 
@@ -123,9 +141,12 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
     [lat, lon] = [lon, lat];
   }
 
+  // Final validation for İzmir area (lat: 38-39, lon: 26-28)
+  const isValidIzmir = lat >= 37 && lat <= 40 && lon >= 26 && lon <= 29;
+
   // Log warning if coordinates still look wrong
-  if (isNaN(lat) || isNaN(lon)) {
-    console.warn(`[GTFSParser] Invalid coordinates for stop ${id}: lat=${latStr}, lon=${lonStr}`);
+  if (isNaN(lat) || isNaN(lon) || !isValidIzmir) {
+    console.warn(`[GTFSParser] Invalid/non-İzmir coordinates for stop ${id} "${name}": lat=${lat}, lon=${lon}`);
   }
 
   return {
