@@ -275,13 +275,13 @@
     "updateData": "Actualizar datos",
     "clearData": "Borrar datos",
     "import": "Importar",
-    "importWarning": "Esto descargará ~800MB de datos GTFS de IDFM. ¿Continuar?",
+    "importWarning": "Esto descargará datos de İzmir (~375 KB). ¿Continuar?",
     "importSuccess": "¡Datos GTFS importados con éxito!",
     "importFailed": "Error al importar datos GTFS",
     "clearWarning": "Esto eliminará todos los datos de transporte. Puedes reimportarlos más tarde.",
     "dataCleared": "Todos los datos han sido eliminados",
     "clearFailed": "Error al eliminar datos",
-    "infoMessage": "Los datos GTFS reales proporcionan horarios completos de todas las líneas de transporte de Île-de-France. La descarga es grande (~800MB) pero solo necesita hacerse una vez.",
+    "infoMessage": "Los datos GTFS proporcionan horarios completos del Metro, Tranvía, İZBAN y Ferry de İzmir.",
     "lastUpdate": "Última actualización",
     "outdated": "Datos obsoletos (> 7 días). Por favor actualiza."
   }

@@ -275,13 +275,13 @@
     "updateData": "Verileri Güncelle",
     "clearData": "Verileri Sil",
     "import": "İçe Aktar",
-    "importWarning": "Bu, IDFM'den ~800MB GTFS verisi indirecektir. Devam edilsin mi?",
+    "importWarning": "Bu, İzmir ulaşım verileri indirecektir (~375 KB). Devam edilsin mi?",
     "importSuccess": "GTFS verileri başarıyla içe aktarıldı!",
     "importFailed": "GTFS verileri içe aktarılamadı",
     "clearWarning": "Bu, tüm ulaşım verilerini silecektir. Daha sonra yeniden içe aktarabilirsiniz.",
     "dataCleared": "Tüm veriler silindi",
     "clearFailed": "Veriler silinemedi",
-    "infoMessage": "Gerçek GTFS verileri, tüm Île-de-France ulaşım hatları için tam tarifeleri sağlar. İndirme büyüktür (~800MB) ancak yalnızca bir kez yapılması gerekir.",
+    "infoMessage": "GTFS verileri İzmir Metro, Tramvay, İZBAN ve Vapur hatları için tam tarifeleri sağlar.",
     "lastUpdate": "Son güncelleme",
     "outdated": "Veriler güncel değil (> 7 gün). Lütfen güncelleyin."
   }

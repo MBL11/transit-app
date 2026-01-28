@@ -90,6 +90,25 @@ export async function downloadGTFSZip(
 }
 
 /**
+ * Find a file in ZIP by name (handles subdirectories)
+ */
+function findFileInZip(zip: JSZip, fileName: string): JSZip.JSZipObject | null {
+  // First try exact match at root
+  let file = zip.file(fileName);
+  if (file) return file;
+
+  // Search in all paths (handles subdirectories like rail-metro-gtfs/stops.txt)
+  const allFiles = Object.keys(zip.files);
+  const matchingPath = allFiles.find(path => path.endsWith(`/${fileName}`) || path === fileName);
+
+  if (matchingPath) {
+    return zip.file(matchingPath);
+  }
+
+  return null;
+}
+
+/**
  * Extract GTFS files from ZIP
  */
 export async function extractGTFSZip(zipUri: string): Promise<{
@@ -110,14 +129,16 @@ export async function extractGTFSZip(zipUri: string): Promise<{
     // Load ZIP with jszip
     const zip = await JSZip.loadAsync(zipBase64, { base64: true });
 
-    console.log('[GTFSDownloader] ZIP loaded, extracting files...');
+    // Log all files in ZIP for debugging
+    const allFiles = Object.keys(zip.files);
+    console.log('[GTFSDownloader] ZIP contents:', allFiles.join(', '));
 
-    // Extract required files
+    // Extract required files (handles subdirectories)
     const filesNeeded = ['stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt'];
     const extractedFiles: Record<string, string> = {};
 
     for (const fileName of filesNeeded) {
-      const file = zip.file(fileName);
+      const file = findFileInZip(zip, fileName);
       if (!file) {
         throw new Error(`Missing required file: ${fileName}`);
       }
@@ -128,7 +149,7 @@ export async function extractGTFSZip(zipUri: string): Promise<{
     }
 
     // Optional: shapes.txt
-    const shapesFile = zip.file('shapes.txt');
+    const shapesFile = findFileInZip(zip, 'shapes.txt');
     if (shapesFile) {
       extractedFiles['shapes.txt'] = await shapesFile.async('string');
       console.log('[GTFSDownloader] ✅ Extracted shapes.txt (optional)');
