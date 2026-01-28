@@ -162,10 +162,12 @@ export class IzmirAdapter implements TransitAdapter {
       const now = new Date();
       const currentTime = now.toTimeString().split(' ')[0];
 
-      // Query next departures from stop_times
+      // Query next departures, deduplicated by (departure_time, route, headsign)
+      // Multiple trips can share the same time/route/direction (different service days),
+      // so we GROUP BY to show each unique departure only once.
       const rows = database.getAllSync<any>(
         `SELECT
-          st.trip_id,
+          MIN(st.trip_id) as trip_id,
           st.departure_time,
           t.headsign,
           r.id as route_id,
@@ -177,6 +179,7 @@ export class IzmirAdapter implements TransitAdapter {
          JOIN routes r ON t.route_id = r.id
          WHERE st.stop_id = ?
            AND st.departure_time >= ?
+         GROUP BY st.departure_time, r.id, t.headsign
          ORDER BY st.departure_time
          LIMIT 10`,
         [stopId, currentTime]

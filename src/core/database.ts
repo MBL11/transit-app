@@ -866,6 +866,7 @@ export async function getNextDepartures(stopId: string, limit: number = 20): Pro
        JOIN routes ON trips.route_id = routes.id
        WHERE stop_times.stop_id = ?
          AND stop_times.departure_time >= ?
+       GROUP BY stop_times.departure_time, routes.id, trips.headsign
        ORDER BY stop_times.departure_time
        LIMIT ?`,
       [stopId, currentTime, limit]
