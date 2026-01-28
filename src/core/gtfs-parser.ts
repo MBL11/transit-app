@@ -113,12 +113,22 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
   );
 
   if (!isAlreadyValidIzmir) {
-    // Check if we have the İzmir shifted format (ESHOT specific issue)
-    // Looking at: stop_lat:"27", stop_lon:"2289", zone_id:"38", stop_url:"4656"
-    // Real İzmir coords: lat ~38.4, lon ~27.2
     const zoneIdVal = parseFloat(rawStop.zone_id || '');
     const stopUrlVal = parseFloat(rawStop.stop_url || '');
 
+    // Format 1: Turkish comma-decimal format (İzdeniz ferry GTFS)
+    // CSV uses comma as both delimiter and decimal separator
+    // "38,418611111111" gets split into stop_lat=38, stop_lon=418611111111
+    // Real lat = 38 + 0.418611111111, real lon is in zone_id + stop_url
+    const hasTurkishCommaFormat = (
+      !isNaN(lat) && lat >= 37 && lat <= 40 && Number.isInteger(lat) &&
+      !isNaN(lon) && lon > 1000000 && // decimal part as huge integer
+      !isNaN(zoneIdVal) && zoneIdVal >= 26 && zoneIdVal <= 29 && Number.isInteger(zoneIdVal) &&
+      !isNaN(stopUrlVal) && stopUrlVal > 1000000
+    );
+
+    // Format 2: ESHOT shifted format
+    // stop_lat:"27", stop_lon:"2289", zone_id:"38", stop_url:"4656"
     const hasShiftedFormat = (
       !isNaN(lat) && lat >= 26 && lat <= 28 &&
       !isNaN(zoneIdVal) && zoneIdVal >= 37 && zoneIdVal <= 40 &&
@@ -126,12 +136,22 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
       !isNaN(stopUrlVal) && stopUrlVal > 100 // lat decimal is large number
     );
 
-    if (hasShiftedFormat) {
-      // İzmir shifted format detected
-      const lonInt = lat; // stop_lat has lon integer
-      const lonDec = lon / 10000; // stop_lon has lon decimal
-      const latInt = zoneIdVal; // zone_id has lat integer
-      const latDec = stopUrlVal / 10000; // stop_url has lat decimal
+    if (hasTurkishCommaFormat) {
+      // Turkish comma-decimal: lat=38 lon=418611111111 zone_id=27 stop_url=130000000000
+      const latDecDigits = lon.toString().length;
+      const lonDecDigits = stopUrlVal.toString().length;
+      const realLat = lat + lon / Math.pow(10, latDecDigits);
+      const realLon = zoneIdVal + stopUrlVal / Math.pow(10, lonDecDigits);
+
+      console.log(`[GTFSParser] Turkish comma format: ${name} -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
+      lat = realLat;
+      lon = realLon;
+    } else if (hasShiftedFormat) {
+      // ESHOT shifted format
+      const lonInt = lat;
+      const lonDec = lon / 10000;
+      const latInt = zoneIdVal;
+      const latDec = stopUrlVal / 10000;
 
       lat = latInt + latDec;
       lon = lonInt + lonDec;

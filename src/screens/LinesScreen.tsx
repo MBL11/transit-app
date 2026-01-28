@@ -22,38 +22,30 @@ type NavigationProp = NativeStackNavigationProp<LinesStackParamList, 'LinesList'
 type TransitType = 'all' | 'metro' | 'bus' | 'tram' | 'izban' | 'ferry';
 
 // Map GTFS route types and names to our types (İzmir)
-// Uses both route_type and route name patterns for better detection
+// Uses BOTH route_type AND name patterns for best detection
 const getTransitType = (gtfsType: number, shortName?: string, longName?: string): TransitType => {
   const name = ((shortName || '') + ' ' + (longName || '')).toUpperCase();
   const shortUpper = (shortName || '').toUpperCase();
 
-  // Detect by name patterns first (more reliable for İzmir)
-  // Metro: M1, M2, or contains "METRO", or starts with numeric but route_type is 1
-  if (name.includes('METRO') || /^M\d/i.test(shortUpper) || shortUpper === 'M1' || shortUpper === 'M2') {
+  // 1. Metro: route_type=1 OR name patterns
+  if (gtfsType === 1 || name.includes('METRO') || /^M\d/i.test(shortUpper)) {
     return 'metro';
   }
-  // İZBAN: contains İZBAN/IZBAN, or S1/S2 pattern
-  if (name.includes('İZBAN') || name.includes('IZBAN') || shortUpper.includes('IZBAN') || /^S\d/i.test(shortUpper)) {
+  // 2. İZBAN: route_type=2 OR name patterns
+  if (gtfsType === 2 || name.includes('İZBAN') || name.includes('IZBAN') || /^S\d/i.test(shortUpper)) {
     return 'izban';
   }
-  // Tram: T1, T2, or contains TRAM/TRAMVAY
-  if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) {
+  // 3. Tram: route_type=0 OR name patterns
+  if (gtfsType === 0 || name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) {
     return 'tram';
   }
-  // Ferry: contains VAPUR, FERİ, FERRY, or İZDENİZ
-  if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('FERRY') || name.includes('İZDENİZ') || name.includes('IZDENIZ')) {
+  // 4. Ferry: route_type=4 OR name patterns
+  if (gtfsType === 4 || name.includes('VAPUR') || name.includes('FERİ') || name.includes('FERRY') || name.includes('İZDENİZ') || name.includes('IZDENIZ')) {
     return 'ferry';
   }
 
-  // Fallback to GTFS route_type - this is important for routes without clear name patterns
-  switch (gtfsType) {
-    case 0: return 'tram';
-    case 1: return 'metro';
-    case 2: return 'izban'; // İZBAN commuter rail
-    case 3: return 'bus';
-    case 4: return 'ferry'; // İzdeniz ferry
-    default: return 'bus';
-  }
+  // Default = bus
+  return 'bus';
 };
 
 export function LinesScreen() {
@@ -336,21 +328,20 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       backgroundColor: colors.background,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-      maxHeight: 56,
     },
     filtersContainer: {
       flexDirection: 'row',
       paddingHorizontal: 12,
-      paddingVertical: 8,
-      gap: 8,
+      paddingVertical: 10,
+      gap: 10,
       alignItems: 'center',
     },
     filterButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
       backgroundColor: colors.card,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: colors.border,
     },
     filterButtonActive: {
@@ -358,7 +349,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderColor: colors.primary,
     },
     filterText: {
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '600',
       color: colors.textSecondary,
     },
