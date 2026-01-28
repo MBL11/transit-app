@@ -28,7 +28,7 @@ import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
 import { detectTransitType, transitTypeToRouteType } from '../utils/transport-detection';
 
-// Note: İzmir has only ~50 stops, so we load all stops at once instead of nearby stops
+// Note: İzmir rail/tram/ferry has ~50 stops - loaded all at once. Bus stops (11K+) are excluded from map.
 
 type Props = NativeStackScreenProps<MapStackParamList, 'MapView'>;
 
@@ -45,7 +45,7 @@ export function MapScreen({ navigation }: Props) {
 
   const { isOffline } = useNetwork();
 
-  // Local state for all stops (İzmir has only ~50 stops)
+  // Local state for non-bus stops (rail/tram/ferry ~50 stops, bus excluded from map)
   const [nearbyStops, setNearbyStops] = useState<NearbyStop[]>([]);
   const [stopRouteTypesMap, setStopRouteTypesMap] = useState<Map<string, number[]>>(new Map());
   const [loadingStops, setLoadingStops] = useState(true);
@@ -73,7 +73,7 @@ export function MapScreen({ navigation }: Props) {
   const [stopDepartures, setStopDepartures] = useState<NextDeparture[]>([]);
   const [loadingStopData, setLoadingStopData] = useState(false);
 
-  // Load ALL stops (İzmir has only ~50 stops, safe to load all)
+  // Load non-bus stops (rail/tram/ferry only, bus stops excluded to avoid 11K+ markers)
   const loadAllStops = useCallback(async () => {
     if (loadingRegionRef.current) {
       console.log('[MapScreen] Already loading stops, skipping...');
@@ -87,22 +87,23 @@ export function MapScreen({ navigation }: Props) {
 
       console.log('[MapScreen] Loading all stops...');
 
-      // Load all stops from database
+      // Load all stops from database (exclude bus stops to avoid 11K+ markers crashing the map)
       const allStops = await db.getAllStops();
+      const nonBusStops = allStops.filter(s => !s.id.startsWith('bus_'));
 
       // Convert to NearbyStop format (with distance = 0 since we're loading all)
-      const stopsWithDistance: NearbyStop[] = allStops.map(stop => ({
+      const stopsWithDistance: NearbyStop[] = nonBusStops.map(stop => ({
         ...stop,
         distance: 0,
       }));
 
-      console.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops`);
+      console.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops (excluded ${allStops.length - nonBusStops.length} bus stops)`);
       setNearbyStops(stopsWithDistance);
 
-      // Load route types for all stops (for transport type icons on markers)
-      if (allStops.length > 0) {
+      // Load route types for map stops (for transport type icons on markers)
+      if (nonBusStops.length > 0) {
         try {
-          const stopIds = allStops.map(s => s.id);
+          const stopIds = nonBusStops.map(s => s.id);
           const routesByStop = await db.getRoutesByStopIds(stopIds);
 
           // Convert to Map of stopId -> detected route types array (as GTFS numeric types)
