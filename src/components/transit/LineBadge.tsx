@@ -7,7 +7,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-export type TransportType = 'metro' | 'rer' | 'tram' | 'bus' | 'train' | 'noctilien';
+export type TransportType = 'metro' | 'rer' | 'tram' | 'bus' | 'train' | 'noctilien' | 'izban' | 'ferry';
 
 export interface LineBadgeProps {
   lineNumber: string;

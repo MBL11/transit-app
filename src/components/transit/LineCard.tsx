@@ -15,12 +15,14 @@ export interface LineCardProps extends Omit<PressableProps, 'children'> {
 }
 
 const typeColors: Record<TransportType, string> = {
-  metro: '#003366',
-  bus: '#00AA55',
-  tram: '#CC0000',
-  rer: '#7B68EE',
-  train: '#0066CC',
+  metro: '#E30613',    // İzmir Metro - Red
+  bus: '#0066CC',      // ESHOT Bus - Blue
+  tram: '#00A651',     // İzmir Tram - Green
+  rer: '#7B68EE',      // RER (Paris)
+  train: '#0066CC',    // Train
   noctilien: '#003366',
+  izban: '#0066B3',    // İZBAN - Blue
+  ferry: '#003366',    // İzdeniz Ferry - Dark Blue
 };
 
 export function LineCard({
@@ -47,6 +49,8 @@ export function LineCard({
     rer: t('transit.rer'),
     train: t('transit.train'),
     noctilien: t('transit.noctilien'),
+    izban: t('transit.izban', { defaultValue: 'İZBAN' }),
+    ferry: t('transit.ferry', { defaultValue: 'Vapur' }),
   };
 
   return (

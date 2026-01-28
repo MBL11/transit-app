@@ -104,10 +104,27 @@ export function MapScreen({ navigation }: Props) {
           const stopIds = allStops.map(s => s.id);
           const routesByStop = await db.getRoutesByStopIds(stopIds);
 
-          // Convert to Map of stopId -> route types array
+          // Helper to detect İzmir transport type from route data
+          const detectTransportType = (route: Route): number => {
+            const name = ((route.shortName || '') + ' ' + (route.longName || '')).toUpperCase();
+            const shortUpper = (route.shortName || '').toUpperCase();
+
+            // Metro: M1, M2, or contains "METRO"
+            if (name.includes('METRO') || /^M\d/i.test(shortUpper)) return 1;
+            // İZBAN: contains İZBAN/IZBAN, or S1/S2
+            if (name.includes('İZBAN') || name.includes('IZBAN') || /^S\d/i.test(shortUpper)) return 2;
+            // Tram: T1, T2, or contains TRAM/TRAMVAY
+            if (name.includes('TRAM') || name.includes('TRAMVAY') || /^T\d/i.test(shortUpper)) return 0;
+            // Ferry: only if explicitly contains ferry-related words
+            if (name.includes('VAPUR') || name.includes('FERİ') || name.includes('İZDENİZ')) return 4;
+            // Default to original type, but treat type 4 as bus if not explicitly ferry
+            return route.type === 4 ? 3 : route.type;
+          };
+
+          // Convert to Map of stopId -> detected route types array
           const routeTypesMap = new Map<string, number[]>();
           routesByStop.forEach((routes, stopId) => {
-            routeTypesMap.set(stopId, routes.map(r => r.type));
+            routeTypesMap.set(stopId, routes.map(r => detectTransportType(r)));
           });
 
           console.log(`[MapScreen] Loaded route types for ${routeTypesMap.size} stops`);

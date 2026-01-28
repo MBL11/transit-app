@@ -158,17 +158,15 @@ export function LinesScreen() {
   }, [navigation]);
 
   const renderItem = useCallback(({ item }: { item: Route }) => {
-    // Map İzmir types to LineBadge types
+    // Get İzmir transport type
     const transitType = getTransitType(item.type, item.shortName, item.longName);
-    // Map İzmir-specific types to LineBadge types (rer = İZBAN, train = ferry)
-    const badgeType = transitType === 'izban' ? 'rer' : transitType === 'ferry' ? 'train' : transitType;
 
     return (
       <LineCard
         lineNumber={item.shortName || item.id}
         lineName={item.longName}
         lineColor={item.color || '#0066CC'}
-        type={badgeType as any}
+        type={transitType as any}
         onPress={() => handleLinePress(item)}
       />
     );
