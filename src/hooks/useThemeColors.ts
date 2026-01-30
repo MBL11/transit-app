@@ -33,11 +33,11 @@ export function useThemeColors() {
     warning: '#FF6600',
     error: '#DC143C',
 
-    // Transit colors (same in light/dark)
-    metro: '#003366',
-    bus: '#00AA55',
-    tram: '#CC0000',
-    rer: '#7B68EE',
+    // Transit colors - İzmir official map (same in light/dark)
+    metro: '#D61C1F',    // Metro - Red (kırmızı)
+    bus: '#0066CC',      // ESHOT Bus - Blue
+    tram: '#00A651',     // Tramway - Green (yeşil)
+    rer: '#005BBB',      // İZBAN - Dark Blue (mavi)
 
     // UI element colors
     inputBackground: isDark ? '#1E1E1E' : '#FFFFFF',

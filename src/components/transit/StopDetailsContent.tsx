@@ -19,10 +19,10 @@ interface StopDetailsContentProps {
 
 // Mock departures for testing
 const getMockDepartures = (): Departure[] => [
-  { routeShortName: '35', routeColor: '#E31E24', headsign: 'Konak', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '35', routeColor: '#E31E24', headsign: 'Karşıyaka', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
-  { routeShortName: 'M1', routeColor: '#FF6600', headsign: 'Fahrettin Altay', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
-  { routeShortName: 'İZBAN', routeColor: '#00A650', headsign: 'Aliağa', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '35', routeColor: '#0066CC', headsign: 'Konak', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
+  { routeShortName: '35', routeColor: '#0066CC', headsign: 'Karşıyaka', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
+  { routeShortName: 'M1', routeColor: '#D61C1F', headsign: 'Fahrettin Altay', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
+  { routeShortName: 'İZBAN', routeColor: '#005BBB', headsign: 'Aliağa', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
 ];
 
 export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentProps) {

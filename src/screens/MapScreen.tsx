@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 60,
-    backgroundColor: '#E30613', // İzmir Metro Red
+    backgroundColor: '#D61C1F', // İzmir Metro Red
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#E30613',
+    color: '#D61C1F',
     letterSpacing: 1,
   },
   headerTitle: {
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   importButton: {
-    backgroundColor: '#E30613', // İzmir Metro Red
+    backgroundColor: '#D61C1F', // İzmir Metro Red
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   dataManagementLinkText: {
-    color: '#E30613', // İzmir Metro Red
+    color: '#D61C1F', // İzmir Metro Red
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   locationPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#00A651', // İZBAN Green
+    backgroundColor: '#00A651', // Tram Green (accent color)
     borderRadius: 12,
     padding: 12,
     shadowColor: '#000',
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   locationPromptButtonText: {
-    color: '#00A651', // İZBAN Green
+    color: '#00A651', // Tram Green (accent color)
     fontSize: 13,
     fontWeight: 'bold',
   },

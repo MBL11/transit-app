@@ -16,13 +16,13 @@ interface StopMarkerProps {
   onPress: (stop: Stop) => void;
 }
 
-// İzmir official colors for transport types
+// İzmir official colors for transport types (from İzmir rapid transit map)
 const TRANSPORT_COLORS: Record<number, string> = {
-  0: '#00A651', // Tram - Green (official)
-  1: '#E30613', // Metro - Red (official)
-  2: '#0066B3', // İZBAN - Blue (official)
+  0: '#00A651', // Tram - Green (yeşil)
+  1: '#D61C1F', // Metro - Red (kırmızı)
+  2: '#005BBB', // İZBAN - Dark Blue (mavi)
   3: '#0066CC', // Bus - ESHOT Blue
-  4: '#003366', // Ferry - Dark Blue
+  4: '#0099CC', // Ferry (Vapur) - Turquoise
 };
 
 // Transport icons

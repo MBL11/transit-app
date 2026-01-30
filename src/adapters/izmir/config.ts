@@ -73,15 +73,16 @@ export const izmirTransportTypes = {
 } as const;
 
 /**
- * İzmir transport type colors (official colors)
- * Metro: Red, İZBAN: Blue, Tram: Green, Bus: ESHOT Blue, Ferry: Dark Blue
+ * İzmir transport type colors (from official İzmir rapid transit map)
+ * Metro: Red (#D61C1F), İZBAN: Dark Blue (#005BBB), Tram: Green (#00A651)
+ * Bus: ESHOT Blue (#0066CC), Ferry: Turquoise (#0099CC)
  */
 export const izmirTransportColors: Record<number, string> = {
-  0: '#00A651', // Tramway - Green (official)
-  1: '#E30613', // Metro - Red (official)
-  2: '#0066B3', // İZBAN - Blue (official)
+  0: '#00A651', // Tramway - Green (yeşil)
+  1: '#D61C1F', // Metro - Red (kırmızı)
+  2: '#005BBB', // İZBAN - Dark Blue (mavi)
   3: '#0066CC', // Bus - ESHOT Blue
-  4: '#003366', // Ferry - Dark Blue
+  4: '#0099CC', // Ferry (Vapur) - Turquoise
 };
 
 /**
@@ -90,12 +91,12 @@ export const izmirTransportColors: Record<number, string> = {
 export const izmirMetroLines = {
   M1: {
     name: 'Fahrettin Altay - Evka 3',
-    color: '#E30613',
+    color: '#D61C1F', // Red (kırmızı)
     stations: 21,
   },
   M2: {
     name: 'Bornova - Fahrettin Altay',
-    color: '#0066CC',
+    color: '#D61C1F', // Red (under construction)
     stations: 11,
   },
 };
@@ -106,7 +107,7 @@ export const izmirMetroLines = {
 export const izbanLines = {
   IZBAN: {
     name: 'Aliağa - Selçuk/Torbalı',
-    color: '#0066B3', // Blue (official)
+    color: '#005BBB', // Dark Blue (mavi)
     stations: 42,
   },
 };

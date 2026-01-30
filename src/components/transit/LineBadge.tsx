@@ -17,44 +17,43 @@ export interface LineBadgeProps {
   size?: 'small' | 'medium' | 'large';
 }
 
-// İzmir Metro line colors - Red (official)
+// İzmir Metro line colors - Red (kırmızı, #D61C1F)
 const METRO_COLORS: Record<string, { bg: string; text: string }> = {
-  'M1': { bg: '#E30613', text: '#FFFFFF' },
-  'M2': { bg: '#E30613', text: '#FFFFFF' },
-  'M3': { bg: '#E30613', text: '#FFFFFF' },
-  'M4': { bg: '#E30613', text: '#FFFFFF' },
-  '1': { bg: '#E30613', text: '#FFFFFF' },
-  '2': { bg: '#E30613', text: '#FFFFFF' },
-  '3': { bg: '#E30613', text: '#FFFFFF' },
-  '4': { bg: '#E30613', text: '#FFFFFF' },
+  'M1': { bg: '#D61C1F', text: '#FFFFFF' },
+  'M2': { bg: '#D61C1F', text: '#FFFFFF' },
+  '1': { bg: '#D61C1F', text: '#FFFFFF' },
+  '2': { bg: '#D61C1F', text: '#FFFFFF' },
 };
 
-// İZBAN (İzmir commuter rail) colors - Blue (official)
+// İZBAN (İzmir commuter rail) colors - Dark Blue (#005BBB)
 const RER_COLORS: Record<string, { bg: string; text: string }> = {
-  'S1': { bg: '#0066B3', text: '#FFFFFF' },
-  'S2': { bg: '#0066B3', text: '#FFFFFF' },
-  'IZBAN': { bg: '#0066B3', text: '#FFFFFF' },
-  'İZBAN': { bg: '#0066B3', text: '#FFFFFF' },
-  'A': { bg: '#0066B3', text: '#FFFFFF' },
-  'B': { bg: '#0066B3', text: '#FFFFFF' },
+  'S1': { bg: '#005BBB', text: '#FFFFFF' },
+  'S2': { bg: '#4A90E2', text: '#FFFFFF' }, // Tepeköy-Selçuk segment (lighter blue)
+  'IZBAN': { bg: '#005BBB', text: '#FFFFFF' },
+  'İZBAN': { bg: '#005BBB', text: '#FFFFFF' },
+  'A': { bg: '#005BBB', text: '#FFFFFF' },
+  'B': { bg: '#005BBB', text: '#FFFFFF' },
 };
 
-// İzmir Tramway colors - Green (official), Çiğli has light blue/pink
+// İzmir Tramway colors - Green (#00A651)
+// T3 Çiğli: İç Hat = light blue (#4ABEFF), Dış Hat = rose (#FF6EC7)
 const TRAM_COLORS: Record<string, { bg: string; text: string }> = {
   'T1': { bg: '#00A651', text: '#FFFFFF' },
   'T2': { bg: '#00A651', text: '#FFFFFF' },
+  'T3': { bg: '#00A651', text: '#FFFFFF' },
   '1': { bg: '#00A651', text: '#FFFFFF' },
   '2': { bg: '#00A651', text: '#FFFFFF' },
-  'CIGLI-IC': { bg: '#5BC0DE', text: '#000000' }, // Light blue (inner)
-  'CIGLI-DIS': { bg: '#FF69B4', text: '#000000' }, // Pink (outer)
+  '3': { bg: '#00A651', text: '#FFFFFF' },
+  'CIGLI-IC': { bg: '#4ABEFF', text: '#000000' },  // İç Hat (inner, light blue)
+  'CIGLI-DIS': { bg: '#FF6EC7', text: '#000000' },  // Dış Hat (outer, rose/magenta)
 };
 
-// İzdeniz (Ferry) colors - Dark blue theme
+// İzdeniz (Ferry/Vapur) colors - Turquoise (#0099CC)
 const TRANSILIEN_COLORS: Record<string, { bg: string; text: string }> = {
-  'F1': { bg: '#003366', text: '#FFFFFF' },
-  'F2': { bg: '#003366', text: '#FFFFFF' },
-  'VAPUR': { bg: '#003366', text: '#FFFFFF' },
-  'FERRY': { bg: '#003366', text: '#FFFFFF' },
+  'F1': { bg: '#0099CC', text: '#FFFFFF' },
+  'F2': { bg: '#0099CC', text: '#FFFFFF' },
+  'VAPUR': { bg: '#0099CC', text: '#FFFFFF' },
+  'FERRY': { bg: '#0099CC', text: '#FFFFFF' },
 };
 
 const SIZES = {

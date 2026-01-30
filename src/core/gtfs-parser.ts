@@ -210,28 +210,33 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
 }
 
 /**
- * İzmir transit line colors (official)
+ * İzmir transit line colors (official, from İzmir rapid transit map)
+ * Metro M1: Red (#D61C1F)
+ * İZBAN: Dark blue (#005BBB), Tepeköy-Selçuk segment: lighter blue (#4A90E2)
+ * Tram T1/T2: Green (#00A651)
+ * Tram T3 Çiğli: Light blue inner (#4ABEFF) / Rose outer (#FF6EC7)
+ * Ferry (Vapur): Turquoise (#0099CC)
  */
 const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = {
-  // Metro - Red (official)
-  'M1': { color: '#E30613', textColor: '#FFFFFF' },
-  'M2': { color: '#E30613', textColor: '#FFFFFF' },
-  'M3': { color: '#E30613', textColor: '#FFFFFF' },
-  'M4': { color: '#E30613', textColor: '#FFFFFF' },
-  // Tramway - Green (official), Çiğli has light blue/pink for directions
-  'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Green
-  'T2': { color: '#00A651', textColor: '#FFFFFF' }, // Green
-  'CIGLI-IC': { color: '#5BC0DE', textColor: '#000000' }, // Light Blue (inner)
-  'CIGLI-DIS': { color: '#FF69B4', textColor: '#000000' }, // Pink (outer)
-  // İZBAN - Blue (official)
-  'S1': { color: '#0066B3', textColor: '#FFFFFF' },
-  'S2': { color: '#0066B3', textColor: '#FFFFFF' },
-  'IZBAN': { color: '#0066B3', textColor: '#FFFFFF' },
-  'İZBAN': { color: '#0066B3', textColor: '#FFFFFF' },
-  // Ferry - Dark Blue
-  'F1': { color: '#003366', textColor: '#FFFFFF' },
-  'F2': { color: '#003366', textColor: '#FFFFFF' },
-  'VAPUR': { color: '#003366', textColor: '#FFFFFF' },
+  // Metro - Red (kırmızı)
+  'M1': { color: '#D61C1F', textColor: '#FFFFFF' },
+  'M2': { color: '#D61C1F', textColor: '#FFFFFF' }, // Under construction
+  // Tramway - Green (yeşil)
+  'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Karşıyaka
+  'T2': { color: '#00A651', textColor: '#FFFFFF' }, // Konak
+  'T3': { color: '#00A651', textColor: '#FFFFFF' }, // Çiğli (generic)
+  // T3 Çiğli directional variants
+  'CIGLI-IC': { color: '#4ABEFF', textColor: '#000000' },  // İç Hat (inner, light blue)
+  'CIGLI-DIS': { color: '#FF6EC7', textColor: '#000000' },  // Dış Hat (outer, rose/magenta)
+  // İZBAN - Dark blue (mavi)
+  'S1': { color: '#005BBB', textColor: '#FFFFFF' },
+  'S2': { color: '#4A90E2', textColor: '#FFFFFF' }, // Tepeköy-Selçuk segment (lighter blue)
+  'IZBAN': { color: '#005BBB', textColor: '#FFFFFF' },
+  'İZBAN': { color: '#005BBB', textColor: '#FFFFFF' },
+  // Ferry (İzdeniz/Vapur) - Turquoise
+  'F1': { color: '#0099CC', textColor: '#FFFFFF' },
+  'F2': { color: '#0099CC', textColor: '#FFFFFF' },
+  'VAPUR': { color: '#0099CC', textColor: '#FFFFFF' },
 };
 
 /**
@@ -269,27 +274,27 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
       color = izmirColor.color;
       textColor = izmirColor.textColor;
     } else {
-      // Fallback based on route type
+      // Fallback based on route type (official İzmir map colors)
       const routeType = parseInt(rawRoute.route_type || '3', 10);
       switch (routeType) {
-        case 0: // Tram
-          color = '#FF6600';
-          textColor = '#FFFFFF';
-          break;
-        case 1: // Metro
-          color = '#E30613';
-          textColor = '#FFFFFF';
-          break;
-        case 2: // Rail (İZBAN)
+        case 0: // Tram - Green (yeşil)
           color = '#00A651';
           textColor = '#FFFFFF';
           break;
-        case 3: // Bus
+        case 1: // Metro - Red (kırmızı)
+          color = '#D61C1F';
+          textColor = '#FFFFFF';
+          break;
+        case 2: // İZBAN / Rail - Dark Blue (mavi)
+          color = '#005BBB';
+          textColor = '#FFFFFF';
+          break;
+        case 3: // Bus (ESHOT) - Blue
           color = '#0066CC';
           textColor = '#FFFFFF';
           break;
-        case 4: // Ferry
-          color = '#003366';
+        case 4: // Ferry (İzdeniz/Vapur) - Turquoise
+          color = '#0099CC';
           textColor = '#FFFFFF';
           break;
         default:

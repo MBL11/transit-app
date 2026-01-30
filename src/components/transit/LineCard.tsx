@@ -15,14 +15,14 @@ export interface LineCardProps extends Omit<PressableProps, 'children'> {
 }
 
 const typeColors: Record<TransportType, string> = {
-  metro: '#E30613',    // İzmir Metro - Red
+  metro: '#D61C1F',    // İzmir Metro - Red
   bus: '#0066CC',      // ESHOT Bus - Blue
   tram: '#00A651',     // İzmir Tram - Green
-  rer: '#7B68EE',      // RER (Paris)
-  train: '#0066CC',    // Train
+  rer: '#005BBB',      // İZBAN - Dark Blue
+  train: '#005BBB',    // Train/İZBAN
   noctilien: '#003366',
-  izban: '#0066B3',    // İZBAN - Blue
-  ferry: '#003366',    // İzdeniz Ferry - Dark Blue
+  izban: '#005BBB',    // İZBAN - Dark Blue
+  ferry: '#0099CC',    // İzdeniz Ferry - Turquoise
 };
 
 export function LineCard({
