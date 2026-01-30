@@ -701,8 +701,18 @@ export async function searchStops(query: string): Promise<Stop[]> {
       return normalizedName.includes(normalizedQuery);
     });
 
+    // Deduplicate by name: same physical stop exists with different prefixes (metro_1, tram_1, etc.)
+    // Keep the first occurrence for each unique normalized name
+    const seen = new Map<string, any>();
+    for (const row of filteredRows) {
+      const key = row.name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.set(key, row);
+      }
+    }
+
     // Limit results to 50
-    return filteredRows.slice(0, 50).map((row: any) => ({
+    return Array.from(seen.values()).slice(0, 50).map((row: any) => ({
       id: row.id,
       name: row.name,
       lat: row.lat,

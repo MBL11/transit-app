@@ -40,11 +40,19 @@ export function RouteScreenContent({
 
   // Helper functions
   const filterStops = (query: string): Stop[] => {
-    if (!query.trim()) return state.stops;
-    const lowerQuery = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return state.stops.filter(stop =>
+    const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const filtered = !lowerQuery ? state.stops : state.stops.filter(stop =>
       stop.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(lowerQuery)
     );
+    // Deduplicate by name: same physical stop exists with different prefixes (metro_1, tram_1, etc.)
+    const seen = new Map<string, Stop>();
+    for (const stop of filtered) {
+      const key = stop.name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.set(key, stop);
+      }
+    }
+    return Array.from(seen.values());
   };
 
   const hasFromLocation = state.fromMode === 'stop' ? state.fromStop !== null : state.fromAddress !== null;
