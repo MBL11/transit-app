@@ -30,6 +30,26 @@ function walkingTime(distanceMeters: number): number {
   return distanceMeters / 83.33; // 5000m / 60min = 83.33 m/min
 }
 
+/**
+ * Get transit speed estimate in minutes per kilometer based on transport mode.
+ * Calibrated against real İzmir transit data:
+ *   Metro M1: Fahrettin Altay→Konak ~6km in ~10min → 1.7 min/km
+ *   İZBAN: Aliağa→Cumaovası ~80km in ~90min → 1.1 min/km
+ *   Tram T1: Alaybey→Ataşehir ~4km in ~15min → 3.8 min/km
+ *   Bus: city average ~18-20 km/h → 3.0-3.3 min/km
+ *   Ferry: Konak→Karşıyaka ~5km in ~20min → 4.0 min/km
+ */
+function getTransitMinPerKm(routeType: number): number {
+  switch (routeType) {
+    case 1: return 1.7;  // Metro (~35 km/h avg with stops)
+    case 2: return 1.3;  // İZBAN / commuter rail (~46 km/h avg)
+    case 0: return 3.5;  // Tram (~17 km/h avg)
+    case 3: return 3.0;  // Bus (~20 km/h avg in city)
+    case 4: return 3.5;  // Ferry (~17 km/h avg incl. docking)
+    default: return 3.0; // Unknown → bus-like estimate
+  }
+}
+
 // Parse "HH:MM:SS" en minutes depuis minuit
 function parseGtfsTime(time: string): number {
   const [h, m, s] = time.split(':').map(Number);
@@ -82,9 +102,10 @@ export async function findRoute(
   const directRoutes = toRoutes.filter(r => fromRouteIds.has(r.id));
 
   for (const route of directRoutes.slice(0, 3)) { // Max 3 itinéraires directs
-    // Estime le temps de trajet basé sur la distance (simplifié)
+    // Estime le temps de trajet basé sur la distance et le type de transport
     const distanceKm = directDistance / 1000;
-    const estimatedDuration = Math.max(5, Math.round(distanceKm * 3)); // ~3 min per km
+    const minPerKm = getTransitMinPerKm(route.type);
+    const estimatedDuration = Math.max(3, Math.round(distanceKm * minPerKm));
 
     // Try to get headsign for this route (pass both origin and destination for correct direction)
     const tripInfo = await db.getTripInfoForRoute(route.id, toStopId, fromStopId);
@@ -151,11 +172,11 @@ export async function findRoute(
           // Correspondance trouvée !
           const connectingRoute = connectingRoutes[0];
 
-          // Calcul des durées
+          // Calcul des durées (avec vitesse selon le type de transport)
           const dist1 = haversineDistance(fromStop.lat, fromStop.lon, transferStop.lat, transferStop.lon);
           const dist2 = haversineDistance(actualTransferStop.lat, actualTransferStop.lon, toStop.lat, toStop.lon);
-          const duration1 = Math.max(3, Math.round((dist1 / 1000) * 3));
-          const duration2 = Math.max(3, Math.round((dist2 / 1000) * 3));
+          const duration1 = Math.max(3, Math.round((dist1 / 1000) * getTransitMinPerKm(fromRoute.type)));
+          const duration2 = Math.max(3, Math.round((dist2 / 1000) * getTransitMinPerKm(connectingRoute.type)));
           const transferTime = 4; // 4 min pour la correspondance
           const totalDuration = duration1 + transferTime + duration2;
 
