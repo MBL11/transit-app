@@ -56,6 +56,13 @@ function parseGtfsTime(time: string): number {
   return h * 60 + m + s / 60;
 }
 
+// Maximum reasonable journey duration in minutes (3 hours)
+const MAX_JOURNEY_DURATION_MIN = 180;
+// Maximum walking-only duration in minutes (1 hour = ~5km)
+const MAX_WALKING_DURATION_MIN = 60;
+// Transfer search radius in meters (bus stops can be 300-500m from rail stations in İzmir)
+const TRANSFER_SEARCH_RADIUS_M = 500;
+
 export async function findRoute(
   fromStopId: string,
   toStopId: string,
@@ -139,7 +146,7 @@ export async function findRoute(
     const transferJourneys: JourneyResult[] = [];
 
     // Pour chaque ligne de départ, trouve les arrêts de correspondance possibles
-    for (const fromRoute of fromRoutes.slice(0, 3)) {
+    for (const fromRoute of fromRoutes.slice(0, 5)) {
       // Récupère tous les arrêts de cette ligne
       const fromRouteStops = await db.getStopsByRouteId(fromRoute.id);
 
@@ -151,11 +158,11 @@ export async function findRoute(
         let transferRoutes = await db.getRoutesByStopId(transferStop.id);
         let connectingRoutes = transferRoutes.filter(r => toRouteIds.has(r.id) && r.id !== fromRoute.id);
 
-        // Si pas de connexion directe, cherche des arrêts proches (< 200m) pour les correspondances
-        // Cela gère le cas où le même nom de station a des IDs différents par ligne
+        // Si pas de connexion directe, cherche des arrêts proches pour les correspondances
+        // Bus stops can be 300-500m from metro/tram/İZBAN stations in İzmir
         let actualTransferStop = transferStop;
         if (connectingRoutes.length === 0) {
-          const nearbyStops = await findBestNearbyStops(transferStop.lat, transferStop.lon, 5, 200);
+          const nearbyStops = await findBestNearbyStops(transferStop.lat, transferStop.lon, 10, TRANSFER_SEARCH_RADIUS_M);
           for (const nearbyStop of nearbyStops) {
             if (nearbyStop.id === transferStop.id) continue;
             const nearbyRoutes = await db.getRoutesByStopId(nearbyStop.id);
@@ -231,26 +238,33 @@ export async function findRoute(
     journeys.push(...transferJourneys.slice(0, 3));
   }
 
-  // Si toujours pas de trajet, retourne un trajet à pied comme fallback
-  if (journeys.length === 0) {
+  // Filter out journeys with absurd durations (coordinate errors can cause 40+ hour estimates)
+  const validJourneys = journeys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
+
+  // Si toujours pas de trajet, retourne un trajet à pied comme fallback (only if reasonable)
+  if (validJourneys.length === 0) {
     const walkTime = walkingTime(directDistance);
-    journeys.push({
-      segments: [{
-        type: 'walk',
-        from: fromStop,
-        to: toStop,
-        duration: Math.round(walkTime),
-        distance: Math.round(directDistance),
-      }],
-      totalDuration: Math.round(walkTime),
-      totalWalkDistance: Math.round(directDistance),
-      numberOfTransfers: 0,
-      departureTime: departureTime,
-      arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
-    });
+    if (Math.round(walkTime) <= MAX_WALKING_DURATION_MIN) {
+      validJourneys.push({
+        segments: [{
+          type: 'walk',
+          from: fromStop,
+          to: toStop,
+          duration: Math.round(walkTime),
+          distance: Math.round(directDistance),
+        }],
+        totalDuration: Math.round(walkTime),
+        totalWalkDistance: Math.round(directDistance),
+        numberOfTransfers: 0,
+        departureTime: departureTime,
+        arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
+      });
+    } else {
+      console.warn(`[Routing] Walking fallback too long (${Math.round(walkTime)} min), distance=${Math.round(directDistance)}m — likely coordinate error`);
+    }
   }
 
-  return journeys;
+  return validJourneys;
 }
 
 /**
@@ -405,13 +419,16 @@ export async function findRouteFromLocations(
       }
     }
 
-    if (allJourneys.length === 0) {
-      throw new Error('Aucun itinéraire trouvé entre ces deux adresses. Essayez des points plus proches des transports en commun.');
+    // Filter out absurd durations
+    const validJourneys = allJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
+
+    if (validJourneys.length === 0) {
+      throw new Error('Aucun itinéraire raisonnable trouvé entre ces deux adresses. Essayez des points plus proches des transports en commun.');
     }
 
     // Sort by duration and return top 5
-    allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    const topJourneys = allJourneys.slice(0, 5);
+    validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+    const topJourneys = validJourneys.slice(0, 5);
 
     console.log(`[Routing] Found ${topJourneys.length} journey options`);
     return topJourneys;
@@ -485,7 +502,7 @@ export async function findRouteFromAddresses(
 
     const allJourneys: JourneyResult[] = [];
 
-    // Always include walking option (useful even for long distances)
+    // Include walking option only if reasonable (< 1 hour)
     const walkTime = walkingTime(directDistance);
     const walkingJourney: JourneyResult = {
       segments: [{
@@ -501,7 +518,9 @@ export async function findRouteFromAddresses(
       departureTime: departureTime,
       arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
     };
-    allJourneys.push(walkingJourney);
+    if (Math.round(walkTime) <= MAX_WALKING_DURATION_MIN) {
+      allJourneys.push(walkingJourney);
+    }
 
     // If distance > 800m, also search for transit routes
     if (directDistance > 800) {
@@ -605,15 +624,20 @@ export async function findRouteFromAddresses(
         }
       }
 
-      // Sort transit journeys by duration and keep top 2
-      transitJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-      allJourneys.push(...transitJourneys.slice(0, 2));
+      // Filter out absurd durations and sort by duration, keep top 2
+      const validTransitJourneys = transitJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
+      validTransitJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+      allJourneys.push(...validTransitJourneys.slice(0, 2));
     }
 
     // Sort all journeys by total duration
     allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
 
     console.log(`[Routing] Found ${allJourneys.length} journey options`);
+
+    if (allJourneys.length === 0) {
+      throw new Error('Aucun itinéraire raisonnable trouvé. Vérifiez les données GTFS ou essayez des points plus proches.');
+    }
 
     return allJourneys;
 
@@ -715,13 +739,16 @@ export async function findRouteFromCoordinates(
       }
     }
 
-    if (allJourneys.length === 0) {
-      throw new Error('Aucun itinéraire trouvé');
+    // Filter out absurd durations
+    const validJourneys = allJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
+
+    if (validJourneys.length === 0) {
+      throw new Error('Aucun itinéraire raisonnable trouvé');
     }
 
-    allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    console.log(`[Routing] Found ${allJourneys.length} journeys, returning top 5`);
-    return allJourneys.slice(0, 5);
+    validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+    console.log(`[Routing] Found ${validJourneys.length} journeys, returning top 5`);
+    return validJourneys.slice(0, 5);
 
   } catch (error) {
     console.error('[Routing] Error finding route from coordinates:', error);
