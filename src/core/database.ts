@@ -518,9 +518,39 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
       textColor: row.text_color,
     }));
 
-    // Fallback: if no routes found via stop_times but stop name suggests ferry terminal,
-    // return all ferry routes (type=4). İzdeniz GTFS may have broken stop_times chain.
+    // Fallback: if no routes found via stop_times, detect type from stop ID prefix
+    // Handles stops with incomplete GTFS data (e.g., Metro Narlıdere extension stops 18-24)
     if (routes.length === 0 && stop) {
+      // Map stop ID prefix to route type
+      const PREFIX_TYPE_MAP: Record<string, number> = {
+        'metro_': 1,  // Metro
+        'tram_': 0,   // Tram
+        'rail_': 2,   // İZBAN
+        'ferry_': 4,  // Ferry
+      };
+
+      for (const [prefix, routeType] of Object.entries(PREFIX_TYPE_MAP)) {
+        if (stopId.startsWith(prefix)) {
+          console.log(`[Database] Prefix fallback: "${stop.name}" (${stopId}) → loading all type=${routeType} routes`);
+          const fallbackRows = db.getAllSync<any>(
+            `SELECT * FROM routes WHERE type = ?`,
+            [routeType]
+          );
+          if (fallbackRows.length > 0) {
+            return fallbackRows.map((row: any) => ({
+              id: row.id,
+              shortName: row.short_name,
+              longName: row.long_name,
+              type: row.type,
+              color: row.color,
+              textColor: row.text_color,
+            }));
+          }
+          break;
+        }
+      }
+
+      // Additional ferry keyword fallback
       const FERRY_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
       const upperName = (stop.name || '').toUpperCase();
       if (FERRY_KEYWORDS.some((kw: string) => upperName.includes(kw))) {

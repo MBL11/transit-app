@@ -139,7 +139,32 @@ export function MapScreen({ navigation }: Props) {
             console.log(`[MapScreen] Ferry prefix detection: ${ferryStopIds.size} ferry stops found, ${ferryAdded} icons added`);
           }
 
-          // Secondary fallback: detect ferry stops by name keywords (for any stops missed)
+          // Prefix-based fallback: detect transport type from stop ID prefix
+          // Handles stops with incomplete stop_times data (e.g., Metro Narlıdere extension stops 18-24)
+          // After import, all stop IDs are prefixed: metro_, tram_, rail_, ferry_
+          const PREFIX_TYPE_MAP: Record<string, number> = {
+            'metro_': 1,  // Metro → route_type 1
+            'tram_': 0,   // Tram → route_type 0
+            'rail_': 2,   // İZBAN → route_type 2
+            'ferry_': 4,  // Ferry → route_type 4
+          };
+          let prefixFallbackCount = 0;
+          for (const stop of nonBusStops) {
+            if (!routeTypesMap.has(stop.id)) {
+              for (const [prefix, routeType] of Object.entries(PREFIX_TYPE_MAP)) {
+                if (stop.id.startsWith(prefix)) {
+                  routeTypesMap.set(stop.id, [routeType]);
+                  prefixFallbackCount++;
+                  break;
+                }
+              }
+            }
+          }
+          if (prefixFallbackCount > 0) {
+            console.log(`[MapScreen] Prefix fallback: assigned transport type to ${prefixFallbackCount} stops with missing stop_times`);
+          }
+
+          // Secondary fallback: detect ferry stops by name keywords (for any stops still missed)
           const FERRY_STOP_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
           for (const stop of nonBusStops) {
             if (!routeTypesMap.has(stop.id)) {
