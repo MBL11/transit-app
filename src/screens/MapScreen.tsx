@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Region } from 'react-native-maps';
 import { TransitMap, TransitMapRef } from '../components/map';
+import { MapLegend } from '../components/map/MapLegend';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { StopDetailsSheet } from '../components/transit/StopDetailsSheet';
 import { AlertBanner } from '../components/transit/AlertBanner';
@@ -505,6 +506,9 @@ export function MapScreen({ navigation }: Props) {
           <Text style={styles.alertsBadgeText}>⚠️ {severeAlerts.length}</Text>
         </TouchableOpacity>
       )}
+
+      {/* Map Legend */}
+      <MapLegend />
 
       {/* Bottom Sheet */}
       <BottomSheet

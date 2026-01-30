@@ -1,13 +1,15 @@
 /**
  * Stop Marker Component
  * Custom marker for stops on the map
- * Supports showing multiple transport type icons for stops serving multiple lines
+ * Uses professional TransitLogo components instead of emojis
+ * Supports showing multiple transport type logos for stops serving multiple lines
  */
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import type { Stop } from '../../core/types/models';
+import { TransitLogo, routeTypeToTransitType, getTransitColor } from '../transit/TransitLogo';
 
 interface StopMarkerProps {
   stop: Stop;
@@ -15,24 +17,6 @@ interface StopMarkerProps {
   routeTypes?: number[]; // Array of route types serving this stop
   onPress: (stop: Stop) => void;
 }
-
-// İzmir official colors for transport types (from İzmir rapid transit map)
-const TRANSPORT_COLORS: Record<number, string> = {
-  0: '#00A651', // Tram - Green (yeşil)
-  1: '#D61C1F', // Metro - Red (kırmızı)
-  2: '#005BBB', // İZBAN - Dark Blue (mavi)
-  3: '#0066CC', // Bus - ESHOT Blue
-  4: '#0099CC', // Ferry (Vapur) - Turquoise
-};
-
-// Transport icons
-const TRANSPORT_ICONS: Record<number, string> = {
-  0: '🚊', // Tram
-  1: '🚇', // Metro
-  2: '🚆', // İZBAN/Rail
-  3: '🚌', // Bus
-  4: '⛴️', // Ferry
-};
 
 // Priority order for displaying transport types (lower = higher priority)
 const TYPE_PRIORITY: Record<number, number> = {
@@ -63,30 +47,8 @@ export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType
   const primaryColor = useMemo(() => {
     if (isSelected) return '#0066CC';
     if (uniqueTypes.length === 0) return '#FF6600'; // Default orange
-    return TRANSPORT_COLORS[uniqueTypes[0]] || '#FF6600';
+    return getTransitColor(routeTypeToTransitType(uniqueTypes[0]));
   }, [isSelected, uniqueTypes]);
-
-  // Render a single transport type icon with background
-  const renderTransportIcon = (type: number, index: number) => {
-    const icon = TRANSPORT_ICONS[type] || '📍';
-    const color = TRANSPORT_COLORS[type] || '#666666';
-
-    return (
-      <View
-        key={`${type}-${index}`}
-        style={[
-          styles.iconBadge,
-          {
-            backgroundColor: color,
-            marginLeft: index > 0 ? -6 : 0, // Overlap for multiple icons
-            zIndex: 10 - index, // First icon on top
-          },
-        ]}
-      >
-        <Text style={styles.iconText}>{icon}</Text>
-      </View>
-    );
-  };
 
   return (
     <Marker
@@ -97,16 +59,33 @@ export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType
       onPress={handlePress}
     >
       <View style={styles.container}>
-        {/* Multiple transport type icons */}
+        {/* Multiple transport type logos */}
         {uniqueTypes.length > 0 ? (
-          <View style={[styles.iconsRow, isSelected && styles.iconsRowSelected]}>
-            {uniqueTypes.map((type, index) => renderTransportIcon(type, index))}
+          <View style={[styles.logosRow, isSelected && styles.logosRowSelected]}>
+            {uniqueTypes.map((type, index) => (
+              <View
+                key={`${type}-${index}`}
+                style={[
+                  styles.logoBadge,
+                  {
+                    marginLeft: index > 0 ? -6 : 0, // Overlap for multiple logos
+                    zIndex: 10 - index, // First logo on top
+                  },
+                ]}
+              >
+                <TransitLogo
+                  type={routeTypeToTransitType(type)}
+                  size="small"
+                  bordered
+                />
+              </View>
+            ))}
           </View>
         ) : (
-          // Fallback to single marker if no route types
+          // Fallback marker when no route types detected
           <View
             style={[
-              styles.marker,
+              styles.fallbackMarker,
               {
                 backgroundColor: primaryColor,
                 width: isSelected ? 36 : 28,
@@ -115,7 +94,7 @@ export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType
               },
             ]}
           >
-            <Text style={styles.defaultIcon}>📍</Text>
+            <Text style={styles.fallbackDot}>•</Text>
           </View>
         )}
 
@@ -137,17 +116,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconsRow: {
+  logosRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  iconsRowSelected: {
-    transform: [{ scale: 1.15 }],
+  logosRowSelected: {
+    transform: [{ scale: 1.2 }],
   },
-  iconBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  logoBadge: {
+    // Shadow for depth on map
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  fallbackMarker: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -158,22 +142,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
-  iconText: {
-    fontSize: 13,
-  },
-  marker: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  defaultIcon: {
-    fontSize: 14,
+  fallbackDot: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '900',
   },
   labelContainer: {
     marginTop: 4,
