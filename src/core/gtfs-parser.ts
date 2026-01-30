@@ -127,7 +127,12 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
     // İzdeniz ferry GTFS has Turkish comma-decimal format: "38,4186" splits into 2 columns
     // The longitude decimal part ends up in __parsed_extra[0]
     const parsedExtra = (rawStop as any).__parsed_extra as string[] | undefined;
-    const extraVal0 = parsedExtra && parsedExtra.length > 0 ? parseFloat(parsedExtra[0]) : NaN;
+    const extraStr0 = parsedExtra && parsedExtra.length > 0 ? parsedExtra[0].trim() : '';
+    const extraVal0 = extraStr0 ? parseFloat(extraStr0) : NaN;
+
+    // Raw string values for digit counting (preserves leading zeros like "0943", "097777")
+    const lonRawStr = (rawStop.stop_lon || rawStop.stoplon || lonStr || '').trim();
+    const stopUrlRawStr = (rawStop.stop_url || '').trim();
 
     // Format 1: Turkish comma-decimal format (İzdeniz ferry GTFS)
     // stop_lat is integer (38), stop_lon has lat decimal part, zone_id has lon integer,
@@ -149,19 +154,20 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
       !isNaN(stopUrlVal) && stopUrlVal > 0
     );
 
-    // Format 3: ESHOT shifted format
-    // stop_lat:"27", stop_lon:"2289", zone_id:"38", stop_url:"4656"
+    // Format 3: Metro İzmir shifted format (lat/lon fields swapped + Turkish comma)
+    // stop_lat has lon integer (26-29), stop_lon has lon decimal, zone_id has lat integer (37-40), stop_url has lat decimal
+    // Decimal precision varies: 2-6 digits, may have leading zeros (e.g., "0943", "057")
     const hasShiftedFormat = (
-      !isNaN(lat) && lat >= 26 && lat <= 28 &&
-      !isNaN(zoneIdVal) && zoneIdVal >= 37 && zoneIdVal <= 40 &&
-      !isNaN(lon) && lon > 100 &&
-      !isNaN(stopUrlVal) && stopUrlVal > 100
+      !isNaN(lat) && lat >= 26 && lat <= 29 && Math.floor(lat) === lat &&
+      !isNaN(zoneIdVal) && zoneIdVal >= 37 && zoneIdVal <= 40 && Math.floor(zoneIdVal) === zoneIdVal &&
+      !isNaN(lon) && lon > 0 &&
+      !isNaN(stopUrlVal) && stopUrlVal > 0
     );
 
     if (hasTurkishCommaFormat) {
-      // Reconstruct coordinates from split decimal parts
-      const latDecDigits = lon.toString().length;
-      const lonDecDigits = extraVal0.toString().length;
+      // Use string lengths to preserve leading zeros (e.g., "097777" → 6 digits, not 5)
+      const latDecDigits = lonRawStr.length;
+      const lonDecDigits = extraStr0.length;
       const realLat = lat + lon / Math.pow(10, latDecDigits);
       const realLon = zoneIdVal + extraVal0 / Math.pow(10, lonDecDigits);
 
@@ -169,9 +175,8 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
       lat = realLat;
       lon = realLon;
     } else if (hasTurkishCommaViaStopUrl) {
-      // Same format but lon decimal part is in stop_url column instead of __parsed_extra
-      const latDecDigits = lon.toString().length;
-      const lonDecDigits = stopUrlVal.toString().length;
+      const latDecDigits = lonRawStr.length;
+      const lonDecDigits = stopUrlRawStr.length;
       const realLat = lat + lon / Math.pow(10, latDecDigits);
       const realLon = zoneIdVal + stopUrlVal / Math.pow(10, lonDecDigits);
 
@@ -179,12 +184,16 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
       lat = realLat;
       lon = realLon;
     } else if (hasShiftedFormat) {
-      const lonInt = lat;
-      const lonDec = lon / 10000;
-      const latInt = zoneIdVal;
-      const latDec = stopUrlVal / 10000;
-      lat = latInt + latDec;
-      lon = lonInt + lonDec;
+      // Metro İzmir: stop_lat=lon_int, stop_lon=lon_dec, zone_id=lat_int, stop_url=lat_dec
+      // Use string lengths to preserve leading zeros (e.g., "0943" → 4 digits → /10^4 = 0.0943)
+      const lonDecDigits = lonRawStr.length;
+      const latDecDigits = stopUrlRawStr.length;
+      const realLat = zoneIdVal + stopUrlVal / Math.pow(10, latDecDigits);
+      const realLon = lat + lon / Math.pow(10, lonDecDigits);
+
+      console.log(`[GTFSParser] ✅ Shifted format: "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
+      lat = realLat;
+      lon = realLon;
     } else if (lat > 40 && lon < 30) {
       [lat, lon] = [lon, lat];
     }
