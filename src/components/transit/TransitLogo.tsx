@@ -6,7 +6,7 @@
  *   Metro  → Red circle (#D61C1F) with white "M"
  *   İZBAN  → Dark Blue circle (#005BBB) with white "İ"
  *   Tram   → Green circle (#00A651) with white "T"
- *   Ferry  → Turquoise circle (#0099CC) with white "V" (Vapur)
+ *   Ferry  → Turquoise circle (#0099CC) with ⛴️ emoji
  *   Bus    → ESHOT Blue circle (#0066CC) with white "B"
  */
 
@@ -39,7 +39,7 @@ const TRANSIT_BRANDS: Record<TransitType, TransitBrand> = {
   metro: { color: '#D61C1F', letter: 'M', label: 'Metro' },
   izban: { color: '#005BBB', letter: 'İ', label: 'İZBAN' },
   tram:  { color: '#00A651', letter: 'T', label: 'Tram' },
-  ferry: { color: '#0099CC', letter: 'V', label: 'Vapur' },
+  ferry: { color: '#0099CC', letter: '⛴️', label: 'Vapur' },
   bus:   { color: '#0066CC', letter: 'B', label: 'Bus' },
 };
 
