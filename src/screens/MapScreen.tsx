@@ -117,6 +117,19 @@ export function MapScreen({ navigation }: Props) {
             );
           });
 
+          // Fallback: detect ferry stops by name when DB route chain has no data
+          // İzdeniz ferry GTFS may have stop_times issues, so we detect by stop name keywords
+          const FERRY_STOP_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
+          for (const stop of nonBusStops) {
+            if (!routeTypesMap.has(stop.id)) {
+              const upperName = stop.name.toUpperCase();
+              if (FERRY_STOP_KEYWORDS.some(kw => upperName.includes(kw))) {
+                routeTypesMap.set(stop.id, [4]); // 4 = ferry
+                console.log(`[MapScreen] Ferry fallback: "${stop.name}" detected as ferry by name`);
+              }
+            }
+          }
+
           console.log(`[MapScreen] Loaded route types for ${routeTypesMap.size} stops`);
           setStopRouteTypesMap(routeTypesMap);
         } catch (err) {

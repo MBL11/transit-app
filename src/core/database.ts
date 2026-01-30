@@ -509,7 +509,7 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
       stopIds
     );
 
-    return rows.map((row) => ({
+    const routes = rows.map((row) => ({
       id: row.id,
       shortName: row.short_name,
       longName: row.long_name,
@@ -517,6 +517,31 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
       color: row.color,
       textColor: row.text_color,
     }));
+
+    // Fallback: if no routes found via stop_times but stop name suggests ferry terminal,
+    // return all ferry routes (type=4). İzdeniz GTFS may have broken stop_times chain.
+    if (routes.length === 0 && stop) {
+      const FERRY_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
+      const upperName = (stop.name || '').toUpperCase();
+      if (FERRY_KEYWORDS.some((kw: string) => upperName.includes(kw))) {
+        console.log(`[Database] Ferry fallback: "${stop.name}" has ferry keyword, loading all ferry routes`);
+        const ferryRows = db.getAllSync<any>(
+          `SELECT * FROM routes WHERE type = 4`
+        );
+        if (ferryRows.length > 0) {
+          return ferryRows.map((row: any) => ({
+            id: row.id,
+            shortName: row.short_name,
+            longName: row.long_name,
+            type: row.type,
+            color: row.color,
+            textColor: row.text_color,
+          }));
+        }
+      }
+    }
+
+    return routes;
   } catch (error) {
     console.error('[Database] ❌ Failed to get routes by stop ID:', error);
     throw error;
@@ -770,7 +795,7 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
       [routeId]
     );
 
-    return rows.map((row) => ({
+    const stops = rows.map((row) => ({
       id: row.id,
       name: row.name,
       lat: row.lat,
@@ -778,6 +803,35 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
       locationType: row.location_type,
       parentStation: row.parent_station,
     }));
+
+    // Fallback: if no stops found via stop_times for a ferry route,
+    // return all stops with ferry keywords in their name (İzdeniz GTFS may have broken stop_times)
+    if (stops.length === 0) {
+      const route = db.getFirstSync<any>('SELECT type FROM routes WHERE id = ?', [routeId]);
+      if (route && route.type === 4) {
+        console.log(`[Database] Ferry fallback: no stops via stop_times for route ${routeId}, loading ferry stops by name`);
+        const ferryRows = db.getAllSync<any>(
+          `SELECT * FROM stops
+           WHERE UPPER(name) LIKE '%ISKELE%'
+              OR UPPER(name) LIKE '%İSKELE%'
+              OR UPPER(name) LIKE '%VAPUR%'
+              OR UPPER(name) LIKE '%FERIBOT%'
+              OR UPPER(name) LIKE '%FERİBOT%'
+              OR UPPER(name) LIKE '%IZDENIZ%'
+              OR UPPER(name) LIKE '%İZDENİZ%'`
+        );
+        return ferryRows.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          lat: row.lat,
+          lon: row.lon,
+          locationType: row.location_type,
+          parentStation: row.parent_station,
+        }));
+      }
+    }
+
+    return stops;
   } catch (error) {
     console.error('[Database] ❌ Failed to get stops by route ID:', error);
     throw error;
