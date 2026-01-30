@@ -324,7 +324,9 @@ export async function downloadAndImportAllIzmir(
         t.routeId = prefix + t.routeId;
       });
       parsedData.stopTimes.forEach(st => { st.tripId = prefix + st.tripId; });
-      // NOTE: stop IDs are NOT prefixed - stations can be shared between sources
+      // Prefix stop IDs to prevent collisions (each İzmir GTFS source uses sequential IDs from 1)
+      parsedData.stops.forEach(s => { s.id = prefix + s.id; });
+      parsedData.stopTimes.forEach(st => { st.stopId = prefix + st.stopId; });
 
       // Validate data
       const validation = validateGTFSData(parsedData);

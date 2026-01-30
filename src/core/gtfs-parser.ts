@@ -116,30 +116,37 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
     // Log raw column data for debugging coordinate issues
     if (!isAlreadyValidIzmir && (lon > 1000000 || isNaN(lon) || isNaN(lat))) {
       console.log(`[GTFSParser] ⚠️ Invalid coords for "${name}" (id=${id}):`);
-      console.log(`  Raw: stop_lat="${latStr}" stop_lon="${lonStr}" zone_id="${rawStop.zone_id}" stop_url="${rawStop.stop_url}"`);
+      console.log(`  Raw: stop_lat="${latStr}" stop_lon="${lonStr}" zone_id="${rawStop.zone_id}" stop_url="${rawStop.stop_url}" extra="${(rawStop as any).__parsed_extra}"`);
       console.log(`  Parsed: lat=${lat} lon=${lon}`);
-      console.log(`  All columns:`, JSON.stringify(rawStop).substring(0, 300));
     }
 
     const zoneIdVal = parseFloat(rawStop.zone_id || '');
     const stopUrlVal = parseFloat(rawStop.stop_url || '');
 
+    // Access PapaParse extra fields (when more CSV values than headers)
+    // İzdeniz ferry GTFS has Turkish comma-decimal format: "38,4186" splits into 2 columns
+    // The longitude decimal part ends up in __parsed_extra[0]
+    const parsedExtra = (rawStop as any).__parsed_extra as string[] | undefined;
+    const extraVal0 = parsedExtra && parsedExtra.length > 0 ? parseFloat(parsedExtra[0]) : NaN;
+
     // Format 1: Turkish comma-decimal format (İzdeniz ferry GTFS)
-    // Turkish locale uses comma as decimal separator: "38,4186" becomes two CSV columns
-    // stop_lat=38, stop_lon=418611111111, zone_id=27, stop_url=130000000000
+    // stop_lat is integer (38), stop_lon has lat decimal part, zone_id has lon integer,
+    // __parsed_extra[0] has lon decimal part
+    // Works for all precision levels (4-12 decimal digits)
     const hasTurkishCommaFormat = (
       !isNaN(lat) && lat >= 37 && lat <= 40 && Math.floor(lat) === lat &&
-      !isNaN(lon) && lon > 1000000 &&
+      !isNaN(lon) && lon !== lat && // lon column has the lat decimal part (any precision)
       !isNaN(zoneIdVal) && zoneIdVal >= 26 && zoneIdVal <= 29 && Math.floor(zoneIdVal) === zoneIdVal &&
-      !isNaN(stopUrlVal) && stopUrlVal > 1000000
+      !isNaN(extraVal0) && extraVal0 > 0 // lon decimal part in __parsed_extra
     );
 
-    // Format 2: Turkish comma but zone_id/stop_url might be different
-    // Just lat integer + lat decimal, scan all columns for lon
-    const hasTurkishCommaPartial = (
+    // Format 2: Turkish comma with stop_url column available (alternate header format)
+    const hasTurkishCommaViaStopUrl = (
       !hasTurkishCommaFormat &&
       !isNaN(lat) && lat >= 37 && lat <= 40 && Math.floor(lat) === lat &&
-      !isNaN(lon) && lon > 1000000
+      !isNaN(lon) && lon !== lat &&
+      !isNaN(zoneIdVal) && zoneIdVal >= 26 && zoneIdVal <= 29 && Math.floor(zoneIdVal) === zoneIdVal &&
+      !isNaN(stopUrlVal) && stopUrlVal > 0
     );
 
     // Format 3: ESHOT shifted format
@@ -152,41 +159,25 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
     );
 
     if (hasTurkishCommaFormat) {
+      // Reconstruct coordinates from split decimal parts
+      const latDecDigits = lon.toString().length;
+      const lonDecDigits = extraVal0.toString().length;
+      const realLat = lat + lon / Math.pow(10, latDecDigits);
+      const realLon = zoneIdVal + extraVal0 / Math.pow(10, lonDecDigits);
+
+      console.log(`[GTFSParser] ✅ Turkish comma: "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
+      lat = realLat;
+      lon = realLon;
+    } else if (hasTurkishCommaViaStopUrl) {
+      // Same format but lon decimal part is in stop_url column instead of __parsed_extra
       const latDecDigits = lon.toString().length;
       const lonDecDigits = stopUrlVal.toString().length;
       const realLat = lat + lon / Math.pow(10, latDecDigits);
       const realLon = zoneIdVal + stopUrlVal / Math.pow(10, lonDecDigits);
 
-      console.log(`[GTFSParser] ✅ Turkish comma: "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
+      console.log(`[GTFSParser] ✅ Turkish comma (stop_url): "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
       lat = realLat;
       lon = realLon;
-    } else if (hasTurkishCommaPartial) {
-      // Reconstruct lat from integer + decimal
-      const latDecDigits = lon.toString().length;
-      const realLat = lat + lon / Math.pow(10, latDecDigits);
-
-      // Scan all raw values to find lon integer (26-29) followed by lon decimal (>1000)
-      const allValues = Object.values(rawStop).map(v => parseFloat(v as string));
-      let foundLon = false;
-      for (let i = 0; i < allValues.length - 1; i++) {
-        const v = allValues[i];
-        const next = allValues[i + 1];
-        if (!isNaN(v) && v >= 26 && v <= 29 && Math.floor(v) === v && !isNaN(next) && next > 1000) {
-          const lonDecDigits = next.toString().length;
-          const realLon = v + next / Math.pow(10, lonDecDigits);
-          console.log(`[GTFSParser] ✅ Turkish comma (scan): "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
-          lat = realLat;
-          lon = realLon;
-          foundLon = true;
-          break;
-        }
-      }
-      if (!foundLon) {
-        // Default İzmir center longitude as fallback
-        lat = realLat;
-        lon = 27.14;
-        console.warn(`[GTFSParser] ⚠️ Turkish comma fallback: "${name}" -> lat=${realLat.toFixed(6)}, lon=27.14`);
-      }
     } else if (hasShiftedFormat) {
       const lonInt = lat;
       const lonDec = lon / 10000;
@@ -248,12 +239,29 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
   // Try multiple column names for shortName (handle different GTFS formats)
   let shortName = rawRoute.route_short_name || rawRoute.routeshortname || rawRoute.short_name || '';
 
-  // If shortName is empty, use route_id or long_name as fallback
+  // If shortName is empty, generate a meaningful one
   if (!shortName || shortName.trim() === '') {
-    shortName = rawRoute.route_id || rawRoute.route_long_name || 'Unknown';
-    // Truncate if too long
-    if (shortName.length > 10) {
-      shortName = shortName.substring(0, 10);
+    const routeType = parseInt(rawRoute.route_type || '3', 10);
+    const longName = rawRoute.route_long_name || '';
+
+    if (routeType === 4 && longName) {
+      // Ferry routes: abbreviate from long name (e.g., "Bostanlı - Konak - Bostanlı" → "BOS-KON")
+      const parts = longName.split(/\s*[-–|]\s*/).filter(Boolean);
+      // Get unique terminus names (remove duplicates like "Bostanlı - Konak - Bostanlı")
+      const unique: string[] = [];
+      for (const p of parts) {
+        const trimmed = p.trim().replace(/\s*\(.*\)\s*/, ''); // Remove parenthetical
+        const short = trimmed.substring(0, 3).toUpperCase();
+        if (!unique.includes(short)) unique.push(short);
+        if (unique.length >= 2) break;
+      }
+      shortName = unique.join('-') || rawRoute.route_id || 'Vapur';
+    } else {
+      shortName = rawRoute.route_id || rawRoute.route_long_name || 'Unknown';
+      // Truncate if too long
+      if (shortName.length > 10) {
+        shortName = shortName.substring(0, 10);
+      }
     }
   }
 
