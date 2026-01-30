@@ -117,15 +117,36 @@ export function MapScreen({ navigation }: Props) {
             );
           });
 
-          // Fallback: detect ferry stops by name when DB route chain has no data
-          // İzdeniz ferry GTFS may have stop_times issues, so we detect by stop name keywords
+          // Robust ferry detection: use trip_id prefix to find ferry stops directly
+          // During import, ferry trips get 'ferry_' prefix, so we can query stop_times
+          // This is more reliable than name-based matching or JOIN chain
+          const ferryStopIds = db.getStopIdsByTripPrefix('ferry_');
+          if (ferryStopIds.size > 0) {
+            let ferryAdded = 0;
+            for (const stopId of ferryStopIds) {
+              if (!routeTypesMap.has(stopId)) {
+                routeTypesMap.set(stopId, [4]); // 4 = ferry
+                ferryAdded++;
+              } else {
+                // Stop already has types (e.g., metro + ferry interchange) - add ferry if not present
+                const existing = routeTypesMap.get(stopId)!;
+                if (!existing.includes(4)) {
+                  existing.push(4);
+                  ferryAdded++;
+                }
+              }
+            }
+            console.log(`[MapScreen] Ferry prefix detection: ${ferryStopIds.size} ferry stops found, ${ferryAdded} icons added`);
+          }
+
+          // Secondary fallback: detect ferry stops by name keywords (for any stops missed)
           const FERRY_STOP_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
           for (const stop of nonBusStops) {
             if (!routeTypesMap.has(stop.id)) {
               const upperName = stop.name.toUpperCase();
               if (FERRY_STOP_KEYWORDS.some(kw => upperName.includes(kw))) {
                 routeTypesMap.set(stop.id, [4]); // 4 = ferry
-                console.log(`[MapScreen] Ferry fallback: "${stop.name}" detected as ferry by name`);
+                console.log(`[MapScreen] Ferry name fallback: "${stop.name}" detected as ferry`);
               }
             }
           }

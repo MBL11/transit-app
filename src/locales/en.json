@@ -62,7 +62,6 @@
     "ferry": "Ferry",
     "rer": "Train",
     "train": "Train",
-    "noctilien": "Night Bus",
     "linesServing": "Lines serving this stop",
     "stopsOnLine": "Stops on this line",
     "loadingStops": "Loading stops...",

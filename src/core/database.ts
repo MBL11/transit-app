@@ -611,6 +611,28 @@ export async function getRoutesByStopIds(stopIds: string[]): Promise<Map<string,
 }
 
 /**
+ * Get stop IDs served by a specific transport mode using trip_id prefix
+ * During import, trip IDs are prefixed: ferry_, metro_, tram_, rail_, bus_
+ * This directly queries stop_times to find stops without relying on complex JOINs
+ */
+export function getStopIdsByTripPrefix(prefix: string): Set<string> {
+  const db = openDatabase();
+
+  try {
+    const rows = db.getAllSync<{ stop_id: string }>(
+      `SELECT DISTINCT stop_id FROM stop_times WHERE trip_id LIKE ?`,
+      [`${prefix}%`]
+    );
+    const stopIds = new Set(rows.map(r => r.stop_id));
+    console.log(`[Database] Found ${stopIds.size} stops with trip prefix "${prefix}"`);
+    return stopIds;
+  } catch (error) {
+    console.warn(`[Database] Failed to get stops by prefix "${prefix}":`, error);
+    return new Set();
+  }
+}
+
+/**
  * Get stops within geographic bounds (for map display)
  */
 export async function getStopsInBounds(

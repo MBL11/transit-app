@@ -53,17 +53,12 @@ function getTransportType(segment: RouteSegment): TransportType {
     case 1:
       return 'metro';
     case 2:
-      // RER or Transilien
-      if (['A', 'B', 'C', 'D', 'E'].includes(routeName)) {
-        return 'rer';
-      }
-      return 'train';
+      // İZBAN / commuter rail
+      return 'izban';
     case 3:
-      // Check for Noctilien
-      if (routeName.startsWith('N')) {
-        return 'noctilien';
-      }
       return 'bus';
+    case 4:
+      return 'ferry';
     default:
       return 'bus';
   }

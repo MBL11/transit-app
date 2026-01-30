@@ -1,9 +1,10 @@
 /**
- * TransportLogos - Official Paris transport type logos
- * Metro: Blue circle with yellow M
- * RER: White square with colored border
- * Tram: Circle with T
- * Bus: Rounded rectangle
+ * TransportLogos - İzmir transit type logos
+ * Metro: Red circle with white M
+ * İZBAN: Dark blue with white text
+ * Tram: Green circle with white T
+ * Bus: Blue rounded rectangle
+ * Ferry: Turquoise rounded rectangle
  */
 
 import React from 'react';
@@ -22,22 +23,22 @@ const SIZES = {
   large: { width: 40, height: 40, fontSize: 22 },
 };
 
-// Official colors
+// İzmir official transit colors
 const COLORS = {
-  metro: { bg: '#003CA6', text: '#FFCD00' },      // Blue with yellow M
-  rer: { bg: '#FFFFFF', border: '#000000', text: '#000000' }, // White with black border
-  tram: { bg: '#000000', text: '#FFFFFF' },        // Black circle with white T
-  bus: { bg: '#91C83E', text: '#FFFFFF' },         // Green (RATP bus color)
-  train: { bg: '#7B4339', text: '#FFFFFF' },       // Brown (Transilien color)
+  metro: { bg: '#D61C1F', text: '#FFFFFF' },       // Red (kırmızı)
+  rer: { bg: '#005BBB', text: '#FFFFFF' },         // İZBAN Dark Blue (mavi)
+  tram: { bg: '#00A651', text: '#FFFFFF' },        // Green (yeşil)
+  bus: { bg: '#0066CC', text: '#FFFFFF' },         // ESHOT Blue
+  train: { bg: '#005BBB', text: '#FFFFFF' },       // İZBAN Dark Blue
   walk: { bg: '#666666', text: '#FFFFFF' },        // Gray for walking
 };
 
 const LABELS = {
   metro: 'M',
-  rer: 'RER',
+  rer: 'İZB',
   tram: 'T',
   bus: 'BUS',
-  train: 'TER',
+  train: 'İZB',
   walk: '🚶',
 };
 

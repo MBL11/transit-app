@@ -27,25 +27,22 @@ function getTransportTypeFromRouteType(routeType?: number, routeName?: string): 
     case 1:
       return 'metro';
     case 2:
-      if (['A', 'B', 'C', 'D', 'E'].includes(name)) {
-        return 'rer';
-      }
-      return 'train';
+      // İZBAN / commuter rail
+      return 'izban';
+    case 4:
+      return 'ferry';
     case 3:
-      if (name.startsWith('N')) {
-        return 'noctilien';
-      }
       return 'bus';
     default:
-      // Try to infer from name
-      if (/^[1-9]$|^1[0-4]$|^[37]BIS$/i.test(name)) {
+      // Try to infer from name (İzmir patterns)
+      if (/^M\d/i.test(name)) {
         return 'metro';
-      }
-      if (/^[A-E]$/i.test(name)) {
-        return 'rer';
       }
       if (/^T\d/i.test(name)) {
         return 'tram';
+      }
+      if (name.includes('İZBAN') || name.includes('IZBAN')) {
+        return 'izban';
       }
       return 'bus';
   }

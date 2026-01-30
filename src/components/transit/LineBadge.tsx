@@ -1,13 +1,13 @@
 /**
- * LineBadge - Official IDFM-style line badges
- * Displays Metro, RER, Tram, and Bus line badges with official colors and shapes
+ * LineBadge - İzmir transit line badges
+ * Displays Metro, İZBAN, Tram, Bus, and Ferry line badges with official colors
  * Uses View-based rendering for maximum compatibility
  */
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-export type TransportType = 'metro' | 'rer' | 'tram' | 'bus' | 'train' | 'noctilien' | 'izban' | 'ferry';
+export type TransportType = 'metro' | 'rer' | 'tram' | 'bus' | 'train' | 'izban' | 'ferry';
 
 export interface LineBadgeProps {
   lineNumber: string;
@@ -118,9 +118,6 @@ function getLineColors(lineNumber: string, type: TransportType, customColor?: st
         colors = TRANSILIEN_COLORS[normalizedLine];
       }
       break;
-    case 'noctilien':
-      colors = { bg: '#003366', text: '#FFFFFF' };
-      break;
     case 'bus':
     default:
       // Custom colors are already set in the initial colors object
@@ -153,7 +150,7 @@ export function LineBadge({
         : fontSize;
 
   // Determine badge shape based on type
-  const isCircle = type === 'metro' || type === 'tram' || type === 'noctilien';
+  const isCircle = type === 'metro' || type === 'tram';
   const isSquare = type === 'rer';
   // bus and train are rounded rectangles
 
@@ -169,7 +166,7 @@ export function LineBadge({
     borderRadius,
     backgroundColor: colors.bg,
     borderWidth,
-    borderColor: type === 'noctilien' ? '#FFCD00' : '#FFFFFF',
+    borderColor: '#FFFFFF',
   };
 
   const textStyle = {

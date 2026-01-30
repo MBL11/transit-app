@@ -1,6 +1,6 @@
 /**
- * MetroLogo - Official Paris Metro "M" logo
- * Blue circle with yellow "M" as seen on metro stations
+ * MetroLogo - Official İzmir Metro "M" logo
+ * Red circle with white "M" as seen on İzmir Metro stations
  */
 
 import React from 'react';
@@ -16,9 +16,9 @@ const SIZES = {
   large: { width: 40, height: 40, fontSize: 24 },
 };
 
-// Official Paris Metro colors
-const METRO_BLUE = '#003CA6';
-const METRO_YELLOW = '#FFCD00';
+// Official İzmir Metro colors
+const METRO_RED = '#D61C1F';
+const METRO_WHITE = '#FFFFFF';
 
 export function MetroLogo({ size = 'medium' }: MetroLogoProps) {
   const dimensions = SIZES[size];
@@ -50,12 +50,12 @@ export function MetroLogo({ size = 'medium' }: MetroLogoProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: METRO_BLUE,
+    backgroundColor: METRO_RED,
     alignItems: 'center',
     justifyContent: 'center',
   },
   letter: {
-    color: METRO_YELLOW,
+    color: METRO_WHITE,
     fontWeight: '900',
     textAlign: 'center',
   },

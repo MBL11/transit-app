@@ -20,7 +20,6 @@ const typeColors: Record<TransportType, string> = {
   tram: '#00A651',     // İzmir Tram - Green
   rer: '#005BBB',      // İZBAN - Dark Blue
   train: '#005BBB',    // Train/İZBAN
-  noctilien: '#003366',
   izban: '#005BBB',    // İZBAN - Dark Blue
   ferry: '#0099CC',    // İzdeniz Ferry - Turquoise
 };
@@ -48,7 +47,6 @@ export function LineCard({
     tram: t('transit.tram'),
     rer: t('transit.rer'),
     train: t('transit.train'),
-    noctilien: t('transit.noctilien'),
     izban: t('transit.izban', { defaultValue: 'İZBAN' }),
     ferry: t('transit.ferry', { defaultValue: 'Vapur' }),
   };
