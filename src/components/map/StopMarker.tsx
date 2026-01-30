@@ -15,6 +15,7 @@ interface StopMarkerProps {
   stop: Stop;
   isSelected?: boolean;
   routeTypes?: number[]; // Array of route types serving this stop
+  underConstruction?: boolean; // Station not yet in service
   onPress: (stop: Stop) => void;
 }
 
@@ -28,7 +29,7 @@ const TYPE_PRIORITY: Record<number, number> = {
 };
 
 // Memoized marker component to prevent unnecessary re-renders
-export const StopMarker = memo(function StopMarker({ stop, isSelected, routeTypes = [], onPress }: StopMarkerProps) {
+export const StopMarker = memo(function StopMarker({ stop, isSelected, routeTypes = [], underConstruction, onPress }: StopMarkerProps) {
   // Memoize the press handler
   const handlePress = useCallback(() => {
     onPress(stop);
@@ -98,12 +99,22 @@ export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType
           </View>
         )}
 
+        {/* Construction badge for stations not yet in service */}
+        {underConstruction && (
+          <View style={styles.constructionBadge}>
+            <Text style={styles.constructionText}>🚧</Text>
+          </View>
+        )}
+
         {/* Stop name label when selected */}
         {isSelected && (
           <View style={styles.labelContainer}>
             <Text style={styles.label} numberOfLines={1}>
               {stop.name}
             </Text>
+            {underConstruction && (
+              <Text style={styles.constructionLabel}>En construction</Text>
+            )}
           </View>
         )}
       </View>
@@ -165,5 +176,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
+  },
+  constructionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    zIndex: 20,
+  },
+  constructionText: {
+    fontSize: 10,
+  },
+  constructionLabel: {
+    fontSize: 9,
+    color: '#E67E00',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 1,
   },
 });

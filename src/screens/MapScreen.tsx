@@ -49,6 +49,7 @@ export function MapScreen({ navigation }: Props) {
   // Local state for non-bus stops (rail/tram/ferry ~50 stops, bus excluded from map)
   const [nearbyStops, setNearbyStops] = useState<NearbyStop[]>([]);
   const [stopRouteTypesMap, setStopRouteTypesMap] = useState<Map<string, number[]>>(new Map());
+  const [underConstructionStops, setUnderConstructionStops] = useState<Set<string>>(new Set());
   const [loadingStops, setLoadingStops] = useState(true);
   const [stopsError, setStopsError] = useState<Error | null>(null);
   const [importing, setImporting] = useState(false);
@@ -150,11 +151,14 @@ export function MapScreen({ navigation }: Props) {
             'ferry_': 4,  // Ferry → route_type 4
           };
           let prefixFallbackCount = 0;
+          const constructionStopIds = new Set<string>();
           for (const stop of nonBusStops) {
             if (!routeTypesMap.has(stop.id)) {
               for (const [prefix, routeType] of Object.entries(PREFIX_TYPE_MAP)) {
                 if (stop.id.startsWith(prefix)) {
                   routeTypesMap.set(stop.id, [routeType]);
+                  // Stops with no stop_times are under construction / not yet in service
+                  constructionStopIds.add(stop.id);
                   prefixFallbackCount++;
                   break;
                 }
@@ -162,8 +166,9 @@ export function MapScreen({ navigation }: Props) {
             }
           }
           if (prefixFallbackCount > 0) {
-            console.log(`[MapScreen] Prefix fallback: assigned transport type to ${prefixFallbackCount} stops with missing stop_times`);
+            console.log(`[MapScreen] Prefix fallback: ${prefixFallbackCount} stops marked as under construction`);
           }
+          setUnderConstructionStops(constructionStopIds);
 
           // Secondary fallback: detect ferry stops by name keywords (for any stops still missed)
           const FERRY_STOP_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
@@ -405,6 +410,7 @@ export function MapScreen({ navigation }: Props) {
           ref={mapRef}
           stops={nearbyStops}
           stopRouteTypes={stopRouteTypesMap}
+          underConstructionStops={underConstructionStops}
           onStopPress={handleStopPress}
           initialRegion={initialRegion}
           onRegionChangeComplete={handleRegionChangeComplete}
