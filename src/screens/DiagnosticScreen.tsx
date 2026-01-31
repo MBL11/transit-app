@@ -10,6 +10,7 @@ import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAdapter } from '../hooks/useAdapter';
 import * as db from '../core/database';
+import { logger } from '../utils/logger';
 
 export function DiagnosticScreen() {
   const { t } = useTranslation();
@@ -17,7 +18,7 @@ export function DiagnosticScreen() {
   const { adapter, loading: adapterLoading, error: adapterError } = useAdapter();
 
   const addLog = (message: string) => {
-    console.log('[Diagnostic]', message);
+    logger.log('[Diagnostic]', message);
     setLogs(prev => [...prev, `${new Date().toISOString().split('T')[1].slice(0, 8)} - ${message}`]);
   };
 

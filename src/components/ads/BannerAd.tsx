@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { shouldDisableAds } from '../../config/ads';
+import { logger } from '../../utils/logger';
 
 interface BannerAdComponentProps {
   size?: any; // BannerAdSize from react-native-google-mobile-ads
@@ -36,14 +37,14 @@ export function BannerAdComponent({ size }: BannerAdComponentProps) {
             requestNonPersonalizedAdsOnly: false,
           }}
           onAdFailedToLoad={(error: any) => {
-            console.warn('Banner ad failed to load:', error);
+            logger.warn('Banner ad failed to load:', error);
             setAdError(true);
           }}
         />
       </View>
     );
   } catch (error) {
-    console.log('[BannerAd] AdMob not available (expected in Expo Go)');
+    logger.log('[BannerAd] AdMob not available (expected in Expo Go)');
     return null;
   }
 }

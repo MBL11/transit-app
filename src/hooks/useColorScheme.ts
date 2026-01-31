@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useColorScheme as useNativeColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -13,18 +14,18 @@ export function useColorScheme() {
 
   // Charge le thème sauvegardé
   useEffect(() => {
-    console.log('[useColorScheme] Loading theme from storage...');
+    logger.log('[useColorScheme] Loading theme from storage...');
     AsyncStorage.getItem(THEME_KEY)
       .then((saved) => {
-        console.log('[useColorScheme] Theme loaded:', saved);
+        logger.log('[useColorScheme] Theme loaded:', saved);
         if (saved && ['light', 'dark', 'system'].includes(saved)) {
           setMode(saved as ThemeMode);
         }
         setLoaded(true);
-        console.log('[useColorScheme] Theme ready');
+        logger.log('[useColorScheme] Theme ready');
       })
       .catch((error) => {
-        console.error('[useColorScheme] Error loading theme:', error);
+        logger.error('[useColorScheme] Error loading theme:', error);
         setLoaded(true); // Set loaded anyway to prevent blocking
       });
   }, []);

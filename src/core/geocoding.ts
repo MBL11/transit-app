@@ -3,6 +3,8 @@
  * Free and no API key required
  */
 
+import { logger } from '../utils/logger';
+
 const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
 
 // User agent required by Nominatim usage policy
@@ -28,14 +30,14 @@ async function throttledFetch(url: string, options: RequestInit): Promise<Respon
   if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
     // Wait for the remaining time
     const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-    console.log(`[Geocoding] Throttling request, waiting ${waitTime}ms`);
+    logger.log(`[Geocoding] Throttling request, waiting ${waitTime}ms`);
     await new Promise(resolve => setTimeout(resolve, waitTime));
   }
 
   lastRequestTime = Date.now();
-  console.log(`[Geocoding] Making request to: ${url}`);
+  logger.log(`[Geocoding] Making request to: ${url}`);
   const response = await fetch(url, options);
-  console.log(`[Geocoding] Response status: ${response.status}`);
+  logger.log(`[Geocoding] Response status: ${response.status}`);
   return response;
 }
 
@@ -106,7 +108,7 @@ export async function geocodeAddress(
   const { geocodingCache, GEOCODING_TTL } = await import('./cache');
   const cached = geocodingCache.get<GeocodingResult[]>(cacheKey, GEOCODING_TTL);
   if (cached) {
-    console.log(`[Geocoding] Cache hit for "${query}"`);
+    logger.log(`[Geocoding] Cache hit for "${query}"`);
     return cached;
   }
 
@@ -131,12 +133,12 @@ export async function geocodeAddress(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'No error body');
-      console.error(`[Geocoding] Nominatim error response:`, errorText);
+      logger.error(`[Geocoding] Nominatim error response:`, errorText);
       throw new Error(`Nominatim API error: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(`[Geocoding] Received ${data.length || 0} results`);
+    logger.log(`[Geocoding] Received ${data.length || 0} results`);
 
     const results = data.map((item: any) => {
       const { short, city } = formatShortAddress(item);
@@ -161,11 +163,11 @@ export async function geocodeAddress(
 
     // Cache the results
     geocodingCache.set(cacheKey, results);
-    console.log(`[Geocoding] Cached results for "${query}"`);
+    logger.log(`[Geocoding] Cached results for "${query}"`);
 
     return results;
   } catch (error) {
-    console.error('Geocoding error:', error);
+    logger.error('Geocoding error:', error);
     throw error;
   }
 }
@@ -198,12 +200,12 @@ export async function reverseGeocode(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'No error body');
-      console.error(`[Geocoding] Nominatim error response:`, errorText);
+      logger.error(`[Geocoding] Nominatim error response:`, errorText);
       throw new Error(`Nominatim API error: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(`[Geocoding] Received ${data.length || 0} results`);
+    logger.log(`[Geocoding] Received ${data.length || 0} results`);
 
     // Build a readable address from components
     const address = data.address;
@@ -234,7 +236,7 @@ export async function reverseGeocode(
 
     return parts.length > 0 ? parts.join(', ') : data.display_name;
   } catch (error) {
-    console.error('Reverse geocoding error:', error);
+    logger.error('Reverse geocoding error:', error);
     throw error;
   }
 }
@@ -279,12 +281,12 @@ export async function searchPlaces(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'No error body');
-      console.error(`[Geocoding] Nominatim error response:`, errorText);
+      logger.error(`[Geocoding] Nominatim error response:`, errorText);
       throw new Error(`Nominatim API error: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(`[Geocoding] Received ${data.length || 0} results`);
+    logger.log(`[Geocoding] Received ${data.length || 0} results`);
 
     // Filter and sort results
     const results = data
@@ -310,10 +312,10 @@ export async function searchPlaces(
 
     return results;
   } catch (error) {
-    console.error('[Geocoding] Place search error:', error);
+    logger.error('[Geocoding] Place search error:', error);
     if (error instanceof Error) {
-      console.error('[Geocoding] Error message:', error.message);
-      console.error('[Geocoding] Error stack:', error.stack);
+      logger.error('[Geocoding] Error message:', error.message);
+      logger.error('[Geocoding] Error stack:', error.stack);
     }
     return [];
   }

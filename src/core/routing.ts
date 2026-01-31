@@ -4,6 +4,7 @@ import { Stop, Route } from './types/models';
 import { JourneyResult, RouteSegment } from './types/routing';
 import { geocodeAddress, GeocodingResult } from './geocoding';
 import { findBestNearbyStops, NearbyStop, getWalkingTime } from './nearby-stops';
+import { logger } from '../utils/logger';
 import {
   RoutingPreferences,
   DEFAULT_PREFERENCES,
@@ -140,7 +141,7 @@ export async function findRoute(
 
   // 4. Si pas de trajet direct, cherche avec une correspondance
   if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0) {
-    console.log('[Routing] No direct route, looking for connections...');
+    logger.log('[Routing] No direct route, looking for connections...');
 
     const toRouteIds = new Set(toRoutes.map(r => r.id));
     const transferJourneys: JourneyResult[] = [];
@@ -260,7 +261,7 @@ export async function findRoute(
         arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
       });
     } else {
-      console.warn(`[Routing] Walking fallback too long (${Math.round(walkTime)} min), distance=${Math.round(directDistance)}m — likely coordinate error`);
+      logger.warn(`[Routing] Walking fallback too long (${Math.round(walkTime)} min), distance=${Math.round(directDistance)}m — likely coordinate error`);
     }
   }
 
@@ -281,8 +282,8 @@ export async function findRouteFromLocations(
   departureTime: Date
 ): Promise<JourneyResult[]> {
   try {
-    console.log('[Routing] From:', fromLocation.displayName || fromLocation.shortAddress);
-    console.log('[Routing] To:', toLocation.displayName || toLocation.shortAddress);
+    logger.log('[Routing] From:', fromLocation.displayName || fromLocation.shortAddress);
+    logger.log('[Routing] To:', toLocation.displayName || toLocation.shortAddress);
 
     // 1. Check if walking distance is reasonable (< 2km)
     const directDistance = haversineDistance(
@@ -330,7 +331,7 @@ export async function findRouteFromLocations(
     }
 
     // 2. Find nearby stops for both locations
-    console.log('[Routing] Finding nearby stops...');
+    logger.log('[Routing] Finding nearby stops...');
     const [fromStops, toStops] = await Promise.all([
       findBestNearbyStops(fromLocation.lat, fromLocation.lon, 15, 2500), // 2.5km radius, up to 15 stops
       findBestNearbyStops(toLocation.lat, toLocation.lon, 15, 2500),
@@ -343,9 +344,9 @@ export async function findRouteFromLocations(
       throw new Error(`Aucun arrêt trouvé près de ${toLocation.shortAddress || toLocation.displayName}. Rayon de recherche: 2.5km. Vérifiez que les données GTFS sont chargées.`);
     }
 
-    console.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
-    console.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
-    console.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
+    logger.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
+    logger.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
+    logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
     // 3. Try to find routes between nearby stops
     const allJourneys: JourneyResult[] = [];
@@ -414,7 +415,7 @@ export async function findRouteFromLocations(
           }
         } catch (error) {
           // Continue trying other combinations
-          console.log(`[Routing] No route found between ${fromStop.name} and ${toStop.name}`);
+          logger.log(`[Routing] No route found between ${fromStop.name} and ${toStop.name}`);
         }
       }
     }
@@ -430,10 +431,10 @@ export async function findRouteFromLocations(
     validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
     const topJourneys = validJourneys.slice(0, 5);
 
-    console.log(`[Routing] Found ${topJourneys.length} journey options`);
+    logger.log(`[Routing] Found ${topJourneys.length} journey options`);
     return topJourneys;
   } catch (error) {
-    console.error('[Routing] Error finding route from locations:', error);
+    logger.error('[Routing] Error finding route from locations:', error);
     throw error;
   }
 }
@@ -454,7 +455,7 @@ export async function findRouteFromAddresses(
 ): Promise<JourneyResult[]> {
   try {
     // 1. Geocode both addresses
-    console.log('[Routing] Geocoding addresses...');
+    logger.log('[Routing] Geocoding addresses...');
     const [fromResults, toResults] = await Promise.all([
       geocodeAddress(fromAddress, countryCode, 1),
       geocodeAddress(toAddress, countryCode, 1),
@@ -470,8 +471,8 @@ export async function findRouteFromAddresses(
     const fromLocation = fromResults[0];
     const toLocation = toResults[0];
 
-    console.log('[Routing] From:', fromLocation.displayName);
-    console.log('[Routing] To:', toLocation.displayName);
+    logger.log('[Routing] From:', fromLocation.displayName);
+    logger.log('[Routing] To:', toLocation.displayName);
 
     // 2. Calculate direct walking distance
     const directDistance = haversineDistance(
@@ -481,7 +482,7 @@ export async function findRouteFromAddresses(
       toLocation.lon
     );
 
-    console.log(`[Routing] Direct distance: ${Math.round(directDistance)}m (${Math.round(directDistance / 1000 * 10) / 10}km)`);
+    logger.log(`[Routing] Direct distance: ${Math.round(directDistance)}m (${Math.round(directDistance / 1000 * 10) / 10}km)`);
 
     // Create virtual stops for the addresses
     const fromVirtualStop: Stop = {
@@ -524,7 +525,7 @@ export async function findRouteFromAddresses(
 
     // If distance > 800m, also search for transit routes
     if (directDistance > 800) {
-      console.log('[Routing] Distance > 800m, searching for transit routes...');
+      logger.log('[Routing] Distance > 800m, searching for transit routes...');
 
       // 3. Find nearby stops for both locations
       // Use more stops (5) to ensure we find the truly closest stations
@@ -534,13 +535,13 @@ export async function findRouteFromAddresses(
       ]);
 
       if (fromStops.length === 0 || toStops.length === 0) {
-        console.log('[Routing] No nearby stops found, returning walking-only journey');
+        logger.log('[Routing] No nearby stops found, returning walking-only journey');
         return [walkingJourney];
       }
 
-      console.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
-      console.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
-      console.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
+      logger.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
+      logger.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
+      logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
       // 4. Try to find routes between nearby stops
       // OPTIMIZED: Run all combinations in parallel using Promise.all
@@ -553,7 +554,7 @@ export async function findRouteFromAddresses(
         }
       }
 
-      console.log(`[Routing] Calculating ${combinations.length} route combinations in parallel`);
+      logger.log(`[Routing] Calculating ${combinations.length} route combinations in parallel`);
 
       // Execute all route calculations in parallel
       const routeResults = await Promise.all(
@@ -562,7 +563,7 @@ export async function findRouteFromAddresses(
             const routes = await findRoute(fromStop.id, toStop.id, departureTime);
             return { fromStop, toStop, routes };
           } catch (error) {
-            console.warn(`[Routing] Failed to find route between ${fromStop.name} and ${toStop.name}`);
+            logger.warn(`[Routing] Failed to find route between ${fromStop.name} and ${toStop.name}`);
             return { fromStop, toStop, routes: [] };
           }
         })
@@ -633,7 +634,7 @@ export async function findRouteFromAddresses(
     // Sort all journeys by total duration
     allJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
 
-    console.log(`[Routing] Found ${allJourneys.length} journey options`);
+    logger.log(`[Routing] Found ${allJourneys.length} journey options`);
 
     if (allJourneys.length === 0) {
       throw new Error('Aucun itinéraire raisonnable trouvé. Vérifiez les données GTFS ou essayez des points plus proches.');
@@ -642,7 +643,7 @@ export async function findRouteFromAddresses(
     return allJourneys;
 
   } catch (error) {
-    console.error('[Routing] Error finding route from addresses:', error);
+    logger.error('[Routing] Error finding route from addresses:', error);
     throw error;
   }
 }
@@ -734,7 +735,7 @@ export async function findRouteFromCoordinates(
             allJourneys.push(newJourney);
           }
         } catch (error) {
-          console.warn(`[Routing] Failed to find route between stops`);
+          logger.warn(`[Routing] Failed to find route between stops`);
         }
       }
     }
@@ -747,11 +748,11 @@ export async function findRouteFromCoordinates(
     }
 
     validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    console.log(`[Routing] Found ${validJourneys.length} journeys, returning top 5`);
+    logger.log(`[Routing] Found ${validJourneys.length} journeys, returning top 5`);
     return validJourneys.slice(0, 5);
 
   } catch (error) {
-    console.error('[Routing] Error finding route from coordinates:', error);
+    logger.error('[Routing] Error finding route from coordinates:', error);
     throw error;
   }
 }
@@ -768,7 +769,7 @@ export async function findMultipleRoutes(
   maxRoutes: number = 3
 ): Promise<JourneyResult[]> {
   try {
-    console.log('[Routing] Finding multiple routes with preferences:', preferences.optimizeFor);
+    logger.log('[Routing] Finding multiple routes with preferences:', preferences.optimizeFor);
 
     // 1. Get base routes using findRouteFromLocations
     const baseRoutes = await findRouteFromLocations(from, to, departureTime);
@@ -777,7 +778,7 @@ export async function findMultipleRoutes(
       return [];
     }
 
-    console.log(`[Routing] Found ${baseRoutes.length} base routes`);
+    logger.log(`[Routing] Found ${baseRoutes.length} base routes`);
 
     // 2. Separate walking-only routes from transit routes
     const walkingOnlyRoutes = baseRoutes.filter((journey) =>
@@ -805,7 +806,7 @@ export async function findMultipleRoutes(
       return !hasDisallowedMode;
     });
 
-    console.log(`[Routing] After filtering transit: ${filteredTransitRoutes.length} routes`);
+    logger.log(`[Routing] After filtering transit: ${filteredTransitRoutes.length} routes`);
 
     // 4. Combine filtered transit routes with walking routes
     // Always include walking option as it's a valid alternative
@@ -818,7 +819,7 @@ export async function findMultipleRoutes(
 
     // 5. If no routes after filtering, return the best base route anyway
     if (allRoutes.length === 0) {
-      console.warn('[Routing] No routes meet preferences, returning best available route');
+      logger.warn('[Routing] No routes meet preferences, returning best available route');
       return baseRoutes.slice(0, 1);
     }
 
@@ -856,11 +857,11 @@ export async function findMultipleRoutes(
       tags: getJourneyTags(journey, topRoutes),
     }));
 
-    console.log(`[Routing] Returning ${routesWithTags.length} optimized routes`);
+    logger.log(`[Routing] Returning ${routesWithTags.length} optimized routes`);
 
     return routesWithTags;
   } catch (error) {
-    console.error('[Routing] Error finding multiple routes:', error);
+    logger.error('[Routing] Error finding multiple routes:', error);
     throw error;
   }
 }
@@ -877,7 +878,7 @@ export async function findMultipleRoutesFromAddresses(
   maxRoutes: number = 3
 ): Promise<JourneyResult[]> {
   try {
-    console.log('[Routing] Finding multiple routes from addresses with geocoding');
+    logger.log('[Routing] Finding multiple routes from addresses with geocoding');
 
     // 1. Geocode both addresses
     const [fromResults, toResults] = await Promise.all([
@@ -904,7 +905,7 @@ export async function findMultipleRoutesFromAddresses(
       maxRoutes
     );
   } catch (error) {
-    console.error('[Routing] Error finding multiple routes from addresses:', error);
+    logger.error('[Routing] Error finding multiple routes from addresses:', error);
     throw error;
   }
 }

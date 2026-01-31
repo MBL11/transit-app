@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { LineBadge, TransportType } from '../components/transit/LineBadge';
+import { logger } from '../utils/logger';
 
 // Helper to determine transport type from route type
 const getTransportType = (routeType?: number): TransportType => {
@@ -132,10 +133,10 @@ export function RouteDetailsScreen({ route }: Props) {
       });
 
       if (result.action === Share.sharedAction) {
-        console.log('[RouteDetails] Journey shared successfully');
+        logger.log('[RouteDetails] Journey shared successfully');
       }
     } catch (error) {
-      console.error('[RouteDetails] Share error:', error);
+      logger.error('[RouteDetails] Share error:', error);
       Alert.alert(t('common.error'), t('share.error'));
     }
   };

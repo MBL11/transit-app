@@ -11,6 +11,7 @@ import type { Stop, Route } from '../../core/types/models';
 import { useAdapter } from '../../hooks/useAdapter';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { logger } from '../../utils/logger';
 
 interface StopDetailsContentProps {
   stopId: string;
@@ -89,7 +90,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
         setDepartures(getMockDepartures());
       }
     } catch (err) {
-      console.error('[StopDetailsContent] Error loading stop data:', err);
+      logger.error('[StopDetailsContent] Error loading stop data:', err);
       setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
     } finally {
       setLoading(false);
@@ -117,7 +118,7 @@ export function StopDetailsContent({ stopId, onLinePress }: StopDetailsContentPr
       // Use mock data if no real data available (for testing)
       setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
     } catch (err) {
-      console.error('[StopDetailsContent] Error refreshing departures:', err);
+      logger.error('[StopDetailsContent] Error refreshing departures:', err);
     }
   };
 

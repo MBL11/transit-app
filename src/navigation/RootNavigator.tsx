@@ -20,6 +20,7 @@ import { SettingsStackNavigator } from './SettingsStackNavigator';
 import { useNotifications } from '../hooks/useNotifications';
 import { startAlertMonitoring, stopAlertMonitoring } from '../services/alert-monitor';
 import { getAdapter } from '../adapters';
+import { logger } from '../utils/logger';
 
 const Tab = createBottomTabNavigator();
 
@@ -58,41 +59,41 @@ const DarkNavigationTheme = {
 function NavigationContent() {
   const { t } = useTranslation();
 
-  console.log('[NavigationContent] Rendering...');
+  logger.log('[NavigationContent] Rendering...');
 
   // Check if running in Expo Go
   const isExpoGo = Constants.appOwnership === 'expo';
-  console.log('[NavigationContent] isExpoGo:', isExpoGo);
+  logger.log('[NavigationContent] isExpoGo:', isExpoGo);
 
   // Setup notification handlers (must be inside NavigationContainer)
   // Hook will handle Expo Go detection internally
   // TODO: Re-enable when app is stable - currently disabled to avoid potential crashes
   // useNotifications();
-  console.log('[NavigationContent] useNotifications DISABLED (for stability)');
+  logger.log('[NavigationContent] useNotifications DISABLED (for stability)');
 
   // Start alert monitoring
   // TEMPORARILY DISABLED FOR DEBUG
   /*
   useEffect(() => {
-    console.log('[NavigationContent] Setting up alert monitoring...');
+    logger.log('[NavigationContent] Setting up alert monitoring...');
 
     // Skip alert monitoring in Expo Go since it depends on notifications
     if (isExpoGo) {
-      console.log('[NavigationContent] Skipping alert monitoring (Expo Go)');
+      logger.log('[NavigationContent] Skipping alert monitoring (Expo Go)');
       return;
     }
 
     // Delay alert monitoring to not block initial render
     const timer = setTimeout(() => {
       try {
-        console.log('[NavigationContent] Starting alert monitoring...');
+        logger.log('[NavigationContent] Starting alert monitoring...');
         const adapter = getAdapter();
 
         // Start monitoring for alerts on favorite lines
         startAlertMonitoring((routeIds) => adapter.getAlerts(routeIds));
-        console.log('[NavigationContent] Alert monitoring started');
+        logger.log('[NavigationContent] Alert monitoring started');
       } catch (error) {
-        console.warn('[NavigationContent] Failed to start alert monitoring:', error);
+        logger.warn('[NavigationContent] Failed to start alert monitoring:', error);
       }
     }, 5000); // Wait 5 seconds after app loads to avoid blocking
 
@@ -104,7 +105,7 @@ function NavigationContent() {
   }, [isExpoGo]);
   */
 
-  console.log('[NavigationContent] Rendering Tab.Navigator...');
+  logger.log('[NavigationContent] Rendering Tab.Navigator...');
 
   return (
     <Tab.Navigator
@@ -185,20 +186,20 @@ function NavigationContent() {
 }
 
 export function RootNavigator() {
-  console.log('[RootNavigator] Component called');
+  logger.log('[RootNavigator] Component called');
 
   let isDark = false;
   try {
     const theme = useTheme();
     isDark = theme.isDark;
-    console.log('[RootNavigator] isDark:', isDark);
-    console.log('[RootNavigator] useTheme succeeded');
+    logger.log('[RootNavigator] isDark:', isDark);
+    logger.log('[RootNavigator] useTheme succeeded');
   } catch (error) {
-    console.error('[RootNavigator] useTheme failed:', error);
+    logger.error('[RootNavigator] useTheme failed:', error);
     throw error;
   }
 
-  console.log('[RootNavigator] Rendering NavigationContainer...');
+  logger.log('[RootNavigator] Rendering NavigationContainer...');
 
   try {
     return (
@@ -210,7 +211,7 @@ export function RootNavigator() {
       </>
     );
   } catch (error) {
-    console.error('[RootNavigator] Rendering failed:', error);
+    logger.error('[RootNavigator] Rendering failed:', error);
     throw error;
   }
 }

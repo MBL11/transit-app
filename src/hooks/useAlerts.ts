@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import type { Alert } from '../core/types/adapter';
 import { useAdapter } from './useAdapter';
+import { logger } from '../utils/logger';
 
 export function useAlerts() {
   const { adapter } = useAdapter();
@@ -22,7 +23,7 @@ export function useAlerts() {
       const fetchedAlerts = await adapter.getAlerts();
       setAlerts(fetchedAlerts);
     } catch (err) {
-      console.error('[useAlerts] Error fetching alerts:', err);
+      logger.error('[useAlerts] Error fetching alerts:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch alerts'));
     } finally {
       setLoading(false);

@@ -2,6 +2,7 @@
  * GTFS Parser Test & Example Usage
  */
 
+import { logger } from '../utils/logger';
 import {
   parseStops,
   parseRoutes,
@@ -44,33 +45,33 @@ TRIP002,09:05:00,09:05:00,STOP002,2`;
  * Test parsing individual files
  */
 export function testIndividualParsing() {
-  console.log('\n' + '='.repeat(60));
-  console.log('Testing Individual File Parsing');
-  console.log('='.repeat(60));
+  logger.log('\n' + '='.repeat(60));
+  logger.log('Testing Individual File Parsing');
+  logger.log('='.repeat(60));
 
   // Test stops
-  console.log('\n1. Parsing stops.txt...');
+  logger.log('\n1. Parsing stops.txt...');
   const gtfsStops = parseStops(SAMPLE_STOPS_CSV);
-  console.log(`Found ${gtfsStops.length} stops`);
-  console.log('Sample stop:', gtfsStops[0]);
+  logger.log(`Found ${gtfsStops.length} stops`);
+  logger.log('Sample stop:', gtfsStops[0]);
 
   // Test routes
-  console.log('\n2. Parsing routes.txt...');
+  logger.log('\n2. Parsing routes.txt...');
   const gtfsRoutes = parseRoutes(SAMPLE_ROUTES_CSV);
-  console.log(`Found ${gtfsRoutes.length} routes`);
-  console.log('Sample route:', gtfsRoutes[0]);
+  logger.log(`Found ${gtfsRoutes.length} routes`);
+  logger.log('Sample route:', gtfsRoutes[0]);
 
   // Test trips
-  console.log('\n3. Parsing trips.txt...');
+  logger.log('\n3. Parsing trips.txt...');
   const gtfsTrips = parseTrips(SAMPLE_TRIPS_CSV);
-  console.log(`Found ${gtfsTrips.length} trips`);
-  console.log('Sample trip:', gtfsTrips[0]);
+  logger.log(`Found ${gtfsTrips.length} trips`);
+  logger.log('Sample trip:', gtfsTrips[0]);
 
   // Test stop times
-  console.log('\n4. Parsing stop_times.txt...');
+  logger.log('\n4. Parsing stop_times.txt...');
   const gtfsStopTimes = parseStopTimes(SAMPLE_STOP_TIMES_CSV);
-  console.log(`Found ${gtfsStopTimes.length} stop times`);
-  console.log('Sample stop time:', gtfsStopTimes[0]);
+  logger.log(`Found ${gtfsStopTimes.length} stop times`);
+  logger.log('Sample stop time:', gtfsStopTimes[0]);
 
   return { gtfsStops, gtfsRoutes, gtfsTrips, gtfsStopTimes };
 }
@@ -79,31 +80,31 @@ export function testIndividualParsing() {
  * Test normalization
  */
 export function testNormalization() {
-  console.log('\n' + '='.repeat(60));
-  console.log('Testing Normalization');
-  console.log('='.repeat(60));
+  logger.log('\n' + '='.repeat(60));
+  logger.log('Testing Normalization');
+  logger.log('='.repeat(60));
 
   const { gtfsStops, gtfsRoutes, gtfsTrips, gtfsStopTimes } = testIndividualParsing();
 
   // Normalize stops
-  console.log('\n1. Normalizing stops...');
+  logger.log('\n1. Normalizing stops...');
   const stops = gtfsStops.map(normalizeStop);
-  console.log('Normalized stop:', stops[0]);
+  logger.log('Normalized stop:', stops[0]);
 
   // Normalize routes
-  console.log('\n2. Normalizing routes...');
+  logger.log('\n2. Normalizing routes...');
   const routes = gtfsRoutes.map(normalizeRoute);
-  console.log('Normalized route:', routes[0]);
+  logger.log('Normalized route:', routes[0]);
 
   // Normalize trips
-  console.log('\n3. Normalizing trips...');
+  logger.log('\n3. Normalizing trips...');
   const trips = gtfsTrips.map(normalizeTrip);
-  console.log('Normalized trip:', trips[0]);
+  logger.log('Normalized trip:', trips[0]);
 
   // Normalize stop times
-  console.log('\n4. Normalizing stop times...');
+  logger.log('\n4. Normalizing stop times...');
   const stopTimes = gtfsStopTimes.map(normalizeStopTime);
-  console.log('Normalized stop time:', stopTimes[0]);
+  logger.log('Normalized stop time:', stopTimes[0]);
 
   return { stops, routes, trips, stopTimes };
 }
@@ -112,9 +113,9 @@ export function testNormalization() {
  * Test complete feed parsing
  */
 export function testCompleteFeed() {
-  console.log('\n' + '='.repeat(60));
-  console.log('Testing Complete GTFS Feed Parsing');
-  console.log('='.repeat(60));
+  logger.log('\n' + '='.repeat(60));
+  logger.log('Testing Complete GTFS Feed Parsing');
+  logger.log('='.repeat(60));
 
   const data = parseGTFSFeed({
     stops: SAMPLE_STOPS_CSV,
@@ -123,11 +124,11 @@ export function testCompleteFeed() {
     stopTimes: SAMPLE_STOP_TIMES_CSV,
   });
 
-  console.log('\nParsed data summary:');
-  console.log(`  Stops: ${data.stops.length}`);
-  console.log(`  Routes: ${data.routes.length}`);
-  console.log(`  Trips: ${data.trips.length}`);
-  console.log(`  Stop Times: ${data.stopTimes.length}`);
+  logger.log('\nParsed data summary:');
+  logger.log(`  Stops: ${data.stops.length}`);
+  logger.log(`  Routes: ${data.routes.length}`);
+  logger.log(`  Trips: ${data.trips.length}`);
+  logger.log(`  Stop Times: ${data.stopTimes.length}`);
 
   return data;
 }
@@ -136,20 +137,20 @@ export function testCompleteFeed() {
  * Test validation
  */
 export function testValidation() {
-  console.log('\n' + '='.repeat(60));
-  console.log('Testing GTFS Data Validation');
-  console.log('='.repeat(60));
+  logger.log('\n' + '='.repeat(60));
+  logger.log('Testing GTFS Data Validation');
+  logger.log('='.repeat(60));
 
   const data = testCompleteFeed();
 
   const { isValid, errors } = validateGTFSData(data);
 
-  console.log('\nValidation result:');
-  console.log(`  Valid: ${isValid}`);
+  logger.log('\nValidation result:');
+  logger.log(`  Valid: ${isValid}`);
   if (errors.length > 0) {
-    console.log(`  Errors: ${errors.join(', ')}`);
+    logger.log(`  Errors: ${errors.join(', ')}`);
   } else {
-    console.log('  No errors found!');
+    logger.log('  No errors found!');
   }
 
   return { isValid, errors };
@@ -159,9 +160,9 @@ export function testValidation() {
  * Run all tests
  */
 export function runAllParserTests() {
-  console.log('\n\n' + '█'.repeat(60));
-  console.log('GTFS PARSER - COMPLETE TEST SUITE');
-  console.log('█'.repeat(60));
+  logger.log('\n\n' + '█'.repeat(60));
+  logger.log('GTFS PARSER - COMPLETE TEST SUITE');
+  logger.log('█'.repeat(60));
 
   try {
     testIndividualParsing();
@@ -169,11 +170,11 @@ export function runAllParserTests() {
     testCompleteFeed();
     testValidation();
 
-    console.log('\n' + '█'.repeat(60));
-    console.log('✅ ALL TESTS PASSED!');
-    console.log('█'.repeat(60) + '\n\n');
+    logger.log('\n' + '█'.repeat(60));
+    logger.log('✅ ALL TESTS PASSED!');
+    logger.log('█'.repeat(60) + '\n\n');
   } catch (error) {
-    console.error('\n❌ TEST FAILED:', error);
+    logger.error('\n❌ TEST FAILED:', error);
     throw error;
   }
 }

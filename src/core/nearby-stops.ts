@@ -5,6 +5,7 @@
 import { openDatabase } from './database';
 import type { Stop } from './types/models';
 import { calculateDistance } from './geocoding';
+import { logger } from '../utils/logger';
 
 export interface NearbyStop extends Stop {
   distance: number; // Distance in meters from search point
@@ -27,7 +28,7 @@ export async function findNearbyStops(
   const db = openDatabase();
 
   try {
-    console.log(`[NearbyStops] Searching for stops within ${radiusMeters}m of (${lat}, ${lon})`);
+    logger.log(`[NearbyStops] Searching for stops within ${radiusMeters}m of (${lat}, ${lon})`);
 
     // Calculate approximate bounding box (rough estimation)
     // 1 degree latitude ≈ 111km
@@ -40,13 +41,13 @@ export async function findNearbyStops(
     const minLon = lon - lonDelta;
     const maxLon = lon + lonDelta;
 
-    console.log(`[NearbyStops] Bounding box: lat [${minLat}, ${maxLat}], lon [${minLon}, ${maxLon}]`);
+    logger.log(`[NearbyStops] Bounding box: lat [${minLat}, ${maxLat}], lon [${minLon}, ${maxLon}]`);
 
     // First, check how many stops exist in database
     const totalStops = db.getFirstSync<{ count: number }>(
       'SELECT COUNT(*) as count FROM stops WHERE location_type = 0'
     );
-    console.log(`[NearbyStops] Total stops in database: ${totalStops?.count || 0}`);
+    logger.log(`[NearbyStops] Total stops in database: ${totalStops?.count || 0}`);
 
     // Query stops within bounding box
     const rows = db.getAllSync<any>(
@@ -57,7 +58,7 @@ export async function findNearbyStops(
       [minLat, maxLat, minLon, maxLon]
     );
 
-    console.log(`[NearbyStops] Found ${rows.length} stops in bounding box`);
+    logger.log(`[NearbyStops] Found ${rows.length} stops in bounding box`);
 
     // Calculate exact distances and filter by radius
     const stopsWithDistance: NearbyStop[] = rows
@@ -78,14 +79,14 @@ export async function findNearbyStops(
       .sort((a, b) => a.distance - b.distance)
       .slice(0, limit);
 
-    console.log(`[NearbyStops] After distance filtering: ${stopsWithDistance.length} stops`);
+    logger.log(`[NearbyStops] After distance filtering: ${stopsWithDistance.length} stops`);
     if (stopsWithDistance.length > 0) {
-      console.log(`[NearbyStops] Closest stop: ${stopsWithDistance[0].name} at ${Math.round(stopsWithDistance[0].distance)}m`);
+      logger.log(`[NearbyStops] Closest stop: ${stopsWithDistance[0].name} at ${Math.round(stopsWithDistance[0].distance)}m`);
     }
 
     return stopsWithDistance;
   } catch (error) {
-    console.error('[NearbyStops] Failed to find nearby stops:', error);
+    logger.error('[NearbyStops] Failed to find nearby stops:', error);
     throw error;
   }
 }
@@ -144,7 +145,7 @@ export async function findBestNearbyStops(
     .sort((a, b) => a.distance - b.distance)
     .slice(0, count);
 
-  console.log(`[NearbyStops] Deduplicated ${allNearbyStops.length} stops to ${uniqueStations.length} unique stations`);
+  logger.log(`[NearbyStops] Deduplicated ${allNearbyStops.length} stops to ${uniqueStations.length} unique stations`);
 
   return uniqueStations;
 }

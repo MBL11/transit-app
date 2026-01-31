@@ -18,6 +18,7 @@ import { detectTransitType } from '../utils/transport-detection';
 import type { TransitType } from '../utils/transport-detection';
 import type { Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
+import { logger } from '../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<LinesStackParamList, 'LinesList'>;
 
@@ -41,7 +42,7 @@ export function LinesScreen() {
   // Debug: Log all routes once when loaded
   useEffect(() => {
     if (routes.length > 0) {
-      console.log(`[LinesScreen] ===== LOADED ${routes.length} ROUTES =====`);
+      logger.log(`[LinesScreen] ===== LOADED ${routes.length} ROUTES =====`);
 
       // Group routes by detected type
       const byType: Record<FilterType, typeof routes> = {
@@ -58,11 +59,11 @@ export function LinesScreen() {
         byType[type].push(route);
       });
 
-      console.log(`[LinesScreen] Metro (${byType.metro.length}):`, byType.metro.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
-      console.log(`[LinesScreen] İZBAN (${byType.izban.length}):`, byType.izban.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
-      console.log(`[LinesScreen] Tram (${byType.tram.length}):`, byType.tram.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
-      console.log(`[LinesScreen] Ferry (${byType.ferry.length}):`, byType.ferry.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
-      console.log(`[LinesScreen] Bus (${byType.bus.length}):`, byType.bus.slice(0, 3).map(r => `${r.shortName}|${r.longName}|type=${r.type}`));
+      logger.log(`[LinesScreen] Metro (${byType.metro.length}):`, byType.metro.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      logger.log(`[LinesScreen] İZBAN (${byType.izban.length}):`, byType.izban.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      logger.log(`[LinesScreen] Tram (${byType.tram.length}):`, byType.tram.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      logger.log(`[LinesScreen] Ferry (${byType.ferry.length}):`, byType.ferry.map(r => `${r.shortName}|${r.longName}|type=${r.type}`).slice(0, 5));
+      logger.log(`[LinesScreen] Bus (${byType.bus.length}):`, byType.bus.slice(0, 3).map(r => `${r.shortName}|${r.longName}|type=${r.type}`));
 
       // Show ALL unique route_types in database
       const typeMap = new Map<number, string[]>();
@@ -70,9 +71,9 @@ export function LinesScreen() {
         if (!typeMap.has(r.type)) typeMap.set(r.type, []);
         typeMap.get(r.type)!.push(r.shortName || r.id);
       });
-      console.log(`[LinesScreen] ALL route_types in DB:`);
+      logger.log(`[LinesScreen] ALL route_types in DB:`);
       typeMap.forEach((names, type) => {
-        console.log(`  type=${type}: ${names.slice(0, 10).join(', ')} (${names.length} routes)`);
+        logger.log(`  type=${type}: ${names.slice(0, 10).join(', ')} (${names.length} routes)`);
       });
     }
   }, [routes]);

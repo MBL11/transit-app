@@ -8,6 +8,7 @@ import JSZip from 'jszip';
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
 import { downloadAndImportEshot } from './eshot-data-fetcher';
+import { logger } from '../utils/logger';
 
 // Available GTFS sources - İzmir official open data
 // Source: https://acikveri.bizizmir.com/en/dataset/toplu-ulasim-gtfs-verileri
@@ -58,7 +59,7 @@ export async function downloadGTFSZip(
   url: string,
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  console.log('[GTFSDownloader] Starting download from:', url);
+  logger.log('[GTFSDownloader] Starting download from:', url);
 
   const fileUri = `${FileSystem.cacheDirectory}gtfs-download.zip`;
 
@@ -82,10 +83,10 @@ export async function downloadGTFSZip(
       throw new Error('Download failed: no result');
     }
 
-    console.log('[GTFSDownloader] ✅ Download complete:', result.uri);
+    logger.log('[GTFSDownloader] ✅ Download complete:', result.uri);
     return result.uri;
   } catch (error) {
-    console.error('[GTFSDownloader] ❌ Download error:', error);
+    logger.error('[GTFSDownloader] ❌ Download error:', error);
     throw new Error(`Failed to download GTFS: ${error}`);
   }
 }
@@ -119,7 +120,7 @@ export async function extractGTFSZip(zipUri: string): Promise<{
   stopTimes: string;
   shapes?: string;
 }> {
-  console.log('[GTFSDownloader] Extracting ZIP file...');
+  logger.log('[GTFSDownloader] Extracting ZIP file...');
 
   try {
     // Read ZIP file as base64
@@ -132,7 +133,7 @@ export async function extractGTFSZip(zipUri: string): Promise<{
 
     // Log all files in ZIP for debugging
     const allFiles = Object.keys(zip.files);
-    console.log('[GTFSDownloader] ZIP contents:', allFiles.join(', '));
+    logger.log('[GTFSDownloader] ZIP contents:', allFiles.join(', '));
 
     // Extract required files (handles subdirectories)
     const filesNeeded = ['stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt'];
@@ -146,14 +147,14 @@ export async function extractGTFSZip(zipUri: string): Promise<{
 
       const content = await file.async('string');
       extractedFiles[fileName] = content;
-      console.log(`[GTFSDownloader] ✅ Extracted ${fileName} (${content.length} bytes)`);
+      logger.log(`[GTFSDownloader] ✅ Extracted ${fileName} (${content.length} bytes)`);
     }
 
     // Optional: shapes.txt
     const shapesFile = findFileInZip(zip, 'shapes.txt');
     if (shapesFile) {
       extractedFiles['shapes.txt'] = await shapesFile.async('string');
-      console.log('[GTFSDownloader] ✅ Extracted shapes.txt (optional)');
+      logger.log('[GTFSDownloader] ✅ Extracted shapes.txt (optional)');
     }
 
     return {
@@ -164,7 +165,7 @@ export async function extractGTFSZip(zipUri: string): Promise<{
       shapes: extractedFiles['shapes.txt'],
     };
   } catch (error) {
-    console.error('[GTFSDownloader] ❌ Extraction error:', error);
+    logger.error('[GTFSDownloader] ❌ Extraction error:', error);
     throw new Error(`Failed to extract GTFS: ${error}`);
   }
 }
@@ -176,7 +177,7 @@ export async function downloadAndImportGTFS(
   source: GTFSSourceKey = 'ESHOT',
   onProgress?: (stage: string, progress: number) => void
 ): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
-  console.log(`[GTFSDownloader] Starting GTFS import from ${GTFS_SOURCES[source].name}...`);
+  logger.log(`[GTFSDownloader] Starting GTFS import from ${GTFS_SOURCES[source].name}...`);
 
   try {
     const gtfsUrl = GTFS_SOURCES[source].url;
@@ -204,7 +205,7 @@ export async function downloadAndImportGTFS(
       throw new Error(`GTFS validation failed: ${validation.errors.join(', ')}`);
     }
     if (validation.warnings && validation.warnings.length > 0) {
-      console.warn('[GTFSDownloader] Validation warnings:', validation.warnings);
+      logger.warn('[GTFSDownloader] Validation warnings:', validation.warnings);
     }
     onProgress?.('validating', 1);
 
@@ -216,19 +217,19 @@ export async function downloadAndImportGTFS(
     // Step 6: Insert into database
     onProgress?.('importing', 0);
 
-    console.log('[GTFSDownloader] Inserting routes...');
+    logger.log('[GTFSDownloader] Inserting routes...');
     await db.insertRoutes(parsedData.routes);
     onProgress?.('importing', 0.25);
 
-    console.log('[GTFSDownloader] Inserting stops...');
+    logger.log('[GTFSDownloader] Inserting stops...');
     await db.insertStops(parsedData.stops);
     onProgress?.('importing', 0.5);
 
-    console.log('[GTFSDownloader] Inserting trips...');
+    logger.log('[GTFSDownloader] Inserting trips...');
     await db.insertTrips(parsedData.trips);
     onProgress?.('importing', 0.75);
 
-    console.log('[GTFSDownloader] Inserting stop times...');
+    logger.log('[GTFSDownloader] Inserting stop times...');
     // Insert stop times in batches to avoid memory issues
     const batchSize = 10000;
     for (let i = 0; i < parsedData.stopTimes.length; i += batchSize) {
@@ -250,10 +251,10 @@ export async function downloadAndImportGTFS(
       stopTimes: parsedData.stopTimes.length,
     };
 
-    console.log('[GTFSDownloader] ✅ Import complete:', result);
+    logger.log('[GTFSDownloader] ✅ Import complete:', result);
     return result;
   } catch (error) {
-    console.error('[GTFSDownloader] ❌ Import failed:', error);
+    logger.error('[GTFSDownloader] ❌ Import failed:', error);
     throw error;
   }
 }
@@ -264,7 +265,7 @@ export async function downloadAndImportGTFS(
 export async function downloadAndImportAllIzmir(
   onProgress?: (stage: string, progress: number, currentSource?: string) => void
 ): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
-  console.log('[GTFSDownloader] Starting İzmir combined GTFS import...');
+  logger.log('[GTFSDownloader] Starting İzmir combined GTFS import...');
 
   const totalSources = IZMIR_SOURCES.length;
   let totalStops = 0;
@@ -284,7 +285,7 @@ export async function downloadAndImportAllIzmir(
       const baseProgress = i / totalSources;
       const progressPerSource = 1 / totalSources;
 
-      console.log(`[GTFSDownloader] Importing ${sourceInfo.name} (${i + 1}/${totalSources})...`);
+      logger.log(`[GTFSDownloader] Importing ${sourceInfo.name} (${i + 1}/${totalSources})...`);
 
       // Download ZIP
       onProgress?.('downloading', baseProgress, sourceInfo.name);
@@ -310,14 +311,14 @@ export async function downloadAndImportAllIzmir(
       };
       const overrideType = routeTypeOverride[sourceInfo.type];
       if (overrideType !== undefined) {
-        console.log(`[GTFSDownloader] Overriding route_type to ${overrideType} for ${sourceInfo.name} (source type: ${sourceInfo.type})`);
+        logger.log(`[GTFSDownloader] Overriding route_type to ${overrideType} for ${sourceInfo.name} (source type: ${sourceInfo.type})`);
         parsedData.routes.forEach(r => { r.type = overrideType; });
       }
 
       // Prefix route and trip IDs with source type to prevent collisions
       // (e.g. metro route "1" vs tram route "1" would overwrite each other)
       const prefix = `${sourceInfo.type}_`;
-      console.log(`[GTFSDownloader] Prefixing IDs with "${prefix}" for ${sourceInfo.name}`);
+      logger.log(`[GTFSDownloader] Prefixing IDs with "${prefix}" for ${sourceInfo.name}`);
       parsedData.routes.forEach(r => { r.id = prefix + r.id; });
       parsedData.trips.forEach(t => {
         t.id = prefix + t.id;
@@ -331,14 +332,14 @@ export async function downloadAndImportAllIzmir(
       // Validate data
       const validation = validateGTFSData(parsedData);
       if (!validation.isValid) {
-        console.warn(`[GTFSDownloader] Validation warnings for ${sourceInfo.name}:`, validation.errors);
+        logger.warn(`[GTFSDownloader] Validation warnings for ${sourceInfo.name}:`, validation.errors);
         // Continue anyway, some sources might have minor issues
       }
 
       // Insert into database (append, don't clear)
       onProgress?.('importing', baseProgress + progressPerSource * 0.6, sourceInfo.name);
 
-      console.log(`[GTFSDownloader] Inserting ${sourceInfo.name} data...`);
+      logger.log(`[GTFSDownloader] Inserting ${sourceInfo.name} data...`);
       await db.insertRoutes(parsedData.routes);
       await db.insertStops(parsedData.stops);
       await db.insertTrips(parsedData.trips);
@@ -363,7 +364,7 @@ export async function downloadAndImportAllIzmir(
 
     // Import ESHOT bus data from open data portal
     try {
-      console.log('[GTFSDownloader] Importing ESHOT bus data from open data portal...');
+      logger.log('[GTFSDownloader] Importing ESHOT bus data from open data portal...');
       onProgress?.('downloading', 0.85, 'ESHOT Otobüs');
 
       const eshotResult = await downloadAndImportEshot((stage, progress) => {
@@ -377,10 +378,10 @@ export async function downloadAndImportAllIzmir(
       totalTrips += eshotResult.trips;
       totalStopTimes += eshotResult.stopTimes;
 
-      console.log(`[GTFSDownloader] ✅ ESHOT bus data imported: ${eshotResult.stops} stops, ${eshotResult.routes} routes`);
+      logger.log(`[GTFSDownloader] ✅ ESHOT bus data imported: ${eshotResult.stops} stops, ${eshotResult.routes} routes`);
     } catch (eshotError) {
       // ESHOT import failure is non-fatal - log and continue
-      console.warn('[GTFSDownloader] ⚠️ ESHOT bus import failed (non-fatal):', eshotError);
+      logger.warn('[GTFSDownloader] ⚠️ ESHOT bus import failed (non-fatal):', eshotError);
     }
 
     const result = {
@@ -390,10 +391,10 @@ export async function downloadAndImportAllIzmir(
       stopTimes: totalStopTimes,
     };
 
-    console.log('[GTFSDownloader] ✅ İzmir combined import complete:', result);
+    logger.log('[GTFSDownloader] ✅ İzmir combined import complete:', result);
     return result;
   } catch (error) {
-    console.error('[GTFSDownloader] ❌ İzmir import failed:', error);
+    logger.error('[GTFSDownloader] ❌ İzmir import failed:', error);
     throw error;
   }
 }
@@ -440,7 +441,7 @@ export async function getGTFSImportStatus(): Promise<{
       },
     };
   } catch (error) {
-    console.error('[GTFSDownloader] Error checking import status:', error);
+    logger.error('[GTFSDownloader] Error checking import status:', error);
     return {
       hasData: false,
       counts: {

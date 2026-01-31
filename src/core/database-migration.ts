@@ -4,6 +4,7 @@
  */
 
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { logger } from '../utils/logger';
 
 /**
  * Fix route colors that are missing the # prefix
@@ -22,7 +23,7 @@ export async function fixRouteColors(db: SQLiteDatabase): Promise<number> {
       return 0;
     }
 
-    console.log(`[Migration] Fixing ${result.length} route colors...`);
+    logger.log(`[Migration] Fixing ${result.length} route colors...`);
 
     // Fix each route
     let fixedCount = 0;
@@ -43,10 +44,10 @@ export async function fixRouteColors(db: SQLiteDatabase): Promise<number> {
       fixedCount++;
     }
 
-    console.log(`[Migration] ✅ Fixed ${fixedCount} route colors`);
+    logger.log(`[Migration] ✅ Fixed ${fixedCount} route colors`);
     return fixedCount;
   } catch (error) {
-    console.error('[Migration] ❌ Error fixing route colors:', error);
+    logger.error('[Migration] ❌ Error fixing route colors:', error);
     throw error;
   }
 }
@@ -58,7 +59,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   try {
     await fixRouteColors(db);
   } catch (error) {
-    console.error('[Migration] ❌ Migration failed:', error);
+    logger.error('[Migration] ❌ Migration failed:', error);
     // Don't throw - let app continue even if migration fails
   }
 }

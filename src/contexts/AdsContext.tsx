@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 interface AdsContextType {
   adsEnabled: boolean;
@@ -35,7 +36,7 @@ export function AdsProvider({ children }: { children: ReactNode }) {
       const value = await AsyncStorage.getItem(PREMIUM_KEY);
       setIsPremium(value === 'true');
     } catch (error) {
-      console.error('[AdsContext] Failed to load premium status:', error);
+      logger.error('[AdsContext] Failed to load premium status:', error);
     }
   };
 
@@ -46,9 +47,9 @@ export function AdsProvider({ children }: { children: ReactNode }) {
     try {
       await AsyncStorage.setItem(PREMIUM_KEY, 'true');
       setIsPremium(true);
-      console.log('[AdsContext] Ads disabled (Premium activated)');
+      logger.log('[AdsContext] Ads disabled (Premium activated)');
     } catch (error) {
-      console.error('[AdsContext] Failed to disable ads:', error);
+      logger.error('[AdsContext] Failed to disable ads:', error);
     }
   };
 
@@ -59,9 +60,9 @@ export function AdsProvider({ children }: { children: ReactNode }) {
     try {
       await AsyncStorage.setItem(PREMIUM_KEY, 'false');
       setIsPremium(false);
-      console.log('[AdsContext] Ads enabled');
+      logger.log('[AdsContext] Ads enabled');
     } catch (error) {
-      console.error('[AdsContext] Failed to enable ads:', error);
+      logger.error('[AdsContext] Failed to enable ads:', error);
     }
   };
 

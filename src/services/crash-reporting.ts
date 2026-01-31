@@ -5,6 +5,7 @@
 
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 
 const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn || process.env.EXPO_PUBLIC_SENTRY_DSN || '';
 
@@ -15,12 +16,12 @@ let isInitialized = false;
  */
 export function initCrashReporting(): void {
   if (isInitialized) {
-    console.log('[CrashReporting] Already initialized');
+    logger.log('[CrashReporting] Already initialized');
     return;
   }
 
   if (!SENTRY_DSN) {
-    console.warn('[CrashReporting] No Sentry DSN found, crash reporting disabled');
+    logger.warn('[CrashReporting] No Sentry DSN found, crash reporting disabled');
     return;
   }
 
@@ -37,7 +38,7 @@ export function initCrashReporting(): void {
       // Don't send events in development unless explicitly testing
       beforeSend: (event) => {
         if (__DEV__) {
-          console.log('[CrashReporting] Would send event:', event.exception?.values?.[0]?.type);
+          logger.log('[CrashReporting] Would send event:', event.exception?.values?.[0]?.type);
           // Return null to not send in development
           // Comment this line to test Sentry in dev
           return null;
@@ -47,9 +48,9 @@ export function initCrashReporting(): void {
     });
 
     isInitialized = true;
-    console.log('[CrashReporting] Sentry initialized successfully');
+    logger.log('[CrashReporting] Sentry initialized successfully');
   } catch (error) {
-    console.error('[CrashReporting] Failed to initialize Sentry:', error);
+    logger.error('[CrashReporting] Failed to initialize Sentry:', error);
   }
 }
 
@@ -67,9 +68,9 @@ export function captureException(
 ): string | undefined {
   // Always log in development
   if (__DEV__) {
-    console.error('[CrashReporting] Exception:', error);
+    logger.error('[CrashReporting] Exception:', error);
     if (context) {
-      console.error('[CrashReporting] Context:', context);
+      logger.error('[CrashReporting] Context:', context);
     }
   }
 
@@ -87,7 +88,7 @@ export function captureException(
 
     return eventId;
   } catch (err) {
-    console.error('[CrashReporting] Failed to capture exception:', err);
+    logger.error('[CrashReporting] Failed to capture exception:', err);
     return undefined;
   }
 }
@@ -101,7 +102,7 @@ export function captureMessage(
   context?: Record<string, any>
 ): string | undefined {
   if (__DEV__) {
-    console.log(`[CrashReporting] Message (${level}):`, message, context);
+    logger.log(`[CrashReporting] Message (${level}):`, message, context);
   }
 
   if (!isInitialized) {
@@ -114,7 +115,7 @@ export function captureMessage(
       extra: context,
     });
   } catch (err) {
-    console.error('[CrashReporting] Failed to capture message:', err);
+    logger.error('[CrashReporting] Failed to capture message:', err);
     return undefined;
   }
 }
@@ -127,9 +128,9 @@ export function setUser(user: { id?: string; email?: string; username?: string }
 
   try {
     Sentry.setUser(user);
-    console.log('[CrashReporting] User context set:', user?.id || 'cleared');
+    logger.log('[CrashReporting] User context set:', user?.id || 'cleared');
   } catch (error) {
-    console.error('[CrashReporting] Failed to set user:', error);
+    logger.error('[CrashReporting] Failed to set user:', error);
   }
 }
 
@@ -153,7 +154,7 @@ export function addBreadcrumb(breadcrumb: {
       timestamp: Date.now() / 1000,
     });
   } catch (error) {
-    console.error('[CrashReporting] Failed to add breadcrumb:', error);
+    logger.error('[CrashReporting] Failed to add breadcrumb:', error);
   }
 }
 
@@ -166,7 +167,7 @@ export function setTag(key: string, value: string): void {
   try {
     Sentry.setTag(key, value);
   } catch (error) {
-    console.error('[CrashReporting] Failed to set tag:', error);
+    logger.error('[CrashReporting] Failed to set tag:', error);
   }
 }
 
@@ -179,7 +180,7 @@ export function setExtra(key: string, value: any): void {
   try {
     Sentry.setExtra(key, value);
   } catch (error) {
-    console.error('[CrashReporting] Failed to set extra:', error);
+    logger.error('[CrashReporting] Failed to set extra:', error);
   }
 }
 
@@ -192,7 +193,7 @@ export function startTransaction(name: string, op: string): Sentry.Transaction |
   try {
     return Sentry.startTransaction({ name, op });
   } catch (error) {
-    console.error('[CrashReporting] Failed to start transaction:', error);
+    logger.error('[CrashReporting] Failed to start transaction:', error);
     return undefined;
   }
 }

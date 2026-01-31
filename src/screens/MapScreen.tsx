@@ -28,6 +28,7 @@ import type { NextDeparture } from '../core/types/adapter';
 import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
 import { detectTransitType, transitTypeToRouteType } from '../utils/transport-detection';
+import { logger } from '../utils/logger';
 
 // Note: İzmir rail/tram/ferry has ~50 stops - loaded all at once. Bus stops (11K+) are excluded from map.
 
@@ -78,7 +79,7 @@ export function MapScreen({ navigation }: Props) {
   // Load non-bus stops (rail/tram/ferry only, bus stops excluded to avoid 11K+ markers)
   const loadAllStops = useCallback(async () => {
     if (loadingRegionRef.current) {
-      console.log('[MapScreen] Already loading stops, skipping...');
+      logger.log('[MapScreen] Already loading stops, skipping...');
       return;
     }
 
@@ -87,7 +88,7 @@ export function MapScreen({ navigation }: Props) {
       setLoadingStops(true);
       setStopsError(null);
 
-      console.log('[MapScreen] Loading all stops...');
+      logger.log('[MapScreen] Loading all stops...');
 
       // Load all stops from database (exclude bus stops to avoid 11K+ markers crashing the map)
       const allStops = await db.getAllStops();
@@ -99,7 +100,7 @@ export function MapScreen({ navigation }: Props) {
         distance: 0,
       }));
 
-      console.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops (excluded ${allStops.length - nonBusStops.length} bus stops)`);
+      logger.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops (excluded ${allStops.length - nonBusStops.length} bus stops)`);
       setNearbyStops(stopsWithDistance);
 
       // Load route types for map stops (for transport type icons on markers)
@@ -138,7 +139,7 @@ export function MapScreen({ navigation }: Props) {
                 }
               }
             }
-            console.log(`[MapScreen] Ferry prefix detection: ${ferryStopIds.size} ferry stops found, ${ferryAdded} icons added`);
+            logger.log(`[MapScreen] Ferry prefix detection: ${ferryStopIds.size} ferry stops found, ${ferryAdded} icons added`);
           }
 
           // Prefix-based fallback: detect transport type from stop ID prefix
@@ -166,7 +167,7 @@ export function MapScreen({ navigation }: Props) {
             }
           }
           if (prefixFallbackCount > 0) {
-            console.log(`[MapScreen] Prefix fallback: ${prefixFallbackCount} stops marked as under construction`);
+            logger.log(`[MapScreen] Prefix fallback: ${prefixFallbackCount} stops marked as under construction`);
           }
           setUnderConstructionStops(constructionStopIds);
 
@@ -177,20 +178,20 @@ export function MapScreen({ navigation }: Props) {
               const upperName = stop.name.toUpperCase();
               if (FERRY_STOP_KEYWORDS.some(kw => upperName.includes(kw))) {
                 routeTypesMap.set(stop.id, [4]); // 4 = ferry
-                console.log(`[MapScreen] Ferry name fallback: "${stop.name}" detected as ferry`);
+                logger.log(`[MapScreen] Ferry name fallback: "${stop.name}" detected as ferry`);
               }
             }
           }
 
-          console.log(`[MapScreen] Loaded route types for ${routeTypesMap.size} stops`);
+          logger.log(`[MapScreen] Loaded route types for ${routeTypesMap.size} stops`);
           setStopRouteTypesMap(routeTypesMap);
         } catch (err) {
-          console.warn('[MapScreen] Failed to load route types (non-critical):', err);
+          logger.warn('[MapScreen] Failed to load route types (non-critical):', err);
           // Non-critical error - markers will show default icons
         }
       }
     } catch (err) {
-      console.error('[MapScreen] Failed to load stops:', err);
+      logger.error('[MapScreen] Failed to load stops:', err);
       setStopsError(err instanceof Error ? err : new Error('Failed to load stops'));
     } finally {
       setLoadingStops(false);
@@ -201,14 +202,14 @@ export function MapScreen({ navigation }: Props) {
   // Initial load - load ALL stops once (İzmir has ~50 stops only)
   useEffect(() => {
     const initLocation = async () => {
-      console.log('[MapScreen] Initializing...');
+      logger.log('[MapScreen] Initializing...');
 
       // Load all stops immediately
       await loadAllStops();
 
       // If permission not granted, show prompt
       if (!permissionGranted) {
-        console.log('[MapScreen] Location permission not granted, showing prompt');
+        logger.log('[MapScreen] Location permission not granted, showing prompt');
         setShowLocationPrompt(true);
         return;
       }
@@ -216,7 +217,7 @@ export function MapScreen({ navigation }: Props) {
       // Get current location and animate to it
       const userLocation = await getCurrentLocation();
       if (userLocation) {
-        console.log('[MapScreen] Got user location:', userLocation.latitude, userLocation.longitude);
+        logger.log('[MapScreen] Got user location:', userLocation.latitude, userLocation.longitude);
         // Animate map to user location with a small delay to ensure map is mounted
         setTimeout(() => {
           mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude, 1000);
@@ -258,7 +259,7 @@ export function MapScreen({ navigation }: Props) {
   const loadStopDetails = async (stopId: string) => {
     try {
       setLoadingStopData(true);
-      console.log('[MapScreen] Loading details for stop:', stopId);
+      logger.log('[MapScreen] Loading details for stop:', stopId);
 
       // Load routes for this stop
       const routes = await db.getRoutesByStopId(stopId);
@@ -268,9 +269,9 @@ export function MapScreen({ navigation }: Props) {
       const departures = await adapter!.getNextDepartures(stopId);
       setStopDepartures(departures);
 
-      console.log('[MapScreen] Loaded', routes.length, 'routes and', departures.length, 'departures');
+      logger.log('[MapScreen] Loaded', routes.length, 'routes and', departures.length, 'departures');
     } catch (err) {
-      console.error('[MapScreen] Error loading stop details:', err);
+      logger.error('[MapScreen] Error loading stop details:', err);
       Alert.alert(t('common.error'), t('common.unableToLoad') + ' ' + t('transit.stopDetails', { defaultValue: 'stop details' }));
     } finally {
       setLoadingStopData(false);
@@ -295,20 +296,20 @@ export function MapScreen({ navigation }: Props) {
   const handleLinePress = useCallback((routeId: string) => {
     // Close sheet and navigate to Lines tab with the selected route
     setSheetVisible(false);
-    console.log('[MapScreen] Line pressed:', routeId);
+    logger.log('[MapScreen] Line pressed:', routeId);
     // TODO: Navigate to Lines tab and show route details
   }, []);
 
   const handleImportData = useCallback(async () => {
     try {
       setImporting(true);
-      console.log('[MapScreen] Starting İzmir GTFS data import...');
+      logger.log('[MapScreen] Starting İzmir GTFS data import...');
 
       // Import İzmir GTFS data (ESHOT, Metro, İZBAN)
       const { downloadAndImportAllIzmir } = await import('../core/gtfs-downloader');
 
       await downloadAndImportAllIzmir((stage, progress, source) => {
-        console.log(`[MapScreen] Import: ${stage} - ${Math.round(progress * 100)}% (${source || ''})`);
+        logger.log(`[MapScreen] Import: ${stage} - ${Math.round(progress * 100)}% (${source || ''})`);
       });
 
       Alert.alert(
@@ -319,7 +320,7 @@ export function MapScreen({ navigation }: Props) {
       // Reload all stops
       await loadAllStops();
     } catch (err) {
-      console.error('[MapScreen] Import error:', err);
+      logger.error('[MapScreen] Import error:', err);
       Alert.alert(t('common.error'), t('common.importFailed'));
     } finally {
       setImporting(false);

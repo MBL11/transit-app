@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Favorite, FavoriteType } from '../core/types/favorites';
 import type { Stop, Route } from '../core/types/models';
 import * as favoritesStorage from '../core/favorites';
+import { logger } from '../utils/logger';
 
 export function useFavorites() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -23,7 +24,7 @@ export function useFavorites() {
       const data = await favoritesStorage.getFavorites();
       setFavorites(data);
     } catch (error) {
-      console.error('[useFavorites] Error loading favorites:', error);
+      logger.error('[useFavorites] Error loading favorites:', error);
     } finally {
       setLoading(false);
     }
@@ -38,7 +39,7 @@ export function useFavorites() {
       await favoritesStorage.addFavoriteStop(stop);
       await loadFavorites();
     } catch (error) {
-      console.error('[useFavorites] Error adding stop:', error);
+      logger.error('[useFavorites] Error adding stop:', error);
       throw error;
     }
   }, []);
@@ -48,7 +49,7 @@ export function useFavorites() {
       await favoritesStorage.addFavoriteRoute(route);
       await loadFavorites();
     } catch (error) {
-      console.error('[useFavorites] Error adding route:', error);
+      logger.error('[useFavorites] Error adding route:', error);
       throw error;
     }
   }, []);
@@ -58,7 +59,7 @@ export function useFavorites() {
       await favoritesStorage.addFavoriteJourney(fromStop, toStop);
       await loadFavorites();
     } catch (error) {
-      console.error('[useFavorites] Error adding journey:', error);
+      logger.error('[useFavorites] Error adding journey:', error);
       throw error;
     }
   }, []);
@@ -68,7 +69,7 @@ export function useFavorites() {
       await favoritesStorage.removeFavorite(id, type);
       await loadFavorites();
     } catch (error) {
-      console.error('[useFavorites] Error removing favorite:', error);
+      logger.error('[useFavorites] Error removing favorite:', error);
       throw error;
     }
   }, []);

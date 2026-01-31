@@ -15,6 +15,7 @@ import * as db from '../../core/database';
 import { izmirConfig, izmirDataSource } from './config';
 import { runMigrations } from '../../core/database-migration';
 import { getLineColor, formatTime } from './utils';
+import { logger } from '../../utils/logger';
 
 /**
  * İzmir adapter implementation
@@ -38,13 +39,13 @@ export class IzmirAdapter implements TransitAdapter {
    * Load all stops from database
    */
   async loadStops(): Promise<Stop[]> {
-    console.log('[IzmirAdapter] Loading stops...');
+    logger.log('[IzmirAdapter] Loading stops...');
     try {
       const stops = await db.getAllStops();
-      console.log(`[IzmirAdapter] Loaded ${stops.length} stops`);
+      logger.log(`[IzmirAdapter] Loaded ${stops.length} stops`);
       return stops;
     } catch (error) {
-      console.error('[IzmirAdapter] Failed to load stops:', error);
+      logger.error('[IzmirAdapter] Failed to load stops:', error);
       throw new Error('Failed to load stops');
     }
   }
@@ -53,7 +54,7 @@ export class IzmirAdapter implements TransitAdapter {
    * Load all routes from database
    */
   async loadRoutes(): Promise<Route[]> {
-    console.log('[IzmirAdapter] Loading routes...');
+    logger.log('[IzmirAdapter] Loading routes...');
     try {
       const database = db.openDatabase();
       const rows = database.getAllSync<any>('SELECT * FROM routes');
@@ -67,10 +68,10 @@ export class IzmirAdapter implements TransitAdapter {
         textColor: row.text_color || '#FFFFFF',
       }));
 
-      console.log(`[IzmirAdapter] Loaded ${routes.length} routes`);
+      logger.log(`[IzmirAdapter] Loaded ${routes.length} routes`);
       return routes;
     } catch (error) {
-      console.error('[IzmirAdapter] Failed to load routes:', error);
+      logger.error('[IzmirAdapter] Failed to load routes:', error);
       throw new Error('Failed to load routes');
     }
   }
@@ -79,7 +80,7 @@ export class IzmirAdapter implements TransitAdapter {
    * Load all trips from database
    */
   async loadTrips(): Promise<Trip[]> {
-    console.log('[IzmirAdapter] Loading trips...');
+    logger.log('[IzmirAdapter] Loading trips...');
     try {
       const database = db.openDatabase();
       const rows = database.getAllSync<any>('SELECT * FROM trips');
@@ -93,10 +94,10 @@ export class IzmirAdapter implements TransitAdapter {
         shapeId: row.shape_id,
       }));
 
-      console.log(`[IzmirAdapter] Loaded ${trips.length} trips`);
+      logger.log(`[IzmirAdapter] Loaded ${trips.length} trips`);
       return trips;
     } catch (error) {
-      console.error('[IzmirAdapter] Failed to load trips:', error);
+      logger.error('[IzmirAdapter] Failed to load trips:', error);
       throw new Error('Failed to load trips');
     }
   }
@@ -105,7 +106,7 @@ export class IzmirAdapter implements TransitAdapter {
    * Load all stop times from database
    */
   async loadStopTimes(): Promise<StopTime[]> {
-    console.log('[IzmirAdapter] Loading stop times...');
+    logger.log('[IzmirAdapter] Loading stop times...');
     try {
       const database = db.openDatabase();
       const rows = database.getAllSync<any>('SELECT * FROM stop_times LIMIT 10000');
@@ -118,10 +119,10 @@ export class IzmirAdapter implements TransitAdapter {
         stopSequence: row.stop_sequence,
       }));
 
-      console.log(`[IzmirAdapter] Loaded ${stopTimes.length} stop times`);
+      logger.log(`[IzmirAdapter] Loaded ${stopTimes.length} stop times`);
       return stopTimes;
     } catch (error) {
-      console.error('[IzmirAdapter] Failed to load stop times:', error);
+      logger.error('[IzmirAdapter] Failed to load stop times:', error);
       throw new Error('Failed to load stop times');
     }
   }
@@ -130,14 +131,14 @@ export class IzmirAdapter implements TransitAdapter {
    * Load shapes from database (optional)
    */
   async loadShapes(): Promise<any[]> {
-    console.log('[IzmirAdapter] Loading shapes...');
+    logger.log('[IzmirAdapter] Loading shapes...');
     try {
       const database = db.openDatabase();
       const rows = database.getAllSync<any>('SELECT * FROM shapes LIMIT 5000');
-      console.log(`[IzmirAdapter] Loaded ${rows.length} shape points`);
+      logger.log(`[IzmirAdapter] Loaded ${rows.length} shape points`);
       return rows;
     } catch (error) {
-      console.error('[IzmirAdapter] Failed to load shapes:', error);
+      logger.error('[IzmirAdapter] Failed to load shapes:', error);
       return [];
     }
   }
@@ -147,7 +148,7 @@ export class IzmirAdapter implements TransitAdapter {
    * Note: İzmir doesn't have a public real-time API
    */
   async getNextDepartures(stopId: string): Promise<NextDeparture[]> {
-    console.log(`[IzmirAdapter] Getting next departures for stop ${stopId}...`);
+    logger.log(`[IzmirAdapter] Getting next departures for stop ${stopId}...`);
     return this.getTheoreticalDepartures(stopId);
   }
 
@@ -194,7 +195,7 @@ export class IzmirAdapter implements TransitAdapter {
           const seconds = parseInt(timeParts[2] || '0', 10);
 
           if (isNaN(hours) || isNaN(minutes)) {
-            console.warn(`[IzmirAdapter] Invalid time: ${row.departure_time}`);
+            logger.warn(`[IzmirAdapter] Invalid time: ${row.departure_time}`);
             return null;
           }
 
@@ -224,10 +225,10 @@ export class IzmirAdapter implements TransitAdapter {
         })
         .filter((dep): dep is NextDeparture => dep !== null);
 
-      console.log(`[IzmirAdapter] Found ${departures.length} departures`);
+      logger.log(`[IzmirAdapter] Found ${departures.length} departures`);
       return departures;
     } catch (error) {
-      console.error('[IzmirAdapter] Failed to get departures:', error);
+      logger.error('[IzmirAdapter] Failed to get departures:', error);
       return [];
     }
   }
@@ -238,7 +239,7 @@ export class IzmirAdapter implements TransitAdapter {
    * Returns empty array for now
    */
   async getAlerts(routeIds?: string[]): Promise<Alert[]> {
-    console.log('[IzmirAdapter] Getting alerts...');
+    logger.log('[IzmirAdapter] Getting alerts...');
     // TODO: Implement web scraping or RSS feed for ESHOT announcements
     return [];
   }
@@ -261,17 +262,17 @@ export class IzmirAdapter implements TransitAdapter {
    * Initialize adapter - ensure database is set up
    */
   async initialize(): Promise<void> {
-    console.log('[IzmirAdapter] Initializing adapter...');
+    logger.log('[IzmirAdapter] Initializing adapter...');
     try {
       await db.initializeDatabase();
 
       // Check if database has data
       const isEmpty = db.isDatabaseEmpty();
       if (isEmpty) {
-        console.warn('[IzmirAdapter] Database is empty - need to import GTFS data');
+        logger.warn('[IzmirAdapter] Database is empty - need to import GTFS data');
       } else {
         const stats = db.getDatabaseStats();
-        console.log('[IzmirAdapter] Database initialized with data:', stats);
+        logger.log('[IzmirAdapter] Database initialized with data:', stats);
 
         // Run database migrations
         const database = db.openDatabase();
@@ -280,7 +281,7 @@ export class IzmirAdapter implements TransitAdapter {
 
       this.lastUpdateTime = new Date();
     } catch (error) {
-      console.error('[IzmirAdapter] Failed to initialize:', error);
+      logger.error('[IzmirAdapter] Failed to initialize:', error);
       throw error;
     }
   }

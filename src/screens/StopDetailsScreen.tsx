@@ -17,6 +17,7 @@ import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDepa
 import type { Stop, Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
 import { useAdapter } from '../hooks/useAdapter';
+import { logger } from '../utils/logger';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'StopDetails'>;
 
@@ -60,7 +61,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       // Use mock data if no real data available (for testing)
       setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
     } catch (err) {
-      console.error('[StopDetailsScreen] Error refreshing departures:', err);
+      logger.error('[StopDetailsScreen] Error refreshing departures:', err);
     }
   }, [stopId, adapter]);
 
@@ -115,7 +116,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
         setDepartures(getMockDepartures());
       }
     } catch (err) {
-      console.error('[StopDetailsScreen] Error loading stop data:', err);
+      logger.error('[StopDetailsScreen] Error loading stop data:', err);
       setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
     } finally {
       setLoading(false);

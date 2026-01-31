@@ -3,6 +3,8 @@
  * Used for geocoding results, nearby stops, and other expensive operations
  */
 
+import { logger } from '../utils/logger';
+
 type CacheEntry<T> = {
   data: T;
   timestamp: number;
@@ -96,5 +98,5 @@ export function clearAllCaches(): void {
   cache.clear();
   geocodingCache.clear();
   nearbyStopsCache.clear();
-  console.log('[Cache] All caches cleared');
+  logger.log('[Cache] All caches cleared');
 }

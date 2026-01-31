@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Alert } from '../types/alert';
+import { logger } from '../utils/logger';
 
 const NOTIFICATION_SETTINGS_KEY = '@notifications_enabled';
 const PUSH_TOKEN_KEY = '@push_token';
@@ -25,7 +26,7 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotifications(): Promise<string | null> {
   // Check if device is physical (push notifications don't work on simulator)
   if (!Device.isDevice) {
-    console.log('[Notifications] Push notifications only work on physical devices');
+    logger.log('[Notifications] Push notifications only work on physical devices');
     return null;
   }
 
@@ -42,7 +43,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     // If permission denied, return null
     if (finalStatus !== 'granted') {
-      console.log('[Notifications] Permission not granted');
+      logger.log('[Notifications] Permission not granted');
       return null;
     }
 
@@ -51,7 +52,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '',
     });
 
-    console.log('[Notifications] Push token:', token.data);
+    logger.log('[Notifications] Push token:', token.data);
 
     // Save token to storage
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, token.data);
@@ -74,7 +75,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     return token.data;
   } catch (error) {
-    console.error('[Notifications] Failed to register:', error);
+    logger.error('[Notifications] Failed to register:', error);
     return null;
   }
 }
@@ -87,7 +88,7 @@ export async function areNotificationsEnabled(): Promise<boolean> {
     const enabled = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
     return enabled === 'true';
   } catch (error) {
-    console.warn('[Notifications] Failed to check settings:', error);
+    logger.warn('[Notifications] Failed to check settings:', error);
     return false;
   }
 }
@@ -103,10 +104,10 @@ export async function enableNotifications(): Promise<boolean> {
     }
 
     await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, 'true');
-    console.log('[Notifications] Enabled');
+    logger.log('[Notifications] Enabled');
     return true;
   } catch (error) {
-    console.error('[Notifications] Failed to enable:', error);
+    logger.error('[Notifications] Failed to enable:', error);
     return false;
   }
 }
@@ -119,9 +120,9 @@ export async function disableNotifications(): Promise<void> {
     await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, 'false');
     // Cancel all scheduled notifications
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('[Notifications] Disabled');
+    logger.log('[Notifications] Disabled');
   } catch (error) {
-    console.error('[Notifications] Failed to disable:', error);
+    logger.error('[Notifications] Failed to disable:', error);
   }
 }
 
@@ -132,7 +133,7 @@ export async function getPushToken(): Promise<string | null> {
   try {
     return await AsyncStorage.getItem(PUSH_TOKEN_KEY);
   } catch (error) {
-    console.warn('[Notifications] Failed to get push token:', error);
+    logger.warn('[Notifications] Failed to get push token:', error);
     return null;
   }
 }
@@ -180,10 +181,10 @@ export async function scheduleAlertNotification(alert: Alert): Promise<string | 
       trigger: null, // null = immediate
     });
 
-    console.log('[Notifications] Scheduled alert notification:', notificationId);
+    logger.log('[Notifications] Scheduled alert notification:', notificationId);
     return notificationId;
   } catch (error) {
-    console.error('[Notifications] Failed to schedule alert notification:', error);
+    logger.error('[Notifications] Failed to schedule alert notification:', error);
     return null;
   }
 }
@@ -229,10 +230,10 @@ export async function scheduleDepartureReminder(
       trigger: triggerTime,
     });
 
-    console.log('[Notifications] Scheduled departure reminder:', notificationId);
+    logger.log('[Notifications] Scheduled departure reminder:', notificationId);
     return notificationId;
   } catch (error) {
-    console.error('[Notifications] Failed to schedule departure reminder:', error);
+    logger.error('[Notifications] Failed to schedule departure reminder:', error);
     return null;
   }
 }
@@ -243,9 +244,9 @@ export async function scheduleDepartureReminder(
 export async function cancelNotification(notificationId: string): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
-    console.log('[Notifications] Cancelled notification:', notificationId);
+    logger.log('[Notifications] Cancelled notification:', notificationId);
   } catch (error) {
-    console.error('[Notifications] Failed to cancel notification:', error);
+    logger.error('[Notifications] Failed to cancel notification:', error);
   }
 }
 
@@ -255,9 +256,9 @@ export async function cancelNotification(notificationId: string): Promise<void> 
 export async function cancelAllNotifications(): Promise<void> {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('[Notifications] Cancelled all notifications');
+    logger.log('[Notifications] Cancelled all notifications');
   } catch (error) {
-    console.error('[Notifications] Failed to cancel all notifications:', error);
+    logger.error('[Notifications] Failed to cancel all notifications:', error);
   }
 }
 
@@ -268,7 +269,7 @@ export async function getScheduledNotifications(): Promise<Notifications.Notific
   try {
     return await Notifications.getAllScheduledNotificationsAsync();
   } catch (error) {
-    console.error('[Notifications] Failed to get scheduled notifications:', error);
+    logger.error('[Notifications] Failed to get scheduled notifications:', error);
     return [];
   }
 }
@@ -280,6 +281,6 @@ export async function clearBadge(): Promise<void> {
   try {
     await Notifications.setBadgeCountAsync(0);
   } catch (error) {
-    console.error('[Notifications] Failed to clear badge:', error);
+    logger.error('[Notifications] Failed to clear badge:', error);
   }
 }

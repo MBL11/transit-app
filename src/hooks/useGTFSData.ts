@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isGTFSDataAvailable } from '../core/gtfs-downloader';
 import * as db from '../core/database';
+import { logger } from '../utils/logger';
 
 const GTFS_LOADED_KEY = '@gtfs_loaded';
 const GTFS_LAST_UPDATE_KEY = '@gtfs_last_update';
@@ -66,7 +67,7 @@ export function useGTFSData() {
         const isIzmir = await isIzmirData();
 
         if (!isIzmir) {
-          console.log('[useGTFSData] Non-İzmir data detected, clearing...');
+          logger.log('[useGTFSData] Non-İzmir data detected, clearing...');
           db.clearAllData();
           await AsyncStorage.removeItem(GTFS_LOADED_KEY);
           await AsyncStorage.removeItem(GTFS_LAST_UPDATE_KEY);
@@ -74,7 +75,7 @@ export function useGTFSData() {
           setIsLoaded(false);
           setLastUpdate(null);
           setSource(null);
-          console.log('[useGTFSData] ✅ Old data cleared, ready for İzmir import');
+          logger.log('[useGTFSData] ✅ Old data cleared, ready for İzmir import');
         } else {
           setIsLoaded(true);
           // Get metadata from AsyncStorage
@@ -92,7 +93,7 @@ export function useGTFSData() {
         setIsLoaded(false);
       }
     } catch (error) {
-      console.error('[useGTFSData] Error checking data:', error);
+      logger.error('[useGTFSData] Error checking data:', error);
       setIsLoaded(false);
     } finally {
       setChecking(false);

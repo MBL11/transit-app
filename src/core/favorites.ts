@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Favorite, FavoriteType, FavoriteStop, FavoriteRoute, FavoriteJourney } from './types/favorites';
 import type { Stop, Route } from './types/models';
+import { logger } from '../utils/logger';
 
 const STORAGE_KEY = '@favorites';
 
@@ -20,7 +21,7 @@ export async function getFavorites(): Promise<Favorite[]> {
     }
     return JSON.parse(data) as Favorite[];
   } catch (error) {
-    console.error('[Favorites] Error loading favorites:', error);
+    logger.error('[Favorites] Error loading favorites:', error);
     return [];
   }
 }
@@ -32,7 +33,7 @@ async function saveFavorites(favorites: Favorite[]): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(favorites));
   } catch (error) {
-    console.error('[Favorites] Error saving favorites:', error);
+    logger.error('[Favorites] Error saving favorites:', error);
     throw error;
   }
 }
@@ -46,7 +47,7 @@ export async function addFavoriteStop(stop: Stop): Promise<void> {
   // Check if already exists
   const exists = favorites.some(f => f.type === 'stop' && f.id === stop.id);
   if (exists) {
-    console.log('[Favorites] Stop already in favorites:', stop.id);
+    logger.log('[Favorites] Stop already in favorites:', stop.id);
     return;
   }
 
@@ -59,7 +60,7 @@ export async function addFavoriteStop(stop: Stop): Promise<void> {
 
   favorites.push(favorite);
   await saveFavorites(favorites);
-  console.log('[Favorites] Added stop to favorites:', stop.id);
+  logger.log('[Favorites] Added stop to favorites:', stop.id);
 }
 
 /**
@@ -71,7 +72,7 @@ export async function addFavoriteRoute(route: Route): Promise<void> {
   // Check if already exists
   const exists = favorites.some(f => f.type === 'route' && f.id === route.id);
   if (exists) {
-    console.log('[Favorites] Route already in favorites:', route.id);
+    logger.log('[Favorites] Route already in favorites:', route.id);
     return;
   }
 
@@ -84,7 +85,7 @@ export async function addFavoriteRoute(route: Route): Promise<void> {
 
   favorites.push(favorite);
   await saveFavorites(favorites);
-  console.log('[Favorites] Added route to favorites:', route.id);
+  logger.log('[Favorites] Added route to favorites:', route.id);
 }
 
 /**
@@ -101,7 +102,7 @@ export async function addFavoriteJourney(
   // Check if already exists
   const exists = favorites.some(f => f.type === 'journey' && f.id === id);
   if (exists) {
-    console.log('[Favorites] Journey already in favorites:', id);
+    logger.log('[Favorites] Journey already in favorites:', id);
     return;
   }
 
@@ -119,7 +120,7 @@ export async function addFavoriteJourney(
 
   favorites.push(favorite);
   await saveFavorites(favorites);
-  console.log('[Favorites] Added journey to favorites:', id);
+  logger.log('[Favorites] Added journey to favorites:', id);
 }
 
 /**
@@ -130,12 +131,12 @@ export async function removeFavorite(id: string, type: FavoriteType): Promise<vo
   const filtered = favorites.filter(f => !(f.id === id && f.type === type));
 
   if (filtered.length === favorites.length) {
-    console.log('[Favorites] Favorite not found:', id, type);
+    logger.log('[Favorites] Favorite not found:', id, type);
     return;
   }
 
   await saveFavorites(filtered);
-  console.log('[Favorites] Removed favorite:', id, type);
+  logger.log('[Favorites] Removed favorite:', id, type);
 }
 
 /**
@@ -162,9 +163,9 @@ export async function getFavoritesByType<T extends FavoriteType>(
 export async function clearAllFavorites(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
-    console.log('[Favorites] Cleared all favorites');
+    logger.log('[Favorites] Cleared all favorites');
   } catch (error) {
-    console.error('[Favorites] Error clearing favorites:', error);
+    logger.error('[Favorites] Error clearing favorites:', error);
     throw error;
   }
 }

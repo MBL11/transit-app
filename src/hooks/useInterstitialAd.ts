@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { shouldDisableAds } from '../config/ads';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 const ROUTE_CALCULATIONS_KEY = '@route_calculations_count';
 const INTERSTITIAL_FREQUENCY = 3; // Show ad every 3 route calculations
@@ -34,7 +35,7 @@ export function useInterstitialAd() {
 
       const unsubscribeLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
         setLoaded(true);
-        console.log('Interstitial ad loaded');
+        logger.log('Interstitial ad loaded');
       });
 
       const unsubscribeClosed = interstitial.addAdEventListener(AdEventType.CLOSED, () => {
@@ -44,7 +45,7 @@ export function useInterstitialAd() {
       });
 
       const unsubscribeError = interstitial.addAdEventListener(AdEventType.ERROR, (error: any) => {
-        console.warn('Interstitial ad error:', error);
+        logger.warn('Interstitial ad error:', error);
         setLoaded(false);
       });
 
@@ -57,7 +58,7 @@ export function useInterstitialAd() {
         unsubscribeError();
       };
     } catch (error) {
-      console.log('[useInterstitialAd] AdMob not available (expected in Expo Go)');
+      logger.log('[useInterstitialAd] AdMob not available (expected in Expo Go)');
       return undefined;
     }
   }, [adsDisabled]);
@@ -72,7 +73,7 @@ export function useInterstitialAd() {
       const count = await AsyncStorage.getItem(ROUTE_CALCULATIONS_KEY);
       setRouteCount(count ? parseInt(count, 10) : 0);
     } catch (error) {
-      console.warn('Failed to load route count:', error);
+      logger.warn('Failed to load route count:', error);
     }
   };
 
@@ -83,7 +84,7 @@ export function useInterstitialAd() {
       setRouteCount(newCount);
       return newCount;
     } catch (error) {
-      console.warn('Failed to save route count:', error);
+      logger.warn('Failed to save route count:', error);
       return routeCount;
     }
   };
@@ -93,7 +94,7 @@ export function useInterstitialAd() {
       await AsyncStorage.setItem(ROUTE_CALCULATIONS_KEY, '0');
       setRouteCount(0);
     } catch (error) {
-      console.warn('Failed to reset route count:', error);
+      logger.warn('Failed to reset route count:', error);
     }
   };
 
@@ -114,7 +115,7 @@ export function useInterstitialAd() {
         await interstitialRef.current.show();
         return true;
       } catch (error) {
-        console.warn('Failed to show interstitial ad:', error);
+        logger.warn('Failed to show interstitial ad:', error);
         return false;
       }
     }

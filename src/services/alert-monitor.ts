@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from '../types/alert';
 import { scheduleAlertNotification, areNotificationsEnabled } from './notifications';
 import * as favoritesStorage from '../core/favorites';
+import { logger } from '../utils/logger';
 
 const ALERT_CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
 const SENT_ALERTS_KEY = '@sent_alert_ids';
@@ -18,7 +19,7 @@ async function getSentAlertIds(): Promise<Set<string>> {
       return new Set(JSON.parse(stored));
     }
   } catch (error) {
-    console.warn('[AlertMonitor] Failed to load sent alerts:', error);
+    logger.warn('[AlertMonitor] Failed to load sent alerts:', error);
   }
   return new Set();
 }
@@ -35,7 +36,7 @@ async function markAlertAsSent(alertId: string): Promise<void> {
     const idsArray = Array.from(sentIds).slice(-100);
     await AsyncStorage.setItem(SENT_ALERTS_KEY, JSON.stringify(idsArray));
   } catch (error) {
-    console.warn('[AlertMonitor] Failed to mark alert as sent:', error);
+    logger.warn('[AlertMonitor] Failed to mark alert as sent:', error);
   }
 }
 
@@ -47,7 +48,7 @@ async function clearOldSentAlerts(): Promise<void> {
     // For now, just reset - in production you'd track timestamps
     await AsyncStorage.setItem(SENT_ALERTS_KEY, JSON.stringify([]));
   } catch (error) {
-    console.warn('[AlertMonitor] Failed to clear old alerts:', error);
+    logger.warn('[AlertMonitor] Failed to clear old alerts:', error);
   }
 }
 
@@ -61,14 +62,14 @@ async function checkFavoriteAlertsInternal(
     // Check if notifications are enabled
     const notificationsEnabled = await areNotificationsEnabled();
     if (!notificationsEnabled) {
-      console.log('[AlertMonitor] Notifications disabled, skipping check');
+      logger.log('[AlertMonitor] Notifications disabled, skipping check');
       return;
     }
 
     // Get favorite lines
     const favoriteLines = await favoritesStorage.getFavorites('line');
     if (favoriteLines.length === 0) {
-      console.log('[AlertMonitor] No favorite lines to monitor');
+      logger.log('[AlertMonitor] No favorite lines to monitor');
       return;
     }
 
@@ -84,7 +85,7 @@ async function checkFavoriteAlertsInternal(
     );
 
     if (importantAlerts.length === 0) {
-      console.log('[AlertMonitor] No important alerts found');
+      logger.log('[AlertMonitor] No important alerts found');
       return;
     }
 
@@ -99,16 +100,16 @@ async function checkFavoriteAlertsInternal(
         if (notificationId) {
           await markAlertAsSent(alert.id);
           newAlertCount++;
-          console.log('[AlertMonitor] Sent notification for alert:', alert.id);
+          logger.log('[AlertMonitor] Sent notification for alert:', alert.id);
         }
       }
     }
 
     if (newAlertCount > 0) {
-      console.log(`[AlertMonitor] Sent ${newAlertCount} new alert notifications`);
+      logger.log(`[AlertMonitor] Sent ${newAlertCount} new alert notifications`);
     }
   } catch (error) {
-    console.error('[AlertMonitor] Error checking alerts:', error);
+    logger.error('[AlertMonitor] Error checking alerts:', error);
   }
 }
 
@@ -121,11 +122,11 @@ export function startAlertMonitoring(
   fetchAlerts: (routeIds?: string[]) => Promise<Alert[]>
 ): void {
   if (monitorInterval) {
-    console.log('[AlertMonitor] Already monitoring');
+    logger.log('[AlertMonitor] Already monitoring');
     return;
   }
 
-  console.log('[AlertMonitor] Starting alert monitoring');
+  logger.log('[AlertMonitor] Starting alert monitoring');
 
   // Check immediately
   checkFavoriteAlertsInternal(fetchAlerts);
@@ -149,7 +150,7 @@ export function startAlertMonitoring(
  */
 export function stopAlertMonitoring(): void {
   if (monitorInterval) {
-    console.log('[AlertMonitor] Stopping alert monitoring');
+    logger.log('[AlertMonitor] Stopping alert monitoring');
     clearInterval(monitorInterval);
 
     // Clear the daily cleanup interval
@@ -167,6 +168,6 @@ export function stopAlertMonitoring(): void {
 export async function checkNow(
   fetchAlerts: (routeIds?: string[]) => Promise<Alert[]>
 ): Promise<void> {
-  console.log('[AlertMonitor] Manual alert check triggered');
+  logger.log('[AlertMonitor] Manual alert check triggered');
   await checkFavoriteAlertsInternal(fetchAlerts);
 }

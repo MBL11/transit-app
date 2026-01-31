@@ -7,13 +7,14 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { logger } from '../utils/logger';
 
 interface Props {
   title: string;
 }
 
 export function SimpleTestScreen({ title }: Props) {
-  console.log(`[SimpleTestScreen] Rendering ${title}`);
+  logger.log(`[SimpleTestScreen] Rendering ${title}`);
 
   return (
     <ScreenContainer>

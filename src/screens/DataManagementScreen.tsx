@@ -20,6 +20,7 @@ import { useThemeColors } from '../hooks/useThemeColors';
 import { useGTFSData } from '../hooks/useGTFSData';
 import { downloadAndImportAllIzmir } from '../core/gtfs-downloader';
 import { clearAllData, getAllStops, getAllRoutes } from '../core/database';
+import { logger } from '../utils/logger';
 
 type ImportStage =
   | 'downloading'
@@ -59,7 +60,7 @@ export function DataManagementScreen() {
       const [stops, routes] = await Promise.all([getAllStops(), getAllRoutes()]);
       setDataCounts({ stops: stops.length, routes: routes.length });
     } catch (error) {
-      console.error('[DataManagement] Error loading counts:', error);
+      logger.error('[DataManagement] Error loading counts:', error);
     }
   };
 
@@ -104,7 +105,7 @@ export function DataManagementScreen() {
 
               await loadDataCounts();
             } catch (error) {
-              console.error('[DataManagement] Import error:', error);
+              logger.error('[DataManagement] Import error:', error);
               const errorText = i18n.language === 'tr'
                 ? 'Veri indirme başarısız:\n\n'
                 : 'Import failed:\n\n';
@@ -145,7 +146,7 @@ export function DataManagementScreen() {
               await refresh();
               setDataCounts({ stops: 0, routes: 0 });
             } catch (error) {
-              console.error('[DataManagement] Clear error:', error);
+              logger.error('[DataManagement] Clear error:', error);
               Alert.alert(t('common.error'), t('data.clearFailed'));
             }
           },

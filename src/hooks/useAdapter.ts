@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { IzmirAdapter, izmirAdapter } from '../adapters/izmir';
 import * as db from '../core/database';
+import { logger } from '../utils/logger';
 
 let adapterInstance: IzmirAdapter | null = null;
 let initPromise: Promise<void> | null = null;
@@ -33,11 +34,11 @@ export function useAdapter() {
         // Use shared promise to avoid duplicate initialization
         if (!initPromise) {
           initPromise = (async () => {
-            console.log('[useAdapter] Initializing database and adapter...');
+            logger.log('[useAdapter] Initializing database and adapter...');
             await db.initializeDatabase();
             adapterInstance = izmirAdapter;
             await adapterInstance.initialize();
-            console.log('[useAdapter] ✅ İzmir adapter ready');
+            logger.log('[useAdapter] ✅ İzmir adapter ready');
           })();
         }
 
@@ -45,7 +46,7 @@ export function useAdapter() {
         setAdapter(adapterInstance);
         setLoading(false);
       } catch (err) {
-        console.error('[useAdapter] ❌ Failed to initialize:', err);
+        logger.error('[useAdapter] ❌ Failed to initialize:', err);
         initPromise = null; // Reset so it can be retried
         setError(err instanceof Error ? err : new Error('Unknown error'));
         setLoading(false);
@@ -86,7 +87,7 @@ export function useAdapterData() {
         const isEmpty = db.isDatabaseEmpty();
         setHasData(!isEmpty);
       } catch (err) {
-        console.error('[useAdapterData] Failed to check data:', err);
+        logger.error('[useAdapterData] Failed to check data:', err);
         setHasData(false);
       } finally {
         setLoading(false);
@@ -133,7 +134,7 @@ export function useStops() {
       const data = await adapter.loadStops();
       setStops(data);
     } catch (err) {
-      console.error('[useStops] Failed to load stops:', err);
+      logger.error('[useStops] Failed to load stops:', err);
       setError(err instanceof Error ? err : new Error('Failed to load stops'));
     } finally {
       setLoading(false);
@@ -172,7 +173,7 @@ export function useRoutes() {
       const data = await adapter.loadRoutes();
       setRoutes(data);
     } catch (err) {
-      console.error('[useRoutes] Failed to load routes:', err);
+      logger.error('[useRoutes] Failed to load routes:', err);
       setError(err instanceof Error ? err : new Error('Failed to load routes'));
     } finally {
       setLoading(false);
@@ -232,7 +233,7 @@ export function useDepartures(stopId: string | null) {
       const data = await adapter.getNextDepartures(stopId);
       setDepartures(data);
     } catch (err) {
-      console.error('[useDepartures] Failed to load departures:', err);
+      logger.error('[useDepartures] Failed to load departures:', err);
       setError(err instanceof Error ? err : new Error('Failed to load departures'));
     } finally {
       setLoading(false);

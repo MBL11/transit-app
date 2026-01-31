@@ -3,6 +3,8 @@
  * Provides structured error types with user-friendly messages
  */
 
+import { logger } from './logger';
+
 export enum ErrorCode {
   // Network errors
   NETWORK_ERROR = 'NETWORK_ERROR',
@@ -253,14 +255,14 @@ export function isRetryableError(error: any): boolean {
 export function logError(error: any, context?: ErrorContext) {
   const appError = parseError(error);
 
-  console.error(`[${appError.code}] ${appError.message}`);
+  logger.error(`[${appError.code}] ${appError.message}`);
 
   if (appError.context || context) {
-    console.error('Context:', { ...appError.context, ...context });
+    logger.error('Context:', { ...appError.context, ...context });
   }
 
   if (__DEV__) {
-    console.error('Stack:', appError.stack);
+    logger.error('Stack:', appError.stack);
   }
 
   // TODO: Send to crash reporting service (Sentry)

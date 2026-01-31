@@ -22,6 +22,7 @@ import { useThemeColors } from '../hooks/useThemeColors';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
 import type { FavoriteStop, FavoriteRoute, FavoriteJourney } from '../core/types/favorites';
+import { logger } from '../utils/logger';
 
 type Props = NativeStackScreenProps<any, 'Favorites'>;
 
@@ -43,17 +44,17 @@ export function FavoritesScreen({ navigation }: Props) {
   const handleStopPress = (stop: FavoriteStop) => {
     // Navigate to MapView and show the stop
     // For now, just log it
-    console.log('[FavoritesScreen] Stop pressed:', stop.data.name);
+    logger.log('[FavoritesScreen] Stop pressed:', stop.data.name);
     // TODO: Navigate to MapView with stop selected
   };
 
   const handleRoutePress = (route: FavoriteRoute) => {
-    console.log('[FavoritesScreen] Route pressed:', route.data.shortName);
+    logger.log('[FavoritesScreen] Route pressed:', route.data.shortName);
     // TODO: Navigate to Lines tab with route selected
   };
 
   const handleJourneyPress = (journey: FavoriteJourney) => {
-    console.log('[FavoritesScreen] Journey pressed:', journey.data);
+    logger.log('[FavoritesScreen] Journey pressed:', journey.data);
     // TODO: Navigate to Route screen with pre-filled stops
   };
 

@@ -18,6 +18,7 @@ import { useThemeColors } from '../hooks/useThemeColors';
 import { searchStops, searchRoutes, getRoutesByStopIds } from '../core/database';
 import type { Stop, Route } from '../core/types/models';
 import type { SearchStackParamList } from '../navigation/SearchStackNavigator';
+import { logger } from '../utils/logger';
 
 type Props = NativeStackScreenProps<SearchStackParamList, 'Search'>;
 
@@ -88,7 +89,7 @@ export function SearchScreen({ navigation }: Props) {
           setLineResults(routes);
         }
       } catch (error) {
-        console.error('[SearchScreen] Search error:', error);
+        logger.error('[SearchScreen] Search error:', error);
         setStopResults([]);
         setLineResults([]);
       } finally {

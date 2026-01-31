@@ -5,6 +5,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/types';
 import { clearBadge } from '../services/notifications';
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -15,14 +16,14 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
  * - Manages notification badge
  */
 export function useNotifications() {
-  console.log('[useNotifications] Hook called');
+  logger.log('[useNotifications] Hook called');
 
   // Always call useNavigation (hooks must be called unconditionally)
   const navigation = useNavigation<NavigationProp>();
 
   // Check if running in Expo Go
   const isExpoGo = Constants.appOwnership === 'expo';
-  console.log('[useNotifications] isExpoGo:', isExpoGo);
+  logger.log('[useNotifications] isExpoGo:', isExpoGo);
 
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const notificationListener = useRef<Notifications.Subscription>();
@@ -31,25 +32,25 @@ export function useNotifications() {
   useEffect(() => {
     // Skip notifications setup in Expo Go
     if (isExpoGo) {
-      console.log('[useNotifications] Skipping setup (Expo Go)');
+      logger.log('[useNotifications] Skipping setup (Expo Go)');
       return;
     }
 
-    console.log('[useNotifications] Setting up notifications...');
+    logger.log('[useNotifications] Setting up notifications...');
     // Clear badge when app opens
     clearBadge().catch((error) => {
-      console.warn('[useNotifications] Failed to clear badge:', error);
+      logger.warn('[useNotifications] Failed to clear badge:', error);
     });
 
     // Listener for notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[useNotifications] Notification received:', notification);
+      logger.log('[useNotifications] Notification received:', notification);
       setNotification(notification);
     });
 
     // Listener for user tapping on notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('[useNotifications] Notification tapped:', response);
+      logger.log('[useNotifications] Notification tapped:', response);
       handleNotificationTap(response);
     });
 
@@ -57,12 +58,12 @@ export function useNotifications() {
     Notifications.getLastNotificationResponseAsync()
       .then((response) => {
         if (response) {
-          console.log('[useNotifications] App opened from notification');
+          logger.log('[useNotifications] App opened from notification');
           handleNotificationTap(response);
         }
       })
       .catch((error) => {
-        console.warn('[useNotifications] Failed to get last notification:', error);
+        logger.warn('[useNotifications] Failed to get last notification:', error);
       });
 
     return () => {
@@ -81,7 +82,7 @@ export function useNotifications() {
   const handleNotificationTap = (response: Notifications.NotificationResponse) => {
     // Skip if in Expo Go
     if (isExpoGo) {
-      console.log('[useNotifications] Skipping notification tap (Expo Go)');
+      logger.log('[useNotifications] Skipping notification tap (Expo Go)');
       return;
     }
 
@@ -90,7 +91,7 @@ export function useNotifications() {
 
       // Clear badge
       clearBadge().catch((error) => {
-        console.warn('[useNotifications] Failed to clear badge:', error);
+        logger.warn('[useNotifications] Failed to clear badge:', error);
       });
 
       // Navigate based on notification type
@@ -114,11 +115,11 @@ export function useNotifications() {
             }
           }
         } catch (navError) {
-          console.warn('[useNotifications] Navigation failed:', navError);
+          logger.warn('[useNotifications] Navigation failed:', navError);
         }
       }, 500);
     } catch (error) {
-      console.error('[useNotifications] Error handling notification tap:', error);
+      logger.error('[useNotifications] Error handling notification tap:', error);
     }
   };
 
@@ -143,7 +144,7 @@ export function useNotificationPermissions() {
       const status = await Notifications.getPermissionsAsync();
       setPermissionStatus(status);
     } catch (error) {
-      console.error('[useNotificationPermissions] Failed to get permissions:', error);
+      logger.error('[useNotificationPermissions] Failed to get permissions:', error);
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +156,7 @@ export function useNotificationPermissions() {
       setPermissionStatus({ status } as Notifications.NotificationPermissionsStatus);
       return status === 'granted';
     } catch (error) {
-      console.error('[useNotificationPermissions] Failed to request permissions:', error);
+      logger.error('[useNotificationPermissions] Failed to request permissions:', error);
       return false;
     }
   };

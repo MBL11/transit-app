@@ -5,6 +5,7 @@
 
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
+import { logger } from '../utils/logger';
 
 /**
  * Import GTFS data into database
@@ -17,31 +18,31 @@ export async function importGTFSToDatabase(feedData: {
   stopTimes: string;
   shapes?: string;
 }): Promise<void> {
-  console.log('[GTFSImporter] Starting GTFS import...');
+  logger.log('[GTFSImporter] Starting GTFS import...');
 
   try {
     // Step 1: Parse and normalize GTFS data
-    console.log('[GTFSImporter] Step 1/4: Parsing GTFS files...');
+    logger.log('[GTFSImporter] Step 1/4: Parsing GTFS files...');
     const data = parseGTFSFeed(feedData);
 
     // Step 2: Validate data
-    console.log('[GTFSImporter] Step 2/4: Validating data...');
+    logger.log('[GTFSImporter] Step 2/4: Validating data...');
     const { isValid, errors, warnings } = validateGTFSData(data);
 
     if (!isValid) {
-      console.error('[GTFSImporter] ❌ Validation failed:', errors);
+      logger.error('[GTFSImporter] ❌ Validation failed:', errors);
       throw new Error(`GTFS validation failed: ${errors.join(', ')}`);
     }
     if (warnings && warnings.length > 0) {
-      console.warn('[GTFSImporter] ⚠️ Validation warnings:', warnings);
+      logger.warn('[GTFSImporter] ⚠️ Validation warnings:', warnings);
     }
 
     // Step 3: Initialize database
-    console.log('[GTFSImporter] Step 3/4: Initializing database...');
+    logger.log('[GTFSImporter] Step 3/4: Initializing database...');
     await db.initializeDatabase();
 
     // Step 4: Insert data into database
-    console.log('[GTFSImporter] Step 4/4: Inserting data...');
+    logger.log('[GTFSImporter] Step 4/4: Inserting data...');
 
     // Insert in order (respecting foreign keys)
     await db.insertRoutes(data.routes);
@@ -51,10 +52,10 @@ export async function importGTFSToDatabase(feedData: {
 
     // Get final stats
     const stats = db.getDatabaseStats();
-    console.log('[GTFSImporter] ✅ Import complete!');
-    console.log('[GTFSImporter] Database stats:', stats);
+    logger.log('[GTFSImporter] ✅ Import complete!');
+    logger.log('[GTFSImporter] Database stats:', stats);
   } catch (error) {
-    console.error('[GTFSImporter] ❌ Import failed:', error);
+    logger.error('[GTFSImporter] ❌ Import failed:', error);
     throw error;
   }
 }
@@ -69,7 +70,7 @@ export async function importGTFSFromURLs(urls: {
   stopTimes: string;
   shapes?: string;
 }): Promise<void> {
-  console.log('[GTFSImporter] Downloading GTFS files from URLs...');
+  logger.log('[GTFSImporter] Downloading GTFS files from URLs...');
 
   try {
     const [stopsText, routesText, tripsText, stopTimesText] = await Promise.all([
@@ -91,7 +92,7 @@ export async function importGTFSFromURLs(urls: {
       }),
     ]);
 
-    console.log('[GTFSImporter] ✅ All files downloaded');
+    logger.log('[GTFSImporter] ✅ All files downloaded');
 
     await importGTFSToDatabase({
       stops: stopsText,
@@ -100,7 +101,7 @@ export async function importGTFSFromURLs(urls: {
       stopTimes: stopTimesText,
     });
   } catch (error) {
-    console.error('[GTFSImporter] ❌ Failed to import from URLs:', error);
+    logger.error('[GTFSImporter] ❌ Failed to import from URLs:', error);
     throw error;
   }
 }
@@ -109,14 +110,14 @@ export async function importGTFSFromURLs(urls: {
  * Clear all GTFS data from database
  */
 export async function clearGTFSData(): Promise<void> {
-  console.log('[GTFSImporter] Clearing GTFS data...');
+  logger.log('[GTFSImporter] Clearing GTFS data...');
 
   try {
     await db.dropAllTables();
     await db.initializeDatabase();
-    console.log('[GTFSImporter] ✅ Database cleared');
+    logger.log('[GTFSImporter] ✅ Database cleared');
   } catch (error) {
-    console.error('[GTFSImporter] ❌ Failed to clear data:', error);
+    logger.error('[GTFSImporter] ❌ Failed to clear data:', error);
     throw error;
   }
 }

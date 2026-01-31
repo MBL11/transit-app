@@ -28,6 +28,7 @@ import * as notificationService from '../services/notifications';
 import { trackEvent, AnalyticsEvents } from '../services/analytics';
 import type { ThemeMode } from '../hooks/useColorScheme';
 import type { SettingsStackParamList } from '../navigation/SettingsStackNavigator';
+import { logger } from '../utils/logger';
 
 const LANGUAGES = [
   { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
@@ -73,9 +74,9 @@ export function SettingsScreen({ navigation }: Props) {
     try {
       await changeLanguage(languageCode);
       trackEvent(AnalyticsEvents.LANGUAGE_CHANGED, { language: languageCode });
-      console.log('[Settings] Language changed to:', languageCode);
+      logger.log('[Settings] Language changed to:', languageCode);
     } catch (error) {
-      console.error('[Settings] Error changing language:', error);
+      logger.error('[Settings] Error changing language:', error);
       Alert.alert(t('common.error'), t('common.error'));
     }
   };
@@ -156,7 +157,7 @@ export function SettingsScreen({ navigation }: Props) {
         );
       }
     } catch (error) {
-      console.error('[Settings] Failed to toggle notifications:', error);
+      logger.error('[Settings] Failed to toggle notifications:', error);
       Alert.alert(t('common.error'), t('common.error'));
     } finally {
       setIsLoadingNotifications(false);

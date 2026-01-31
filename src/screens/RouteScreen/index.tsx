@@ -27,6 +27,7 @@ import type { GeocodingResult } from '../../core/geocoding';
 import type { RoutingPreferences } from '../../types/routing-preferences';
 import { routeReducer, initialState } from './routeReducer';
 import { RouteScreenContent } from './RouteScreenContent';
+import { logger } from '../../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalculation'>;
 
@@ -57,7 +58,7 @@ export function RouteScreen() {
       const allStops = await db.getAllStops();
       dispatch({ type: 'SET_STOPS', payload: allStops });
     } catch (err) {
-      console.error('[RouteScreen] Error loading stops:', err);
+      logger.error('[RouteScreen] Error loading stops:', err);
       Alert.alert(t('common.error'), 'Unable to load stops');
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -70,10 +71,10 @@ export function RouteScreen() {
       if (saved) {
         const parsedPrefs = JSON.parse(saved);
         dispatch({ type: 'SET_PREFERENCES', payload: parsedPrefs });
-        console.log('[RouteScreen] Loaded saved preferences:', parsedPrefs.optimizeFor);
+        logger.log('[RouteScreen] Loaded saved preferences:', parsedPrefs.optimizeFor);
       }
     } catch (err) {
-      console.error('[RouteScreen] Error loading preferences:', err);
+      logger.error('[RouteScreen] Error loading preferences:', err);
     }
   };
 
@@ -81,9 +82,9 @@ export function RouteScreen() {
     try {
       await AsyncStorage.setItem('@routing_preferences', JSON.stringify(prefs));
       dispatch({ type: 'SET_PREFERENCES', payload: prefs });
-      console.log('[RouteScreen] Saved preferences:', prefs.optimizeFor);
+      logger.log('[RouteScreen] Saved preferences:', prefs.optimizeFor);
     } catch (err) {
-      console.error('[RouteScreen] Error saving preferences:', err);
+      logger.error('[RouteScreen] Error saving preferences:', err);
     }
   };
 
@@ -106,7 +107,7 @@ export function RouteScreen() {
       if (state.timeMode === 'arrival') {
         // For arrival mode, subtract estimated journey time (30 min by default)
         searchTime = new Date(state.departureTime.getTime() - 30 * 60000);
-        console.log('[RouteScreen] Arrival mode: searching from', formatTime(searchTime));
+        logger.log('[RouteScreen] Arrival mode: searching from', formatTime(searchTime));
       }
 
       // Prepare from and to locations as GeocodingResult
@@ -139,7 +140,7 @@ export function RouteScreen() {
         toLocation = state.toAddress!;
       }
 
-      console.log('[RouteScreen] Calculating multiple routes with preferences:', state.preferences.optimizeFor);
+      logger.log('[RouteScreen] Calculating multiple routes with preferences:', state.preferences.optimizeFor);
 
       // Use findMultipleRoutes to get optimized routes
       const results = await findMultipleRoutes(
@@ -157,12 +158,12 @@ export function RouteScreen() {
 
       dispatch({ type: 'SET_JOURNEYS', payload: filteredResults });
       dispatch({ type: 'SET_HAS_SEARCHED', payload: true });
-      console.log('[RouteScreen] Found', filteredResults.length, 'journeys');
+      logger.log('[RouteScreen] Found', filteredResults.length, 'journeys');
 
       // Show interstitial ad if needed (every 3 route calculations)
       await showAdIfNeeded();
     } catch (err: any) {
-      console.error('[RouteScreen] Error calculating route:', err);
+      logger.error('[RouteScreen] Error calculating route:', err);
       Alert.alert(t('common.error'), err.message || 'Unable to calculate route');
     } finally {
       dispatch({ type: 'SET_CALCULATING', payload: false });

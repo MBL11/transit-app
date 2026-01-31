@@ -13,13 +13,14 @@ import type {
   GTFSFeed,
 } from './types/gtfs';
 import type { Stop, Route, Trip, StopTime } from './types/models';
+import { logger } from '../utils/logger';
 
 /**
  * Parse CSV string to typed objects
  * Handles malformed CSVs with extra fields (common in Turkish GTFS feeds)
  */
 function parseCSV<T>(csvContent: string, fileName: string): T[] {
-  console.log(`[GTFSParser] Parsing ${fileName}...`);
+  logger.log(`[GTFSParser] Parsing ${fileName}...`);
 
   const result = Papa.parse<T>(csvContent, {
     header: true,
@@ -34,14 +35,14 @@ function parseCSV<T>(csvContent: string, fileName: string): T[] {
   // Only log real errors, not field mismatch warnings
   const realErrors = result.errors?.filter(e => e.code !== 'TooManyFields' && e.code !== 'TooFewFields') || [];
   if (realErrors.length > 0) {
-    console.warn(`[GTFSParser] Errors in ${fileName}:`, realErrors.slice(0, 5));
+    logger.warn(`[GTFSParser] Errors in ${fileName}:`, realErrors.slice(0, 5));
   }
 
   if (result.errors && result.errors.length > 0) {
-    console.log(`[GTFSParser] Note: ${result.errors.length} field count warnings in ${fileName} (handled)`);
+    logger.log(`[GTFSParser] Note: ${result.errors.length} field count warnings in ${fileName} (handled)`);
   }
 
-  console.log(`[GTFSParser] ✅ Parsed ${result.data.length} rows from ${fileName}`);
+  logger.log(`[GTFSParser] ✅ Parsed ${result.data.length} rows from ${fileName}`);
   return result.data;
 }
 
@@ -115,9 +116,9 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
   if (!isAlreadyValidIzmir) {
     // Log raw column data for debugging coordinate issues
     if (!isAlreadyValidIzmir && (lon > 1000000 || isNaN(lon) || isNaN(lat))) {
-      console.log(`[GTFSParser] ⚠️ Invalid coords for "${name}" (id=${id}):`);
-      console.log(`  Raw: stop_lat="${latStr}" stop_lon="${lonStr}" zone_id="${rawStop.zone_id}" stop_url="${rawStop.stop_url}" extra="${(rawStop as any).__parsed_extra}"`);
-      console.log(`  Parsed: lat=${lat} lon=${lon}`);
+      logger.log(`[GTFSParser] ⚠️ Invalid coords for "${name}" (id=${id}):`);
+      logger.log(`  Raw: stop_lat="${latStr}" stop_lon="${lonStr}" zone_id="${rawStop.zone_id}" stop_url="${rawStop.stop_url}" extra="${(rawStop as any).__parsed_extra}"`);
+      logger.log(`  Parsed: lat=${lat} lon=${lon}`);
     }
 
     const zoneIdVal = parseFloat(rawStop.zone_id || '');
@@ -171,7 +172,7 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
       const realLat = lat + lon / Math.pow(10, latDecDigits);
       const realLon = zoneIdVal + extraVal0 / Math.pow(10, lonDecDigits);
 
-      console.log(`[GTFSParser] ✅ Turkish comma: "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
+      logger.log(`[GTFSParser] ✅ Turkish comma: "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
       lat = realLat;
       lon = realLon;
     } else if (hasTurkishCommaViaStopUrl) {
@@ -180,7 +181,7 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
       const realLat = lat + lon / Math.pow(10, latDecDigits);
       const realLon = zoneIdVal + stopUrlVal / Math.pow(10, lonDecDigits);
 
-      console.log(`[GTFSParser] ✅ Turkish comma (stop_url): "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
+      logger.log(`[GTFSParser] ✅ Turkish comma (stop_url): "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
       lat = realLat;
       lon = realLon;
     } else if (hasShiftedFormat) {
@@ -191,7 +192,7 @@ export function normalizeStop(gtfsStop: GTFSStop): Stop {
       const realLat = zoneIdVal + stopUrlVal / Math.pow(10, latDecDigits);
       const realLon = lat + lon / Math.pow(10, lonDecDigits);
 
-      console.log(`[GTFSParser] ✅ Shifted format: "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
+      logger.log(`[GTFSParser] ✅ Shifted format: "${name}" -> lat=${realLat.toFixed(6)}, lon=${realLon.toFixed(6)}`);
       lat = realLat;
       lon = realLon;
     } else if (lat > 40 && lon < 30) {
@@ -277,7 +278,7 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
   // Debug first few routes only
   const routeId = rawRoute.route_id || '';
   if (routeId === '1' || routeId === '2' || routeId.toLowerCase().includes('m1')) {
-    console.log(`[GTFSParser] Route ${routeId}: shortName="${shortName}", longName="${rawRoute.route_long_name}"`);
+    logger.log(`[GTFSParser] Route ${routeId}: shortName="${shortName}", longName="${rawRoute.route_long_name}"`);
   }
 
   // Try to get İzmir-specific colors first
@@ -382,7 +383,7 @@ export function parseGTFSFeed(feedData: {
   trips: Trip[];
   stopTimes: StopTime[];
 } {
-  console.log('[GTFSParser] Parsing complete GTFS feed...');
+  logger.log('[GTFSParser] Parsing complete GTFS feed...');
 
   // Parse raw GTFS data
   const rawStops = parseStops(feedData.stops);
@@ -392,14 +393,14 @@ export function parseGTFSFeed(feedData: {
 
   // Debug: log first few raw stops to see column names and values
   if (rawStops.length > 0) {
-    console.log('[GTFSParser] Sample raw stop 0:', JSON.stringify(rawStops[0]));
+    logger.log('[GTFSParser] Sample raw stop 0:', JSON.stringify(rawStops[0]));
     if (rawStops.length > 1) {
-      console.log('[GTFSParser] Sample raw stop 1:', JSON.stringify(rawStops[1]));
+      logger.log('[GTFSParser] Sample raw stop 1:', JSON.stringify(rawStops[1]));
     }
   }
 
   // Normalize to internal models
-  console.log('[GTFSParser] Normalizing data...');
+  logger.log('[GTFSParser] Normalizing data...');
   const allStops = rawStops.map(normalizeStop);
   const routes = rawRoutes.map(normalizeRoute);
   const trips = rawTrips.map(normalizeTrip);
@@ -407,9 +408,9 @@ export function parseGTFSFeed(feedData: {
 
   // Debug: log first few normalized stops
   if (allStops.length > 0) {
-    console.log('[GTFSParser] Normalized stop 0:', JSON.stringify(allStops[0]));
+    logger.log('[GTFSParser] Normalized stop 0:', JSON.stringify(allStops[0]));
     if (allStops.length > 1) {
-      console.log('[GTFSParser] Normalized stop 1:', JSON.stringify(allStops[1]));
+      logger.log('[GTFSParser] Normalized stop 1:', JSON.stringify(allStops[1]));
     }
   }
 
@@ -417,19 +418,19 @@ export function parseGTFSFeed(feedData: {
   const stops = filterValidStops(allStops);
   const filteredCount = allStops.length - stops.length;
   if (filteredCount > 0) {
-    console.warn(`[GTFSParser] Filtered out ${filteredCount} stops with invalid coordinates`);
+    logger.warn(`[GTFSParser] Filtered out ${filteredCount} stops with invalid coordinates`);
     // Log some filtered stops for debugging
     const invalidStops = allStops.filter(s => !stops.includes(s)).slice(0, 3);
     invalidStops.forEach(s => {
-      console.warn(`[GTFSParser] Filtered stop: id=${s.id}, name=${s.name}, lat=${s.lat}, lon=${s.lon}`);
+      logger.warn(`[GTFSParser] Filtered stop: id=${s.id}, name=${s.name}, lat=${s.lat}, lon=${s.lon}`);
     });
   }
 
-  console.log('[GTFSParser] ✅ GTFS feed parsed successfully');
-  console.log(`  - ${stops.length} stops (${filteredCount} filtered)`);
-  console.log(`  - ${routes.length} routes`);
-  console.log(`  - ${trips.length} trips`);
-  console.log(`  - ${stopTimes.length} stop times`);
+  logger.log('[GTFSParser] ✅ GTFS feed parsed successfully');
+  logger.log(`  - ${stops.length} stops (${filteredCount} filtered)`);
+  logger.log(`  - ${routes.length} routes`);
+  logger.log(`  - ${trips.length} trips`);
+  logger.log(`  - ${stopTimes.length} stop times`);
 
   return { stops, routes, trips, stopTimes };
 }
@@ -450,7 +451,7 @@ export async function loadGTFSFromURLs(urls: {
   trips: Trip[];
   stopTimes: StopTime[];
 }> {
-  console.log('[GTFSParser] Loading GTFS data from URLs...');
+  logger.log('[GTFSParser] Loading GTFS data from URLs...');
 
   const [stopsText, routesText, tripsText, stopTimesText] = await Promise.all([
     fetch(urls.stops).then((r) => r.text()),
@@ -504,9 +505,9 @@ export function validateGTFSData(data: {
       errors.push(`All ${invalidStops.length} stops have invalid coordinates`);
     } else {
       warnings.push(`${invalidStops.length} stops with invalid coordinates (will be filtered out)`);
-      console.warn(`[GTFSParser] ⚠️ ${invalidStops.length} stops with invalid coordinates:`);
+      logger.warn(`[GTFSParser] ⚠️ ${invalidStops.length} stops with invalid coordinates:`);
       invalidStops.slice(0, 5).forEach(s => {
-        console.warn(`  - ${s.id}: lat=${s.lat}, lon=${s.lon}`);
+        logger.warn(`  - ${s.id}: lat=${s.lat}, lon=${s.lon}`);
       });
     }
   }
@@ -519,11 +520,11 @@ export function validateGTFSData(data: {
 
   const isValid = errors.length === 0;
   if (!isValid) {
-    console.error('[GTFSParser] ❌ Validation failed:', errors);
+    logger.error('[GTFSParser] ❌ Validation failed:', errors);
   } else if (warnings.length > 0) {
-    console.warn('[GTFSParser] ⚠️ Validation passed with warnings:', warnings);
+    logger.warn('[GTFSParser] ⚠️ Validation passed with warnings:', warnings);
   } else {
-    console.log('[GTFSParser] ✅ Validation passed');
+    logger.log('[GTFSParser] ✅ Validation passed');
   }
 
   return { isValid, errors, warnings };

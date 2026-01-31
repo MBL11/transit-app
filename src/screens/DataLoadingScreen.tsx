@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { downloadAndImportAllIzmir, GTFS_SOURCES } from '../core/gtfs-downloader';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { logger } from '../utils/logger';
 
 interface DataLoadingScreenProps {
   onComplete: (sourceName: string) => void;
@@ -163,7 +164,7 @@ export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
       }, 2000);
 
     } catch (err) {
-      console.error('[DataLoadingScreen] Failed to load GTFS:', err);
+      logger.error('[DataLoadingScreen] Failed to load GTFS:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
   };

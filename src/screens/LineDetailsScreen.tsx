@@ -13,6 +13,7 @@ import { StopCard } from '../components/transit/StopCard';
 import { getRouteById, getStopsByRouteId } from '../core/database';
 import type { Route, Stop } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
+import { logger } from '../utils/logger';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'LineDetails'>;
 
@@ -56,7 +57,7 @@ export function LineDetailsScreen({ route, navigation }: Props) {
       setLineRoute(routeData);
       setStops(stopsData);
     } catch (err) {
-      console.error('[LineDetailsScreen] Error loading line data:', err);
+      logger.error('[LineDetailsScreen] Error loading line data:', err);
       setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
     } finally {
       setLoading(false);

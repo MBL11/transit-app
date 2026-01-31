@@ -11,6 +11,7 @@
 
 import * as db from './database';
 import type { Stop, Route, Trip, StopTime } from './types/models';
+import { logger } from '../utils/logger';
 
 // CKAN DataStore API configuration
 const CKAN_BASE = 'https://acikveri.bizizmir.com/api/3/action';
@@ -97,7 +98,7 @@ async function fetchFromDataStore<T>(
     url += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }
 
-  console.log(`[ESHOT] Fetching: ${url}`);
+  logger.log(`[ESHOT] Fetching: ${url}`);
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -143,7 +144,7 @@ async function fetchAllFromDataStore<T>(
     offset += batchSize;
     onProgress?.(allRecords.length, total);
 
-    console.log(`[ESHOT] Fetched ${allRecords.length}/${total} records`);
+    logger.log(`[ESHOT] Fetched ${allRecords.length}/${total} records`);
   } while (allRecords.length < total);
 
   return allRecords;
@@ -154,36 +155,36 @@ async function fetchAllFromDataStore<T>(
 // ============================================================================
 
 async function fetchEshotRoutes(): Promise<EshotRawRoute[]> {
-  console.log('[ESHOT] Fetching bus routes...');
+  logger.log('[ESHOT] Fetching bus routes...');
   const { records } = await fetchFromDataStore<EshotRawRoute>(ROUTES_RESOURCE_ID, {
     limit: 500,
   });
-  console.log(`[ESHOT] Fetched ${records.length} bus routes`);
+  logger.log(`[ESHOT] Fetched ${records.length} bus routes`);
   return records;
 }
 
 async function fetchEshotStops(
   onProgress?: (loaded: number, total: number) => void
 ): Promise<EshotRawStop[]> {
-  console.log('[ESHOT] Fetching bus stops...');
+  logger.log('[ESHOT] Fetching bus stops...');
   const records = await fetchAllFromDataStore<EshotRawStop>(STOPS_RESOURCE_ID, {
     batchSize: 6000,
     onProgress,
   });
-  console.log(`[ESHOT] Fetched ${records.length} bus stops`);
+  logger.log(`[ESHOT] Fetched ${records.length} bus stops`);
   return records;
 }
 
 async function fetchEshotSchedules(
   onProgress?: (loaded: number, total: number) => void
 ): Promise<EshotRawSchedule[]> {
-  console.log('[ESHOT] Fetching weekday bus schedules (TARIFE_ID=1)...');
+  logger.log('[ESHOT] Fetching weekday bus schedules (TARIFE_ID=1)...');
   const records = await fetchAllFromDataStore<EshotRawSchedule>(SCHEDULES_RESOURCE_ID, {
     filters: { TARIFE_ID: 1 },
     batchSize: 32000,
     onProgress,
   });
-  console.log(`[ESHOT] Fetched ${records.length} weekday schedule entries`);
+  logger.log(`[ESHOT] Fetched ${records.length} weekday schedule entries`);
   return records;
 }
 
@@ -224,7 +225,7 @@ function convertToModels(
   rawStops: EshotRawStop[],
   rawSchedules: EshotRawSchedule[]
 ): { stops: Stop[]; routes: Route[]; trips: Trip[]; stopTimes: StopTime[] } {
-  console.log('[ESHOT] Converting data to database models...');
+  logger.log('[ESHOT] Converting data to database models...');
 
   // 1. Convert routes
   const routes: Route[] = rawRoutes.map(r => ({
@@ -269,7 +270,7 @@ function convertToModels(
     }
   }
 
-  console.log(`[ESHOT] Route-stop mappings: ${routeStopsMap.size} routes with stops`);
+  logger.log(`[ESHOT] Route-stop mappings: ${routeStopsMap.size} routes with stops`);
 
   // Log some stats
   let totalStopAssignments = 0;
@@ -277,7 +278,7 @@ function convertToModels(
   const avgStopsPerRoute = routeStopsMap.size > 0
     ? Math.round(totalStopAssignments / routeStopsMap.size)
     : 0;
-  console.log(`[ESHOT] Average stops per route: ${avgStopsPerRoute}`);
+  logger.log(`[ESHOT] Average stops per route: ${avgStopsPerRoute}`);
 
   // 4. Group schedules by route
   const schedulesByRoute = new Map<number, EshotRawSchedule[]>();
@@ -376,8 +377,8 @@ function convertToModels(
     }
   }
 
-  console.log(`[ESHOT] Routes with schedule data: ${routesWithData}, skipped: ${routesSkipped}`);
-  console.log(`[ESHOT] Created ${trips.length} trips, ${stopTimes.length} stop_times`);
+  logger.log(`[ESHOT] Routes with schedule data: ${routesWithData}, skipped: ${routesSkipped}`);
+  logger.log(`[ESHOT] Created ${trips.length} trips, ${stopTimes.length} stop_times`);
 
   return { stops, routes, trips, stopTimes };
 }
@@ -393,7 +394,7 @@ function convertToModels(
 export async function downloadAndImportEshot(
   onProgress?: (stage: string, progress: number) => void
 ): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
-  console.log('[ESHOT] Starting ESHOT bus data import...');
+  logger.log('[ESHOT] Starting ESHOT bus data import...');
 
   try {
     // Step 1: Fetch routes (small, fast)
@@ -421,15 +422,15 @@ export async function downloadAndImportEshot(
     // Step 5: Insert into database (append mode, don't clear)
     onProgress?.('importing', 0.7);
 
-    console.log('[ESHOT] Inserting routes...');
+    logger.log('[ESHOT] Inserting routes...');
     await db.insertRoutes(routes);
     onProgress?.('importing', 0.72);
 
-    console.log('[ESHOT] Inserting stops...');
+    logger.log('[ESHOT] Inserting stops...');
     await db.insertStops(stops);
     onProgress?.('importing', 0.78);
 
-    console.log('[ESHOT] Inserting trips...');
+    logger.log('[ESHOT] Inserting trips...');
     // Insert trips in batches (can be large)
     const tripBatchSize = 10000;
     for (let i = 0; i < trips.length; i += tripBatchSize) {
@@ -438,7 +439,7 @@ export async function downloadAndImportEshot(
     }
     onProgress?.('importing', 0.82);
 
-    console.log('[ESHOT] Inserting stop times...');
+    logger.log('[ESHOT] Inserting stop times...');
     const stBatchSize = 10000;
     for (let i = 0; i < stopTimes.length; i += stBatchSize) {
       const batch = stopTimes.slice(i, i + stBatchSize);
@@ -456,10 +457,10 @@ export async function downloadAndImportEshot(
       stopTimes: stopTimes.length,
     };
 
-    console.log('[ESHOT] ✅ Import complete:', result);
+    logger.log('[ESHOT] ✅ Import complete:', result);
     return result;
   } catch (error) {
-    console.error('[ESHOT] ❌ Import failed:', error);
+    logger.error('[ESHOT] ❌ Import failed:', error);
     throw new Error(`ESHOT bus data import failed: ${error}`);
   }
 }

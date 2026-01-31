@@ -7,6 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import type { Alert } from '../../core/types/adapter';
 import { useTranslation } from 'react-i18next';
+import { logger } from '../../utils/logger';
 
 interface AlertBannerProps {
   alert: Alert;
@@ -20,7 +21,7 @@ export function AlertBanner({ alert, compact = false, onPress }: AlertBannerProp
     if (onPress) {
       onPress();
     } else if (alert.url) {
-      Linking.openURL(alert.url).catch(err => console.error('Failed to open URL:', err));
+      Linking.openURL(alert.url).catch(err => logger.error('Failed to open URL:', err));
     }
   };
 

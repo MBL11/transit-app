@@ -5,6 +5,7 @@
 
 import * as Amplitude from '@amplitude/analytics-react-native';
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 
 const AMPLITUDE_API_KEY = Constants.expoConfig?.extra?.amplitudeApiKey || process.env.EXPO_PUBLIC_AMPLITUDE_KEY || '';
 
@@ -15,12 +16,12 @@ let isInitialized = false;
  */
 export async function initAnalytics(): Promise<void> {
   if (isInitialized) {
-    console.log('[Analytics] Already initialized');
+    logger.log('[Analytics] Already initialized');
     return;
   }
 
   if (!AMPLITUDE_API_KEY) {
-    console.warn('[Analytics] No Amplitude API key found, analytics disabled');
+    logger.warn('[Analytics] No Amplitude API key found, analytics disabled');
     return;
   }
 
@@ -36,9 +37,9 @@ export async function initAnalytics(): Promise<void> {
     });
 
     isInitialized = true;
-    console.log('[Analytics] Amplitude initialized successfully');
+    logger.log('[Analytics] Amplitude initialized successfully');
   } catch (error) {
-    console.error('[Analytics] Failed to initialize Amplitude:', error);
+    logger.error('[Analytics] Failed to initialize Amplitude:', error);
   }
 }
 
@@ -48,7 +49,7 @@ export async function initAnalytics(): Promise<void> {
 export function trackEvent(eventName: string, properties?: Record<string, any>): void {
   if (!isInitialized) {
     if (__DEV__) {
-      console.log(`[Analytics] (disabled) ${eventName}`, properties);
+      logger.log(`[Analytics] (disabled) ${eventName}`, properties);
     }
     return;
   }
@@ -56,10 +57,10 @@ export function trackEvent(eventName: string, properties?: Record<string, any>):
   try {
     Amplitude.track(eventName, properties);
     if (__DEV__) {
-      console.log(`[Analytics] Tracked: ${eventName}`, properties);
+      logger.log(`[Analytics] Tracked: ${eventName}`, properties);
     }
   } catch (error) {
-    console.error('[Analytics] Failed to track event:', error);
+    logger.error('[Analytics] Failed to track event:', error);
   }
 }
 
@@ -81,9 +82,9 @@ export function setUserId(userId: string): void {
 
   try {
     Amplitude.setUserId(userId);
-    console.log('[Analytics] User ID set:', userId);
+    logger.log('[Analytics] User ID set:', userId);
   } catch (error) {
-    console.error('[Analytics] Failed to set user ID:', error);
+    logger.error('[Analytics] Failed to set user ID:', error);
   }
 }
 
@@ -99,9 +100,9 @@ export function setUserProperties(properties: Record<string, any>): void {
       identify.set(key, value);
     });
     Amplitude.identify(identify);
-    console.log('[Analytics] User properties set:', properties);
+    logger.log('[Analytics] User properties set:', properties);
   } catch (error) {
-    console.error('[Analytics] Failed to set user properties:', error);
+    logger.error('[Analytics] Failed to set user properties:', error);
   }
 }
 
@@ -113,9 +114,9 @@ export function resetAnalytics(): void {
 
   try {
     Amplitude.reset();
-    console.log('[Analytics] Analytics reset');
+    logger.log('[Analytics] Analytics reset');
   } catch (error) {
-    console.error('[Analytics] Failed to reset:', error);
+    logger.error('[Analytics] Failed to reset:', error);
   }
 }
 

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
+import { logger } from '../utils/logger';
 
 export interface UserLocation {
   latitude: number;
@@ -44,7 +45,7 @@ export function useLocation() {
         permissionGranted: status === 'granted',
       }));
     } catch (error) {
-      console.error('Failed to check location permission:', error);
+      logger.error('Failed to check location permission:', error);
     }
   };
 
@@ -106,7 +107,7 @@ export function useLocation() {
 
       return userLocation;
     } catch (error: any) {
-      console.error('Failed to get location:', error);
+      logger.error('Failed to get location:', error);
 
       setState((prev) => ({
         ...prev,
@@ -186,7 +187,7 @@ export function useWatchLocation() {
           }
         );
       } catch (error: any) {
-        console.error('Failed to watch location:', error);
+        logger.error('Failed to watch location:', error);
         setState((prev) => ({
           ...prev,
           isLoading: false,

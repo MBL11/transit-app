@@ -5,6 +5,7 @@
 
 import * as SQLite from 'expo-sqlite';
 import type { Stop, Route, Trip, StopTime } from './types/models';
+import { logger } from '../utils/logger';
 
 const DATABASE_NAME = 'transit.db';
 
@@ -21,7 +22,7 @@ export function openDatabase(): SQLite.SQLiteDatabase {
 export async function initializeDatabase(): Promise<void> {
   const db = openDatabase();
 
-  console.log('[Database] Initializing database...');
+  logger.log('[Database] Initializing database...');
 
   try {
     // Enable WAL mode for concurrent reads during writes (prevents "database is locked" errors)
@@ -90,7 +91,7 @@ export async function initializeDatabase(): Promise<void> {
     `);
 
     // Create indexes for performance
-    console.log('[Database] Creating indexes...');
+    logger.log('[Database] Creating indexes...');
 
     // Index on stops coordinates (for map queries)
     db.execSync(`
@@ -140,9 +141,9 @@ export async function initializeDatabase(): Promise<void> {
       ON stop_times(stop_id, trip_id);
     `);
 
-    console.log('[Database] ✅ Database initialized successfully');
+    logger.log('[Database] ✅ Database initialized successfully');
   } catch (error) {
-    console.error('[Database] ❌ Failed to initialize database:', error);
+    logger.error('[Database] ❌ Failed to initialize database:', error);
     throw error;
   }
 }
@@ -153,7 +154,7 @@ export async function initializeDatabase(): Promise<void> {
 export async function dropAllTables(): Promise<void> {
   const db = openDatabase();
 
-  console.log('[Database] Dropping all tables...');
+  logger.log('[Database] Dropping all tables...');
 
   try {
     db.execSync('DROP TABLE IF EXISTS shapes;');
@@ -162,9 +163,9 @@ export async function dropAllTables(): Promise<void> {
     db.execSync('DROP TABLE IF EXISTS routes;');
     db.execSync('DROP TABLE IF EXISTS stops;');
 
-    console.log('[Database] ✅ All tables dropped');
+    logger.log('[Database] ✅ All tables dropped');
   } catch (error) {
-    console.error('[Database] ❌ Failed to drop tables:', error);
+    logger.error('[Database] ❌ Failed to drop tables:', error);
     throw error;
   }
 }
@@ -214,7 +215,7 @@ export function isDatabaseEmpty(): boolean {
  * Creates tables first if they don't exist
  */
 export async function clearAllData(): Promise<void> {
-  console.log('[Database] Clearing all data...');
+  logger.log('[Database] Clearing all data...');
 
   // First ensure tables exist
   await initializeDatabase();
@@ -229,10 +230,10 @@ export async function clearAllData(): Promise<void> {
     db.execSync('DELETE FROM stops;');
     db.execSync('DELETE FROM shapes;');
     db.execSync('COMMIT;');
-    console.log('[Database] ✅ All data cleared');
+    logger.log('[Database] ✅ All data cleared');
   } catch (error) {
     db.execSync('ROLLBACK;');
-    console.error('[Database] ❌ Failed to clear data:', error);
+    logger.error('[Database] ❌ Failed to clear data:', error);
     throw error;
   }
 }
@@ -247,7 +248,7 @@ export async function clearAllData(): Promise<void> {
 export async function insertStops(stops: Stop[]): Promise<void> {
   const db = openDatabase();
 
-  console.log(`[Database] Inserting ${stops.length} stops...`);
+  logger.log(`[Database] Inserting ${stops.length} stops...`);
 
   try {
     db.execSync('BEGIN TRANSACTION;');
@@ -270,10 +271,10 @@ export async function insertStops(stops: Stop[]): Promise<void> {
     statement.finalizeSync();
     db.execSync('COMMIT;');
 
-    console.log(`[Database] ✅ ${stops.length} stops inserted`);
+    logger.log(`[Database] ✅ ${stops.length} stops inserted`);
   } catch (error) {
     db.execSync('ROLLBACK;');
-    console.error('[Database] ❌ Failed to insert stops:', error);
+    logger.error('[Database] ❌ Failed to insert stops:', error);
     throw error;
   }
 }
@@ -284,7 +285,7 @@ export async function insertStops(stops: Stop[]): Promise<void> {
 export async function insertRoutes(routes: Route[]): Promise<void> {
   const db = openDatabase();
 
-  console.log(`[Database] Inserting ${routes.length} routes...`);
+  logger.log(`[Database] Inserting ${routes.length} routes...`);
 
   try {
     db.execSync('BEGIN TRANSACTION;');
@@ -307,10 +308,10 @@ export async function insertRoutes(routes: Route[]): Promise<void> {
     statement.finalizeSync();
     db.execSync('COMMIT;');
 
-    console.log(`[Database] ✅ ${routes.length} routes inserted`);
+    logger.log(`[Database] ✅ ${routes.length} routes inserted`);
   } catch (error) {
     db.execSync('ROLLBACK;');
-    console.error('[Database] ❌ Failed to insert routes:', error);
+    logger.error('[Database] ❌ Failed to insert routes:', error);
     throw error;
   }
 }
@@ -321,7 +322,7 @@ export async function insertRoutes(routes: Route[]): Promise<void> {
 export async function insertTrips(trips: Trip[]): Promise<void> {
   const db = openDatabase();
 
-  console.log(`[Database] Inserting ${trips.length} trips...`);
+  logger.log(`[Database] Inserting ${trips.length} trips...`);
 
   try {
     db.execSync('BEGIN TRANSACTION;');
@@ -344,10 +345,10 @@ export async function insertTrips(trips: Trip[]): Promise<void> {
     statement.finalizeSync();
     db.execSync('COMMIT;');
 
-    console.log(`[Database] ✅ ${trips.length} trips inserted`);
+    logger.log(`[Database] ✅ ${trips.length} trips inserted`);
   } catch (error) {
     db.execSync('ROLLBACK;');
-    console.error('[Database] ❌ Failed to insert trips:', error);
+    logger.error('[Database] ❌ Failed to insert trips:', error);
     throw error;
   }
 }
@@ -358,7 +359,7 @@ export async function insertTrips(trips: Trip[]): Promise<void> {
 export async function insertStopTimes(stopTimes: StopTime[]): Promise<void> {
   const db = openDatabase();
 
-  console.log(`[Database] Inserting ${stopTimes.length} stop times...`);
+  logger.log(`[Database] Inserting ${stopTimes.length} stop times...`);
 
   try {
     db.execSync('BEGIN TRANSACTION;');
@@ -380,10 +381,10 @@ export async function insertStopTimes(stopTimes: StopTime[]): Promise<void> {
     statement.finalizeSync();
     db.execSync('COMMIT;');
 
-    console.log(`[Database] ✅ ${stopTimes.length} stop times inserted`);
+    logger.log(`[Database] ✅ ${stopTimes.length} stop times inserted`);
   } catch (error) {
     db.execSync('ROLLBACK;');
-    console.error('[Database] ❌ Failed to insert stop times:', error);
+    logger.error('[Database] ❌ Failed to insert stop times:', error);
     throw error;
   }
 }
@@ -406,7 +407,7 @@ export async function getAllStops(): Promise<Stop[]> {
       parentStation: row.parent_station,
     }));
   } catch (error) {
-    console.error('[Database] ❌ Failed to get all stops:', error);
+    logger.error('[Database] ❌ Failed to get all stops:', error);
     throw error;
   }
 }
@@ -429,7 +430,7 @@ export async function getAllRoutes(): Promise<Route[]> {
       textColor: row.text_color,
     }));
   } catch (error) {
-    console.error('[Database] ❌ Failed to get all routes:', error);
+    logger.error('[Database] ❌ Failed to get all routes:', error);
     throw error;
   }
 }
@@ -454,7 +455,7 @@ export async function getStopById(id: string): Promise<Stop | null> {
       parentStation: row.parent_station,
     };
   } catch (error) {
-    console.error('[Database] ❌ Failed to get stop by ID:', error);
+    logger.error('[Database] ❌ Failed to get stop by ID:', error);
     throw error;
   }
 }
@@ -474,7 +475,7 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
     );
 
     if (!stop) {
-      console.warn(`[Database] Stop not found: ${stopId}`);
+      logger.warn(`[Database] Stop not found: ${stopId}`);
       return [];
     }
 
@@ -496,7 +497,7 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
     );
 
     const stopIds = sameStationStops.map(s => s.id);
-    console.log(`[Database] Found ${stopIds.length} stops for station "${stop.name}":`, stopIds);
+    logger.log(`[Database] Found ${stopIds.length} stops for station "${stop.name}":`, stopIds);
 
     // Get all routes serving any of these stops
     const placeholders = stopIds.map(() => '?').join(', ');
@@ -531,7 +532,7 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
 
       for (const [prefix, routeType] of Object.entries(PREFIX_TYPE_MAP)) {
         if (stopId.startsWith(prefix)) {
-          console.log(`[Database] Prefix fallback: "${stop.name}" (${stopId}) → loading all type=${routeType} routes`);
+          logger.log(`[Database] Prefix fallback: "${stop.name}" (${stopId}) → loading all type=${routeType} routes`);
           const fallbackRows = db.getAllSync<any>(
             `SELECT * FROM routes WHERE type = ?`,
             [routeType]
@@ -554,7 +555,7 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
       const FERRY_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
       const upperName = (stop.name || '').toUpperCase();
       if (FERRY_KEYWORDS.some((kw: string) => upperName.includes(kw))) {
-        console.log(`[Database] Ferry fallback: "${stop.name}" has ferry keyword, loading all ferry routes`);
+        logger.log(`[Database] Ferry fallback: "${stop.name}" has ferry keyword, loading all ferry routes`);
         const ferryRows = db.getAllSync<any>(
           `SELECT * FROM routes WHERE type = 4`
         );
@@ -573,7 +574,7 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
 
     return routes;
   } catch (error) {
-    console.error('[Database] ❌ Failed to get routes by stop ID:', error);
+    logger.error('[Database] ❌ Failed to get routes by stop ID:', error);
     throw error;
   }
 }
@@ -632,10 +633,10 @@ export async function getRoutesByStopIds(stopIds: string[]): Promise<Map<string,
       }
     }
 
-    console.log(`[Database] Batch fetched routes for ${stopIds.length} stops in 1 query`);
+    logger.log(`[Database] Batch fetched routes for ${stopIds.length} stops in 1 query`);
     return result;
   } catch (error) {
-    console.error('[Database] ❌ Failed to batch get routes:', error);
+    logger.error('[Database] ❌ Failed to batch get routes:', error);
     throw error;
   }
 }
@@ -654,10 +655,10 @@ export function getStopIdsByTripPrefix(prefix: string): Set<string> {
       [`${prefix}%`]
     );
     const stopIds = new Set(rows.map(r => r.stop_id));
-    console.log(`[Database] Found ${stopIds.size} stops with trip prefix "${prefix}"`);
+    logger.log(`[Database] Found ${stopIds.size} stops with trip prefix "${prefix}"`);
     return stopIds;
   } catch (error) {
-    console.warn(`[Database] Failed to get stops by prefix "${prefix}":`, error);
+    logger.warn(`[Database] Failed to get stops by prefix "${prefix}":`, error);
     return new Set();
   }
 }
@@ -688,7 +689,7 @@ export async function getStopsInBounds(
       parentStation: row.parent_station,
     }));
   } catch (error) {
-    console.error('[Database] ❌ Failed to get stops in bounds:', error);
+    logger.error('[Database] ❌ Failed to get stops in bounds:', error);
     throw error;
   }
 }
@@ -751,7 +752,7 @@ export async function searchStops(query: string): Promise<Stop[]> {
       parentStation: row.parent_station,
     }));
   } catch (error) {
-    console.error('[Database] ❌ Failed to search stops:', error);
+    logger.error('[Database] ❌ Failed to search stops:', error);
     throw error;
   }
 }
@@ -810,7 +811,7 @@ export async function searchRoutes(query: string): Promise<Route[]> {
       textColor: row.text_color,
     }));
   } catch (error) {
-    console.error('[Database] ❌ Failed to search routes:', error);
+    logger.error('[Database] ❌ Failed to search routes:', error);
     throw error;
   }
 }
@@ -835,7 +836,7 @@ export async function getRouteById(id: string): Promise<Route | null> {
       textColor: row.text_color,
     };
   } catch (error) {
-    console.error('[Database] ❌ Failed to get route by ID:', error);
+    logger.error('[Database] ❌ Failed to get route by ID:', error);
     throw error;
   }
 }
@@ -871,7 +872,7 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
     if (stops.length === 0) {
       const route = db.getFirstSync<any>('SELECT type FROM routes WHERE id = ?', [routeId]);
       if (route && route.type === 4) {
-        console.log(`[Database] Ferry fallback: no stops via stop_times for route ${routeId}, loading ferry stops by name`);
+        logger.log(`[Database] Ferry fallback: no stops via stop_times for route ${routeId}, loading ferry stops by name`);
         const ferryRows = db.getAllSync<any>(
           `SELECT * FROM stops
            WHERE UPPER(name) LIKE '%ISKELE%'
@@ -895,7 +896,7 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
 
     return stops;
   } catch (error) {
-    console.error('[Database] ❌ Failed to get stops by route ID:', error);
+    logger.error('[Database] ❌ Failed to get stops by route ID:', error);
     throw error;
   }
 }
@@ -947,7 +948,7 @@ export async function getTripInfoForRoute(
 
     return { headsign: row.headsign };
   } catch (error) {
-    console.error('[Database] ❌ Failed to get trip info:', error);
+    logger.error('[Database] ❌ Failed to get trip info:', error);
     return null;
   }
 }
@@ -1006,7 +1007,7 @@ export async function getNextDepartures(stopId: string, limit: number = 20): Pro
       };
     });
   } catch (error) {
-    console.error('[Database] ❌ Failed to get next departures:', error);
+    logger.error('[Database] ❌ Failed to get next departures:', error);
     throw error;
   }
 }

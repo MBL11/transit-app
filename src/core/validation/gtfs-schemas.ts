@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { logger } from '../../utils/logger';
 
 /**
  * GTFS Time Format: HH:MM:SS (24-hour format, can exceed 24 hours for next-day trips)
@@ -147,16 +148,16 @@ export function validateGTFSData<T>(
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error(`[Validation] Failed to validate ${context || 'data'}:`, error.errors);
+      logger.error(`[Validation] Failed to validate ${context || 'data'}:`, error.errors);
       // Log first error for debugging
       if (error.errors.length > 0) {
         const firstError = error.errors[0];
-        console.error(
+        logger.error(
           `[Validation] ${firstError.path.join('.')}: ${firstError.message}`
         );
       }
     } else {
-      console.error(`[Validation] Unexpected error validating ${context || 'data'}:`, error);
+      logger.error(`[Validation] Unexpected error validating ${context || 'data'}:`, error);
     }
     return null;
   }
@@ -183,7 +184,7 @@ export function validateGTFSArray<T>(
       errorCount++;
       if (__DEV__ && errorCount <= 5) {
         // Only log first 5 errors to avoid spam
-        console.warn(
+        logger.warn(
           `[Validation] Skipping invalid ${context || 'item'} at index ${i}:`,
           error instanceof z.ZodError ? error.errors[0]?.message : error
         );
@@ -192,7 +193,7 @@ export function validateGTFSArray<T>(
   }
 
   if (errorCount > 0) {
-    console.warn(
+    logger.warn(
       `[Validation] Skipped ${errorCount}/${data.length} invalid ${context || 'items'}`
     );
   }
@@ -230,7 +231,7 @@ export function parseGTFSColor(colorStr: string | undefined): string | undefined
 
   const result = GTFSColorSchema.safeParse(colorStr);
   if (!result.success) {
-    console.warn(`[Validation] Invalid color: ${colorStr}`);
+    logger.warn(`[Validation] Invalid color: ${colorStr}`);
     return undefined;
   }
 

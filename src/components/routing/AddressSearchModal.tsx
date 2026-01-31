@@ -21,6 +21,7 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import { searchPlaces, GeocodingResult } from '../../core/geocoding';
 import { useLocation } from '../../hooks/useLocation';
 import { getRecentSearches, addToHistory, SearchHistoryItem } from '../../core/search-history';
+import { logger } from '../../utils/logger';
 
 interface AddressSearchModalProps {
   visible: boolean;
@@ -100,7 +101,7 @@ export function AddressSearchModal({
         setSearchError(t('common.noResults'));
       }
     } catch (error) {
-      console.error('Search error:', error);
+      logger.error('Search error:', error);
       setSearchError(t('common.error'));
     } finally {
       setIsSearching(false);

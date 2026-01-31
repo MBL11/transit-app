@@ -4,13 +4,15 @@
  * https://www.transit.land/documentation
  */
 
+import { logger } from '../utils/logger';
+
 const TRANSITLAND_API_BASE = 'https://transit.land/api/v2/rest';
 
 // API key from environment (user needs to set this)
 const getApiKey = (): string => {
   const key = process.env.EXPO_PUBLIC_TRANSITLAND_API_KEY;
   if (!key) {
-    console.warn('[Transitland] No API key found. Set EXPO_PUBLIC_TRANSITLAND_API_KEY in .env');
+    logger.warn('[Transitland] No API key found. Set EXPO_PUBLIC_TRANSITLAND_API_KEY in .env');
     return '';
   }
   return key;
@@ -102,7 +104,7 @@ async function transitlandFetch<T>(endpoint: string, params: Record<string, stri
     url.searchParams.append('apikey', apiKey);
   }
 
-  console.log(`[Transitland] Fetching: ${endpoint}`);
+  logger.log(`[Transitland] Fetching: ${endpoint}`);
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -112,7 +114,7 @@ async function transitlandFetch<T>(endpoint: string, params: Record<string, stri
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
-    console.error(`[Transitland] API error ${response.status}:`, errorText);
+    logger.error(`[Transitland] API error ${response.status}:`, errorText);
     throw new Error(`Transitland API error: ${response.status} - ${response.statusText}`);
   }
 
@@ -169,11 +171,11 @@ export async function getIzmirRoutes(): Promise<TransitlandRoute[]> {
       });
 
       if (response.routes) {
-        console.log(`[Transitland] Found ${response.routes.length} routes for ${name}`);
+        logger.log(`[Transitland] Found ${response.routes.length} routes for ${name}`);
         allRoutes.push(...response.routes);
       }
     } catch (error) {
-      console.warn(`[Transitland] Failed to fetch routes for ${name}:`, error);
+      logger.warn(`[Transitland] Failed to fetch routes for ${name}:`, error);
     }
   }
 

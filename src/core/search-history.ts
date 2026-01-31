@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GeocodingResult } from './geocoding';
+import { logger } from '../utils/logger';
 
 const HISTORY_KEY = '@address_search_history';
 const MAX_HISTORY_ITEMS = 5;
@@ -25,7 +26,7 @@ export async function getRecentSearches(): Promise<SearchHistoryItem[]> {
     // Sort by timestamp descending (most recent first)
     return history.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
-    console.error('[SearchHistory] Error loading history:', error);
+    logger.error('[SearchHistory] Error loading history:', error);
     return [];
   }
 }
@@ -61,9 +62,9 @@ export async function addToHistory(result: GeocodingResult): Promise<void> {
     const trimmedHistory = history.slice(0, MAX_HISTORY_ITEMS);
 
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(trimmedHistory));
-    console.log('[SearchHistory] Added to history:', result.shortAddress || result.displayName);
+    logger.log('[SearchHistory] Added to history:', result.shortAddress || result.displayName);
   } catch (error) {
-    console.error('[SearchHistory] Error saving to history:', error);
+    logger.error('[SearchHistory] Error saving to history:', error);
   }
 }
 
@@ -73,8 +74,8 @@ export async function addToHistory(result: GeocodingResult): Promise<void> {
 export async function clearHistory(): Promise<void> {
   try {
     await AsyncStorage.removeItem(HISTORY_KEY);
-    console.log('[SearchHistory] History cleared');
+    logger.log('[SearchHistory] History cleared');
   } catch (error) {
-    console.error('[SearchHistory] Error clearing history:', error);
+    logger.error('[SearchHistory] Error clearing history:', error);
   }
 }

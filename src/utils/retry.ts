@@ -3,6 +3,8 @@
  * Implements exponential backoff for failed requests
  */
 
+import { logger } from './logger';
+
 export interface RetryOptions {
   maxRetries?: number;
   initialDelay?: number; // in milliseconds
@@ -78,13 +80,13 @@ export async function retry<T>(
 
       // If this was the last attempt, throw the error
       if (attempt === opts.maxRetries) {
-        console.error(`[Retry] Failed after ${opts.maxRetries} retries:`, error);
+        logger.error(`[Retry] Failed after ${opts.maxRetries} retries:`, error);
         throw error;
       }
 
       // Check if we should retry this error
       if (!opts.shouldRetry(error, attempt)) {
-        console.warn(`[Retry] Not retrying error (attempt ${attempt + 1}):`, error);
+        logger.warn(`[Retry] Not retrying error (attempt ${attempt + 1}):`, error);
         throw error;
       }
 
@@ -96,7 +98,7 @@ export async function retry<T>(
         opts.backoffMultiplier
       );
 
-      console.warn(
+      logger.warn(
         `[Retry] Attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms...`,
         error
       );
