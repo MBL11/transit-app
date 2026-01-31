@@ -15,6 +15,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Alert } from '../core/types/adapter';
 import { logger } from '../utils/logger';
+import { captureException } from './crash-reporting';
 
 const CACHE_KEY = '@izmir_alerts_cache';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
@@ -346,14 +347,17 @@ export async function fetchIzmirAlerts(): Promise<Alert[]> {
   const [metroAlerts, izbanAlerts, eshotAlerts] = await Promise.all([
     scrapeIzmirMetro().catch(err => {
       logger.warn('[AlertScraper] Metro scrape failed:', err);
+      captureException(err, { tags: { module: 'alerts', source: 'izmir_metro' } });
       return [] as Alert[];
     }),
     scrapeIzban().catch(err => {
       logger.warn('[AlertScraper] İZBAN scrape failed:', err);
+      captureException(err, { tags: { module: 'alerts', source: 'izban' } });
       return [] as Alert[];
     }),
     scrapeEshot().catch(err => {
       logger.warn('[AlertScraper] ESHOT scrape failed:', err);
+      captureException(err, { tags: { module: 'alerts', source: 'eshot' } });
       return [] as Alert[];
     }),
   ]);

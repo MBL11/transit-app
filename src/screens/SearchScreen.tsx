@@ -19,6 +19,8 @@ import { searchStops, searchRoutes, getRoutesByStopIds } from '../core/database'
 import type { Stop, Route } from '../core/types/models';
 import type { SearchStackParamList } from '../navigation/SearchStackNavigator';
 import { logger } from '../utils/logger';
+import { trackEvent, AnalyticsEvents } from '../services/analytics';
+import { captureException } from '../services/crash-reporting';
 
 type Props = NativeStackScreenProps<SearchStackParamList, 'Search'>;
 
@@ -83,13 +85,16 @@ export function SearchScreen({ navigation }: Props) {
           }));
 
           setStopResults(stopsWithRoutes);
+          trackEvent(AnalyticsEvents.SEARCH_PERFORMED, { query: debouncedQuery, tab: 'stops', resultCount: stopsWithRoutes.length });
         } else {
           // Search lines (no limit, we'll paginate)
           const routes = await searchRoutes(debouncedQuery);
           setLineResults(routes);
+          trackEvent(AnalyticsEvents.SEARCH_PERFORMED, { query: debouncedQuery, tab: 'lines', resultCount: routes.length });
         }
       } catch (error) {
         logger.error('[SearchScreen] Search error:', error);
+        captureException(error, { tags: { screen: 'search' } });
         setStopResults([]);
         setLineResults([]);
       } finally {
@@ -107,11 +112,12 @@ export function SearchScreen({ navigation }: Props) {
   }, [activeTab, debouncedQuery]);
 
   const handleStopPress = useCallback((stop: Stop) => {
+    trackEvent(AnalyticsEvents.SEARCH_RESULT_SELECTED, { resultType: 'stop', stopId: stop.id, stopName: stop.name });
     navigation.navigate('StopDetails', { stopId: stop.id });
   }, [navigation]);
 
   const handleLinePress = useCallback((route: Route) => {
-    // Navigate to LineDetailsScreen (assuming it's in the navigation)
+    trackEvent(AnalyticsEvents.SEARCH_RESULT_SELECTED, { resultType: 'line', lineId: route.id, lineName: route.shortName });
     // @ts-ignore - Navigation might not have this route in SearchStack
     navigation.navigate('LineDetails', { routeId: route.id });
   }, [navigation]);

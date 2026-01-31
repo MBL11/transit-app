@@ -18,6 +18,8 @@ import type { Stop, Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
 import { useAdapter } from '../hooks/useAdapter';
 import { logger } from '../utils/logger';
+import { trackEvent, AnalyticsEvents } from '../services/analytics';
+import { captureException } from '../services/crash-reporting';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'StopDetails'>;
 
@@ -62,6 +64,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
     } catch (err) {
       logger.error('[StopDetailsScreen] Error refreshing departures:', err);
+      captureException(err, { tags: { screen: 'stop_details', action: 'refresh_departures' }, extra: { stopId } });
     }
   }, [stopId, adapter]);
 
@@ -95,6 +98,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
 
       setStop(stopData);
       setRoutes(routesData);
+      trackEvent(AnalyticsEvents.STOP_VIEWED, { stopId: stopData.id, stopName: stopData.name, routeCount: routesData.length });
 
       // Get departures from adapter (real-time or theoretical)
       if (adapter) {
@@ -117,6 +121,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       }
     } catch (err) {
       logger.error('[StopDetailsScreen] Error loading stop data:', err);
+      captureException(err, { tags: { screen: 'stop_details', action: 'load_stop' }, extra: { stopId } });
       setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
     } finally {
       setLoading(false);

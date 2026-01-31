@@ -28,6 +28,8 @@ import type { RoutingPreferences } from '../../types/routing-preferences';
 import { routeReducer, initialState } from './routeReducer';
 import { RouteScreenContent } from './RouteScreenContent';
 import { logger } from '../../utils/logger';
+import { trackEvent, AnalyticsEvents } from '../../services/analytics';
+import { captureException } from '../../services/crash-reporting';
 
 type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalculation'>;
 
@@ -159,11 +161,13 @@ export function RouteScreen() {
       dispatch({ type: 'SET_JOURNEYS', payload: filteredResults });
       dispatch({ type: 'SET_HAS_SEARCHED', payload: true });
       logger.log('[RouteScreen] Found', filteredResults.length, 'journeys');
+      trackEvent(AnalyticsEvents.ROUTE_CALCULATED, { resultCount: filteredResults.length, optimizeFor: state.preferences.optimizeFor, fromMode: state.fromMode, toMode: state.toMode });
 
       // Show interstitial ad if needed (every 3 route calculations)
       await showAdIfNeeded();
     } catch (err: any) {
       logger.error('[RouteScreen] Error calculating route:', err);
+      captureException(err, { tags: { screen: 'route', action: 'calculate' } });
       Alert.alert(t('common.error'), err.message || 'Unable to calculate route');
     } finally {
       dispatch({ type: 'SET_CALCULATING', payload: false });
@@ -171,6 +175,7 @@ export function RouteScreen() {
   };
 
   const handleJourneyPress = (journey: JourneyResult) => {
+    trackEvent(AnalyticsEvents.ROUTE_SELECTED, { duration: journey.duration, transfers: journey.transfers, legs: journey.legs.length });
     navigation.navigate('RouteDetails', { journey: serializeJourney(journey) });
   };
 

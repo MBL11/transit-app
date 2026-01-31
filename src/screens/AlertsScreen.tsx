@@ -13,6 +13,7 @@ import { AlertBanner } from '../components/transit/AlertBanner';
 import { useAlerts } from '../hooks';
 import { useNetwork } from '../contexts/NetworkContext';
 import type { Alert } from '../core/types/adapter';
+import { trackEvent, AnalyticsEvents } from '../services/analytics';
 
 export function AlertsScreen() {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export function AlertsScreen() {
   };
 
   const handleAlertPress = (alert: Alert) => {
+    trackEvent(AnalyticsEvents.ALERT_VIEWED, { alertId: alert.id, severity: alert.severity, affectedRoutes: alert.affectedRoutes });
     setSelectedAlert(alert);
     setModalVisible(true);
   };

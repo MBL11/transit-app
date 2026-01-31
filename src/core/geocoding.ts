@@ -4,6 +4,7 @@
  */
 
 import { logger } from '../utils/logger';
+import { captureException } from '../services/crash-reporting';
 
 const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
 
@@ -168,6 +169,7 @@ export async function geocodeAddress(
     return results;
   } catch (error) {
     logger.error('Geocoding error:', error);
+    captureException(error, { tags: { module: 'geocoding', action: 'geocode_address' }, extra: { query } });
     throw error;
   }
 }
@@ -237,6 +239,7 @@ export async function reverseGeocode(
     return parts.length > 0 ? parts.join(', ') : data.display_name;
   } catch (error) {
     logger.error('Reverse geocoding error:', error);
+    captureException(error, { tags: { module: 'geocoding', action: 'reverse_geocode' }, extra: { lat, lon } });
     throw error;
   }
 }
@@ -313,10 +316,7 @@ export async function searchPlaces(
     return results;
   } catch (error) {
     logger.error('[Geocoding] Place search error:', error);
-    if (error instanceof Error) {
-      logger.error('[Geocoding] Error message:', error.message);
-      logger.error('[Geocoding] Error stack:', error.stack);
-    }
+    captureException(error, { tags: { module: 'geocoding', action: 'search_places' }, extra: { query } });
     return [];
   }
 }

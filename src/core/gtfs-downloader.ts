@@ -10,6 +10,7 @@ import * as db from './database';
 import { downloadAndImportEshot } from './eshot-data-fetcher';
 import { generateT3CigliData } from './t3-cigli-data';
 import { logger } from '../utils/logger';
+import { captureException } from '../services/crash-reporting';
 
 // Available GTFS sources - İzmir official open data
 // Source: https://acikveri.bizizmir.com/en/dataset/toplu-ulasim-gtfs-verileri
@@ -88,6 +89,7 @@ export async function downloadGTFSZip(
     return result.uri;
   } catch (error) {
     logger.error('[GTFSDownloader] ❌ Download error:', error);
+    captureException(error, { tags: { module: 'gtfs', action: 'download' }, extra: { url } });
     throw new Error(`Failed to download GTFS: ${error}`);
   }
 }
@@ -167,6 +169,7 @@ export async function extractGTFSZip(zipUri: string): Promise<{
     };
   } catch (error) {
     logger.error('[GTFSDownloader] ❌ Extraction error:', error);
+    captureException(error, { tags: { module: 'gtfs', action: 'extract' } });
     throw new Error(`Failed to extract GTFS: ${error}`);
   }
 }
@@ -256,6 +259,7 @@ export async function downloadAndImportGTFS(
     return result;
   } catch (error) {
     logger.error('[GTFSDownloader] ❌ Import failed:', error);
+    captureException(error, { tags: { module: 'gtfs', action: 'import_single' }, extra: { source } });
     throw error;
   }
 }
@@ -422,6 +426,7 @@ export async function downloadAndImportAllIzmir(
     return result;
   } catch (error) {
     logger.error('[GTFSDownloader] ❌ İzmir import failed:', error);
+    captureException(error, { tags: { module: 'gtfs', action: 'import_all_izmir' } });
     throw error;
   }
 }

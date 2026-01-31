@@ -17,6 +17,7 @@ import { runMigrations } from '../../core/database-migration';
 import { getLineColor, formatTime } from './utils';
 import { fetchIzmirAlerts } from '../../services/izmir-alert-scraper';
 import { logger } from '../../utils/logger';
+import { captureException } from '../../services/crash-reporting';
 
 /**
  * İzmir adapter implementation
@@ -47,6 +48,7 @@ export class IzmirAdapter implements TransitAdapter {
       return stops;
     } catch (error) {
       logger.error('[IzmirAdapter] Failed to load stops:', error);
+      captureException(error, { tags: { module: 'adapter', action: 'load_stops' } });
       throw new Error('Failed to load stops');
     }
   }
@@ -73,6 +75,7 @@ export class IzmirAdapter implements TransitAdapter {
       return routes;
     } catch (error) {
       logger.error('[IzmirAdapter] Failed to load routes:', error);
+      captureException(error, { tags: { module: 'adapter', action: 'load_routes' } });
       throw new Error('Failed to load routes');
     }
   }
@@ -99,6 +102,7 @@ export class IzmirAdapter implements TransitAdapter {
       return trips;
     } catch (error) {
       logger.error('[IzmirAdapter] Failed to load trips:', error);
+      captureException(error, { tags: { module: 'adapter', action: 'load_trips' } });
       throw new Error('Failed to load trips');
     }
   }
@@ -124,6 +128,7 @@ export class IzmirAdapter implements TransitAdapter {
       return stopTimes;
     } catch (error) {
       logger.error('[IzmirAdapter] Failed to load stop times:', error);
+      captureException(error, { tags: { module: 'adapter', action: 'load_stop_times' } });
       throw new Error('Failed to load stop times');
     }
   }
@@ -230,6 +235,7 @@ export class IzmirAdapter implements TransitAdapter {
       return departures;
     } catch (error) {
       logger.error('[IzmirAdapter] Failed to get departures:', error);
+      captureException(error, { tags: { module: 'adapter', action: 'get_departures' }, extra: { stopId } });
       return [];
     }
   }
@@ -298,6 +304,7 @@ export class IzmirAdapter implements TransitAdapter {
       this.lastUpdateTime = new Date();
     } catch (error) {
       logger.error('[IzmirAdapter] Failed to initialize:', error);
+      captureException(error, { tags: { module: 'adapter', action: 'initialize' } });
       throw error;
     }
   }

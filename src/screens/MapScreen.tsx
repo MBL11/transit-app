@@ -29,6 +29,8 @@ import type { MapStackParamList } from '../navigation/MapStackNavigator';
 import * as db from '../core/database';
 import { detectTransitType, transitTypeToRouteType } from '../utils/transport-detection';
 import { logger } from '../utils/logger';
+import { trackEvent, AnalyticsEvents } from '../services/analytics';
+import { captureException } from '../services/crash-reporting';
 
 // Note: İzmir rail/tram/ferry has ~50 stops - loaded all at once. Bus stops (11K+) are excluded from map.
 
@@ -192,6 +194,7 @@ export function MapScreen({ navigation }: Props) {
       }
     } catch (err) {
       logger.error('[MapScreen] Failed to load stops:', err);
+      captureException(err, { tags: { screen: 'map', action: 'load_stops' } });
       setStopsError(err instanceof Error ? err : new Error('Failed to load stops'));
     } finally {
       setLoadingStops(false);
@@ -272,6 +275,7 @@ export function MapScreen({ navigation }: Props) {
       logger.log('[MapScreen] Loaded', routes.length, 'routes and', departures.length, 'departures');
     } catch (err) {
       logger.error('[MapScreen] Error loading stop details:', err);
+      captureException(err, { tags: { screen: 'map', action: 'load_stop_details' } });
       Alert.alert(t('common.error'), t('common.unableToLoad') + ' ' + t('transit.stopDetails', { defaultValue: 'stop details' }));
     } finally {
       setLoadingStopData(false);
@@ -321,6 +325,7 @@ export function MapScreen({ navigation }: Props) {
       await loadAllStops();
     } catch (err) {
       logger.error('[MapScreen] Import error:', err);
+      captureException(err, { tags: { screen: 'map', action: 'data_import' } });
       Alert.alert(t('common.error'), t('common.importFailed'));
     } finally {
       setImporting(false);

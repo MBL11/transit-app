@@ -14,6 +14,8 @@ import { getRouteById, getStopsByRouteId } from '../core/database';
 import type { Route, Stop } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
 import { logger } from '../utils/logger';
+import { trackEvent, AnalyticsEvents } from '../services/analytics';
+import { captureException } from '../services/crash-reporting';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'LineDetails'>;
 
@@ -56,8 +58,10 @@ export function LineDetailsScreen({ route, navigation }: Props) {
 
       setLineRoute(routeData);
       setStops(stopsData);
+      trackEvent(AnalyticsEvents.LINE_VIEWED, { lineId: routeData.id, lineName: routeData.shortName, lineType: routeData.type, stopCount: stopsData.length });
     } catch (err) {
       logger.error('[LineDetailsScreen] Error loading line data:', err);
+      captureException(err, { tags: { screen: 'line_details' }, extra: { routeId } });
       setError(err instanceof Error ? err : new Error(t('transit.loadingError')));
     } finally {
       setLoading(false);

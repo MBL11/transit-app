@@ -5,6 +5,7 @@ import { JourneyResult, RouteSegment } from './types/routing';
 import { geocodeAddress, GeocodingResult } from './geocoding';
 import { findBestNearbyStops, NearbyStop, getWalkingTime } from './nearby-stops';
 import { logger } from '../utils/logger';
+import { captureException } from '../services/crash-reporting';
 import {
   RoutingPreferences,
   DEFAULT_PREFERENCES,
@@ -435,6 +436,7 @@ export async function findRouteFromLocations(
     return topJourneys;
   } catch (error) {
     logger.error('[Routing] Error finding route from locations:', error);
+    captureException(error, { tags: { module: 'routing', action: 'find_route_from_locations' } });
     throw error;
   }
 }
@@ -644,6 +646,7 @@ export async function findRouteFromAddresses(
 
   } catch (error) {
     logger.error('[Routing] Error finding route from addresses:', error);
+    captureException(error, { tags: { module: 'routing', action: 'find_route_from_addresses' } });
     throw error;
   }
 }
@@ -753,6 +756,7 @@ export async function findRouteFromCoordinates(
 
   } catch (error) {
     logger.error('[Routing] Error finding route from coordinates:', error);
+    captureException(error, { tags: { module: 'routing', action: 'find_route_from_coordinates' } });
     throw error;
   }
 }
@@ -862,6 +866,7 @@ export async function findMultipleRoutes(
     return routesWithTags;
   } catch (error) {
     logger.error('[Routing] Error finding multiple routes:', error);
+    captureException(error, { tags: { module: 'routing', action: 'find_multiple_routes' } });
     throw error;
   }
 }
@@ -906,6 +911,7 @@ export async function findMultipleRoutesFromAddresses(
     );
   } catch (error) {
     logger.error('[Routing] Error finding multiple routes from addresses:', error);
+    captureException(error, { tags: { module: 'routing', action: 'find_multiple_routes_from_addresses' } });
     throw error;
   }
 }
