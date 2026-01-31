@@ -143,8 +143,8 @@ describe('database.ts', () => {
   });
 
   describe('clearAllData', () => {
-    it('should delete all data from all tables', () => {
-      clearAllData();
+    it('should delete all data from all tables', async () => {
+      await clearAllData();
 
       expect(mockDb.execSync).toHaveBeenCalledWith('BEGIN TRANSACTION;');
       expect(mockDb.execSync).toHaveBeenCalledWith('DELETE FROM stop_times;');
@@ -154,14 +154,15 @@ describe('database.ts', () => {
       expect(mockDb.execSync).toHaveBeenCalledWith('COMMIT;');
     });
 
-    it('should rollback on error', () => {
+    it('should rollback on error', async () => {
+      // Only throw on DELETE calls, allow other execSync calls (CREATE TABLE, PRAGMA, etc.)
       mockDb.execSync.mockImplementation((sql: string) => {
         if (sql.includes('DELETE')) {
           throw new Error('Delete failed');
         }
       });
 
-      expect(() => clearAllData()).toThrow('Delete failed');
+      await expect(clearAllData()).rejects.toThrow('Delete failed');
       expect(mockDb.execSync).toHaveBeenCalledWith('ROLLBACK;');
     });
   });
@@ -454,7 +455,7 @@ describe('database.ts', () => {
 
   describe('getRoutesByStopId', () => {
     it('should return routes serving a stop', async () => {
-      const mockRows = [
+      const mockRouteRows = [
         {
           id: 'route1',
           short_name: '4',
@@ -464,7 +465,20 @@ describe('database.ts', () => {
           text_color: 'FFFFFF',
         },
       ];
-      mockDb.getAllSync.mockReturnValue(mockRows);
+
+      // getRoutesByStopId first calls getFirstSync to find the stop
+      mockDb.getFirstSync.mockReturnValueOnce({
+        name: 'Châtelet',
+        lat: 48.8584,
+        lon: 2.3470,
+      });
+
+      // Then getAllSync is called twice:
+      // 1. Find same-station stops (returns stop IDs)
+      // 2. Find routes via JOIN
+      mockDb.getAllSync
+        .mockReturnValueOnce([{ id: 'stop1' }])   // same-station stops
+        .mockReturnValueOnce(mockRouteRows);        // route rows
 
       const result = await getRoutesByStopId('stop1');
 

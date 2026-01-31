@@ -6,7 +6,7 @@ import {
 } from '../routing';
 import * as db from '../database';
 import { geocodeAddress } from '../geocoding';
-import { findBestNearbyStops } from '../nearby-stops';
+import { findBestNearbyStops, getWalkingTime } from '../nearby-stops';
 import { Stop, Route } from '../types/models';
 import { DEFAULT_PREFERENCES } from '../../types/routing-preferences';
 
@@ -43,6 +43,11 @@ describe('routing.ts', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // getWalkingTime is auto-mocked → returns undefined, causing NaN durations.
+    // Mock it to return a reasonable walking time (minutes).
+    (getWalkingTime as jest.Mock).mockImplementation((distanceMeters: number) => {
+      return Math.round(distanceMeters / 83.33); // 5 km/h
+    });
   });
 
   describe('findRoute', () => {

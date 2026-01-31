@@ -73,6 +73,35 @@ jest.mock('react-i18next', () => ({
   },
 }));
 
+// Mock @sentry/react-native (ESM module not compatible with Jest CJS)
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  setTag: jest.fn(),
+  setExtra: jest.fn(),
+  withScope: jest.fn((cb) => cb({ setTag: jest.fn(), setExtra: jest.fn() })),
+  ReactNavigationInstrumentation: jest.fn(),
+  ReactNativeTracing: jest.fn(),
+}));
+
+// Mock expo-constants
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { extra: {} },
+    manifest: null,
+  },
+}));
+
+// Mock expo-application
+jest.mock('expo-application', () => ({
+  nativeApplicationVersion: '1.0.0',
+  nativeBuildVersion: '1',
+}));
+
 // Mock fetch
 global.fetch = jest.fn(() =>
   Promise.resolve({

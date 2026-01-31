@@ -132,11 +132,12 @@ describe('GTFS Parser', () => {
 
   describe('normalizeStop', () => {
     it('should convert GTFSStop to Stop model', () => {
+      // Use İzmir coordinates (within İzmir bounding box) to avoid coordinate correction
       const gtfsStop: GTFSStop = {
         stop_id: 'STOP001',
-        stop_name: 'Gare du Nord',
-        stop_lat: '48.8809',
-        stop_lon: '2.3553',
+        stop_name: 'Konak',
+        stop_lat: '38.4189',
+        stop_lon: '27.1287',
         location_type: '0',
         parent_station: '',
       };
@@ -144,9 +145,9 @@ describe('GTFS Parser', () => {
       const stop = normalizeStop(gtfsStop);
 
       expect(stop.id).toBe('STOP001');
-      expect(stop.name).toBe('Gare du Nord');
-      expect(stop.lat).toBe(48.8809);
-      expect(stop.lon).toBe(2.3553);
+      expect(stop.name).toBe('Konak');
+      expect(stop.lat).toBe(38.4189);
+      expect(stop.lon).toBe(27.1287);
       expect(stop.locationType).toBe(0);
       expect(stop.parentStation).toBeUndefined();
     });
@@ -231,8 +232,9 @@ describe('GTFS Parser', () => {
 
       const route = normalizeRoute(gtfsRoute);
 
-      expect(route.color).toBe('#FFFFFF');
-      expect(route.textColor).toBe('#000000');
+      // İzmir bus fallback color is #0066CC (blue)
+      expect(route.color).toBe('#0066CC');
+      expect(route.textColor).toBe('#FFFFFF');
     });
   });
 
@@ -371,7 +373,8 @@ describe('GTFS Parser', () => {
     });
 
     it('should detect invalid coordinates', () => {
-      const result = validateGTFSData({
+      // When some stops have valid coords, validation passes with warnings (not errors)
+      const resultPartial = validateGTFSData({
         stops: [
           { id: 'S1', name: 'Valid', lat: 48.0, lon: 2.0, locationType: 0 },
           { id: 'S2', name: 'Invalid lat', lat: 999, lon: 2.0, locationType: 0 },
@@ -382,8 +385,23 @@ describe('GTFS Parser', () => {
         stopTimes: [{ tripId: 'T1', arrivalTime: '08:00:00', departureTime: '08:00:00', stopId: 'S1', stopSequence: 1 }],
       });
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('invalid coordinates'))).toBe(true);
+      // isValid is true because at least 1 stop has valid coords (warns instead of errors)
+      expect(resultPartial.isValid).toBe(true);
+      expect(resultPartial.warnings.some(w => w.includes('invalid coordinates'))).toBe(true);
+
+      // When ALL stops have invalid coords, isValid should be false
+      const resultAll = validateGTFSData({
+        stops: [
+          { id: 'S2', name: 'Invalid lat', lat: 999, lon: 2.0, locationType: 0 },
+          { id: 'S3', name: 'Invalid lon', lat: 48.0, lon: -999, locationType: 0 },
+        ],
+        routes: [{ id: 'R1', shortName: '1', longName: 'Test', type: 1, color: '#FFF', textColor: '#000' }],
+        trips: [{ id: 'T1', routeId: 'R1', serviceId: 'S1', directionId: 0 }],
+        stopTimes: [{ tripId: 'T1', arrivalTime: '08:00:00', departureTime: '08:00:00', stopId: 'S1', stopSequence: 1 }],
+      });
+
+      expect(resultAll.isValid).toBe(false);
+      expect(resultAll.errors.some(e => e.includes('invalid coordinates'))).toBe(true);
     });
 
     it('should detect NaN coordinates', () => {
