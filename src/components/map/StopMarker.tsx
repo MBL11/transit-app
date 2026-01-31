@@ -15,6 +15,7 @@ interface StopMarkerProps {
   stop: Stop;
   isSelected?: boolean;
   routeTypes?: number[]; // Array of route types serving this stop
+  routeColors?: string[]; // Parallel array of colors for each route type
   underConstruction?: boolean; // Station not yet in service
   onPress: (stop: Stop) => void;
 }
@@ -29,20 +30,29 @@ const TYPE_PRIORITY: Record<number, number> = {
 };
 
 // Memoized marker component to prevent unnecessary re-renders
-export const StopMarker = memo(function StopMarker({ stop, isSelected, routeTypes = [], underConstruction, onPress }: StopMarkerProps) {
+export const StopMarker = memo(function StopMarker({ stop, isSelected, routeTypes = [], routeColors = [], underConstruction, onPress }: StopMarkerProps) {
   // Memoize the press handler
   const handlePress = useCallback(() => {
     onPress(stop);
   }, [stop, onPress]);
 
-  // Get unique transport types, sorted by priority (show most important first)
-  const uniqueTypes = useMemo(() => {
-    const types = [...new Set(routeTypes)].sort((a, b) =>
-      (TYPE_PRIORITY[a] || 99) - (TYPE_PRIORITY[b] || 99)
-    );
-    // Limit to 3 types max to avoid overcrowding
-    return types.slice(0, 3);
-  }, [routeTypes]);
+  // Get unique transport types with their colors, sorted by priority
+  const uniqueEntries = useMemo(() => {
+    // Build entries with type + color, deduplicate by type
+    const seen = new Set<number>();
+    const entries: { type: number; color?: string }[] = [];
+    for (let i = 0; i < routeTypes.length; i++) {
+      const t = routeTypes[i];
+      if (!seen.has(t)) {
+        seen.add(t);
+        entries.push({ type: t, color: routeColors[i] });
+      }
+    }
+    entries.sort((a, b) => (TYPE_PRIORITY[a.type] || 99) - (TYPE_PRIORITY[b.type] || 99));
+    return entries.slice(0, 3);
+  }, [routeTypes, routeColors]);
+
+  const uniqueTypes = useMemo(() => uniqueEntries.map(e => e.type), [uniqueEntries]);
 
   // Get primary color (first/highest priority type)
   const primaryColor = useMemo(() => {
@@ -61,11 +71,11 @@ export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType
     >
       <View style={styles.container}>
         {/* Multiple transport type logos */}
-        {uniqueTypes.length > 0 ? (
+        {uniqueEntries.length > 0 ? (
           <View style={[styles.logosRow, isSelected && styles.logosRowSelected]}>
-            {uniqueTypes.map((type, index) => (
+            {uniqueEntries.map((entry, index) => (
               <View
-                key={`${type}-${index}`}
+                key={`${entry.type}-${index}`}
                 style={[
                   styles.logoBadge,
                   {
@@ -75,9 +85,10 @@ export const StopMarker = memo(function StopMarker({ stop, isSelected, routeType
                 ]}
               >
                 <TransitLogo
-                  type={routeTypeToTransitType(type)}
+                  type={routeTypeToTransitType(entry.type)}
                   size="small"
                   bordered
+                  colorOverride={entry.color}
                 />
               </View>
             ))}

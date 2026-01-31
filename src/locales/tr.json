@@ -156,7 +156,9 @@
     "typeMoreCharacters": "En az 3 karakter yazın",
     "recentSearches": "Son aramalar",
     "departure": "Kalkış",
-    "arrival": "Varış"
+    "arrival": "Varış",
+    "calculating": "En iyi güzergah aranıyor...",
+    "calculatingHint": "Hatlar ve aktarmalar analiz ediliyor"
   },
   "routing": {
     "filters": {

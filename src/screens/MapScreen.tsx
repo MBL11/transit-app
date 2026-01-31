@@ -52,6 +52,7 @@ export function MapScreen({ navigation }: Props) {
   // Local state for non-bus stops (rail/tram/ferry ~50 stops, bus excluded from map)
   const [nearbyStops, setNearbyStops] = useState<NearbyStop[]>([]);
   const [stopRouteTypesMap, setStopRouteTypesMap] = useState<Map<string, number[]>>(new Map());
+  const [stopRouteColorsMap, setStopRouteColorsMap] = useState<Map<string, string[]>>(new Map());
   const [underConstructionStops, setUnderConstructionStops] = useState<Set<string>>(new Set());
   const [loadingStops, setLoadingStops] = useState(true);
   const [stopsError, setStopsError] = useState<Error | null>(null);
@@ -122,13 +123,19 @@ export function MapScreen({ navigation }: Props) {
           const routesByStop = await db.getRoutesByStopIds(stopIds);
 
           // Convert to Map of stopId -> detected route types array (as GTFS numeric types)
+          // Also build parallel colors map for per-line colors (e.g. T1 green, T2 orange, T3 purple)
           const routeTypesMap = new Map<string, number[]>();
+          const routeColorsMap = new Map<string, string[]>();
           routesByStop.forEach((routes, stopId) => {
             routeTypesMap.set(
               stopId,
               routes.map(r => transitTypeToRouteType(
                 detectTransitType(r.type, r.shortName, r.longName)
               ))
+            );
+            routeColorsMap.set(
+              stopId,
+              routes.map(r => r.color || '')
             );
           });
 
@@ -197,6 +204,7 @@ export function MapScreen({ navigation }: Props) {
 
           logger.log(`[MapScreen] Loaded route types for ${routeTypesMap.size} stops`);
           setStopRouteTypesMap(routeTypesMap);
+          setStopRouteColorsMap(routeColorsMap);
         } catch (err) {
           logger.warn('[MapScreen] Failed to load route types (non-critical):', err);
           // Non-critical error - markers will show default icons
@@ -426,6 +434,7 @@ export function MapScreen({ navigation }: Props) {
           ref={mapRef}
           stops={nearbyStops}
           stopRouteTypes={stopRouteTypesMap}
+          stopRouteColors={stopRouteColorsMap}
           underConstructionStops={underConstructionStops}
           onStopPress={handleStopPress}
           initialRegion={initialRegion}

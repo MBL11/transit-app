@@ -156,7 +156,9 @@
     "typeMoreCharacters": "Escribe al menos 3 caracteres",
     "recentSearches": "Búsquedas recientes",
     "departure": "Salida",
-    "arrival": "Llegada"
+    "arrival": "Llegada",
+    "calculating": "Buscando la mejor ruta...",
+    "calculatingHint": "Analizando líneas y conexiones"
   },
   "routing": {
     "filters": {

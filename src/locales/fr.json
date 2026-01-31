@@ -156,7 +156,9 @@
     "currentLocation": "Ma position",
     "enterAddressToSearch": "Entrez une adresse pour rechercher",
     "typeMoreCharacters": "Tapez au moins 3 caractères",
-    "recentSearches": "Recherches récentes"
+    "recentSearches": "Recherches récentes",
+    "calculating": "Recherche du meilleur itinéraire...",
+    "calculatingHint": "Analyse des lignes et correspondances"
   },
   "routing": {
     "filters": {

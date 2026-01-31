@@ -20,6 +20,8 @@ export interface TransitLogoProps {
   size?: 'tiny' | 'small' | 'medium' | 'large';
   /** Show white border (useful on map markers) */
   bordered?: boolean;
+  /** Override the default brand color (e.g. per-line tram colors) */
+  colorOverride?: string;
 }
 
 const SIZES = {
@@ -85,6 +87,7 @@ export const TransitLogo = memo(function TransitLogo({
   type,
   size = 'medium',
   bordered = false,
+  colorOverride,
 }: TransitLogoProps) {
   const brand = TRANSIT_BRANDS[type];
   const dimensions = SIZES[size];
@@ -97,7 +100,7 @@ export const TransitLogo = memo(function TransitLogo({
           width: dimensions.width,
           height: dimensions.height,
           borderRadius: dimensions.width / 2,
-          backgroundColor: brand.color,
+          backgroundColor: colorOverride || brand.color,
         },
         bordered && {
           borderWidth: dimensions.borderWidth,

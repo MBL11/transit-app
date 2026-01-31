@@ -156,7 +156,9 @@
     "typeMoreCharacters": "Введите не менее 3 символов",
     "recentSearches": "Недавние адреса",
     "departure": "Отправление",
-    "arrival": "Прибытие"
+    "arrival": "Прибытие",
+    "calculating": "Поиск лучшего маршрута...",
+    "calculatingHint": "Анализ линий и пересадок"
   },
   "routing": {
     "filters": {

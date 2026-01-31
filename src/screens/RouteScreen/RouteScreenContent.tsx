@@ -324,7 +324,8 @@ export function RouteScreenContent({
           {state.calculating && (
           <View style={styles.calculatingContainer}>
             <ActivityIndicator size="large" color="#0066CC" />
-            <Text style={styles.calculatingText}>{t('common.loading')}</Text>
+            <Text style={styles.calculatingText}>{t('route.calculating', { defaultValue: 'Recherche du meilleur itinéraire...' })}</Text>
+            <Text style={styles.calculatingSubtext}>{t('route.calculatingHint', { defaultValue: 'Analyse des lignes et correspondances' })}</Text>
           </View>
         )}
 
@@ -744,7 +745,13 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     calculatingText: {
       marginTop: 16,
       fontSize: 16,
-      color: colors.textSecondary,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    calculatingSubtext: {
+      marginTop: 6,
+      fontSize: 13,
+      color: colors.textMuted,
     },
     noResultsContainer: {
       paddingVertical: 40,

@@ -156,7 +156,9 @@
     "currentLocation": "My location",
     "enterAddressToSearch": "Enter an address to search",
     "typeMoreCharacters": "Type at least 3 characters",
-    "recentSearches": "Recent searches"
+    "recentSearches": "Recent searches",
+    "calculating": "Finding the best route...",
+    "calculatingHint": "Analysing lines and connections"
   },
   "routing": {
     "filters": {
