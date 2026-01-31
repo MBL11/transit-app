@@ -1,14 +1,15 @@
 /**
  * Favorites Screen
  * Displays user's saved favorites (stops, routes, journeys)
+ * Uses FlatList for performant scrolling
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
@@ -19,12 +20,18 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { useFavorites } from '../hooks';
 import { useThemeColors } from '../hooks/useThemeColors';
-import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
 import type { FavoriteStop, FavoriteRoute, FavoriteJourney } from '../core/types/favorites';
-import { logger } from '../utils/logger';
+import type { FavoritesStackParamList } from '../navigation/types';
 
-type Props = NativeStackScreenProps<any, 'Favorites'>;
+type Props = NativeStackScreenProps<FavoritesStackParamList, 'FavoritesList'>;
+
+// Discriminated union for FlatList items
+type SectionHeader = { type: 'header'; key: string; icon: string; title: string; count: number };
+type StopItem = { type: 'stop'; key: string; data: FavoriteStop };
+type RouteItem = { type: 'route'; key: string; data: FavoriteRoute };
+type JourneyItem = { type: 'journey'; key: string; data: FavoriteJourney };
+type ListItem = SectionHeader | StopItem | RouteItem | JourneyItem;
 
 export function FavoritesScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -41,157 +48,158 @@ export function FavoritesScreen({ navigation }: Props) {
     setRefreshing(false);
   };
 
-  const handleStopPress = (stop: FavoriteStop) => {
-    // Navigate to MapView and show the stop
-    // For now, just log it
-    logger.log('[FavoritesScreen] Stop pressed:', stop.data.name);
-    // TODO: Navigate to MapView with stop selected
-  };
+  const handleStopPress = useCallback((stop: FavoriteStop) => {
+    navigation.navigate('StopDetails', { stopId: stop.data.id });
+  }, [navigation]);
 
-  const handleRoutePress = (route: FavoriteRoute) => {
-    logger.log('[FavoritesScreen] Route pressed:', route.data.shortName);
-    // TODO: Navigate to Lines tab with route selected
-  };
+  const handleRoutePress = useCallback((route: FavoriteRoute) => {
+    navigation.navigate('LineDetails', { routeId: route.data.id });
+  }, [navigation]);
 
-  const handleJourneyPress = (journey: FavoriteJourney) => {
-    logger.log('[FavoritesScreen] Journey pressed:', journey.data);
-    // TODO: Navigate to Route screen with pre-filled stops
-  };
+  const handleJourneyPress = useCallback((_journey: FavoriteJourney) => {
+    // TODO: Navigate to Route screen with pre-filled stops when RouteScreen supports params
+  }, []);
 
   const getRouteType = (routeType: number): 'metro' | 'bus' | 'tram' | 'rer' | 'train' => {
     switch (routeType) {
-      case 1:
-        return 'metro';
-      case 3:
-        return 'bus';
-      case 0:
-        return 'tram';
-      case 2:
-        return 'train';
-      default:
-        return 'bus';
+      case 1: return 'metro';
+      case 3: return 'bus';
+      case 0: return 'tram';
+      case 2: return 'train';
+      default: return 'bus';
     }
   };
 
+  // Build flat data array with section headers
+  const listData = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+
+    if (stops.length > 0) {
+      items.push({ type: 'header', key: 'header-stops', icon: '📍', title: t('favorites.stopsSection'), count: stops.length });
+      stops.forEach(fav => {
+        items.push({ type: 'stop', key: `stop-${fav.id}`, data: fav as FavoriteStop });
+      });
+    }
+
+    if (routes.length > 0) {
+      items.push({ type: 'header', key: 'header-routes', icon: '🚇', title: t('favorites.linesSection'), count: routes.length });
+      routes.forEach(fav => {
+        items.push({ type: 'route', key: `route-${fav.id}`, data: fav as FavoriteRoute });
+      });
+    }
+
+    if (journeys.length > 0) {
+      items.push({ type: 'header', key: 'header-journeys', icon: '🗺️', title: t('favorites.journeysSection'), count: journeys.length });
+      journeys.forEach(fav => {
+        items.push({ type: 'journey', key: `journey-${fav.id}`, data: fav as FavoriteJourney });
+      });
+    }
+
+    return items;
+  }, [stops, routes, journeys, t]);
+
+  const keyExtractor = useCallback((item: ListItem) => item.key, []);
+
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    switch (item.type) {
+      case 'header':
+        return (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{item.icon} {item.title} ({item.count})</Text>
+          </View>
+        );
+
+      case 'stop':
+        return (
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.cardContent}
+              onPress={() => handleStopPress(item.data)}
+            >
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>{item.data.data.name}</Text>
+                <Text style={styles.cardSubtitle}>{t('favorites.stopSubtitle')}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={() => toggleStop(item.data.data)}
+            >
+              <Text style={styles.removeButtonText}>⭐</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'route':
+        return (
+          <LineCard
+            lineNumber={item.data.data.shortName}
+            lineName={item.data.data.longName}
+            lineColor={`#${item.data.data.color}`}
+            type={getRouteType(item.data.data.type)}
+            isFavorite={isFavorite(item.data.id, 'route')}
+            onFavoritePress={() => toggleRoute(item.data.data)}
+            onPress={() => handleRoutePress(item.data)}
+          />
+        );
+
+      case 'journey':
+        return (
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.cardContent}
+              onPress={() => handleJourneyPress(item.data)}
+            >
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>
+                  {item.data.data.fromStopName} → {item.data.data.toStopName}
+                </Text>
+                <Text style={styles.cardSubtitle}>{t('favorites.journeySubtitle')}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={() => remove(item.data.id, 'journey')}
+            >
+              <Text style={styles.removeButtonText}>⭐</Text>
+            </TouchableOpacity>
+          </View>
+        );
+    }
+  }, [styles, t, handleStopPress, handleRoutePress, handleJourneyPress, toggleStop, toggleRoute, remove, isFavorite]);
+
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>{t('favorites.loadingFavorites')}</Text>
-      </View>
-    );
-  }
-
-  if (favorites.length === 0) {
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.emptyContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
-        }
-      >
-        <Text style={styles.emptyIcon}>⭐</Text>
-        <Text style={styles.emptyTitle}>{t('favorites.noFavorites')}</Text>
-        <Text style={styles.emptyText}>
-          {t('favorites.addHint')}
-        </Text>
-      </ScrollView>
+      <ScreenContainer>
+        <ScreenHeader title={t('tabs.favorites')} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>{t('favorites.loadingFavorites')}</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
     <ScreenContainer>
       <ScreenHeader title={t('tabs.favorites')} />
-      <ScrollView
+      <FlatList
+        data={listData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         style={styles.container}
-        contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
-      }
-    >
-      {/* Favorite Stops */}
-      {stops.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 {t('favorites.stopsSection')} ({stops.length})</Text>
-          {stops.map((favorite) => {
-            const fav = favorite as FavoriteStop;
-            return (
-              <View key={fav.id} style={styles.card}>
-                <TouchableOpacity
-                  style={styles.cardContent}
-                  onPress={() => handleStopPress(fav)}
-                >
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.cardTitle}>{fav.data.name}</Text>
-                    <Text style={styles.cardSubtitle}>{t('favorites.stopSubtitle')}</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => toggleStop(fav.data)}
-                >
-                  <Text style={styles.removeButtonText}>⭐</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      {/* Favorite Routes */}
-      {routes.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🚇 {t('favorites.linesSection')} ({routes.length})</Text>
-          {routes.map((favorite) => {
-            const fav = favorite as FavoriteRoute;
-            return (
-              <LineCard
-                key={fav.id}
-                lineNumber={fav.data.shortName}
-                lineName={fav.data.longName}
-                lineColor={`#${fav.data.color}`}
-                type={getRouteType(fav.data.type)}
-                isFavorite={isFavorite(fav.id, 'route')}
-                onFavoritePress={() => toggleRoute(fav.data)}
-                onPress={() => handleRoutePress(fav)}
-              />
-            );
-          })}
-        </View>
-      )}
-
-      {/* Favorite Journeys */}
-      {journeys.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🗺️ {t('favorites.journeysSection')} ({journeys.length})</Text>
-          {journeys.map((favorite) => {
-            const fav = favorite as FavoriteJourney;
-            return (
-              <View key={fav.id} style={styles.card}>
-                <TouchableOpacity
-                  style={styles.cardContent}
-                  onPress={() => handleJourneyPress(fav)}
-                >
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.cardTitle}>
-                      {fav.data.fromStopName} → {fav.data.toStopName}
-                    </Text>
-                    <Text style={styles.cardSubtitle}>{t('favorites.journeySubtitle')}</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => remove(fav.id, 'journey')}
-                >
-                  <Text style={styles.removeButtonText}>⭐</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-      )}
-      </ScrollView>
+        contentContainerStyle={listData.length === 0 ? styles.emptyContainer : styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContent}>
+            <Text style={styles.emptyIcon}>⭐</Text>
+            <Text style={styles.emptyTitle}>{t('favorites.noFavorites')}</Text>
+            <Text style={styles.emptyText}>{t('favorites.addHint')}</Text>
+          </View>
+        }
+      />
     </ScreenContainer>
   );
 }
@@ -218,6 +226,9 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     emptyContainer: {
       flexGrow: 1,
+    },
+    emptyContent: {
+      flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
       padding: 40,
@@ -238,14 +249,14 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       textAlign: 'center',
       lineHeight: 24,
     },
-    section: {
-      marginBottom: 24,
+    sectionHeader: {
+      marginBottom: 12,
+      marginTop: 8,
     },
     sectionTitle: {
       fontSize: 18,
       fontWeight: 'bold',
       color: colors.text,
-      marginBottom: 12,
     },
     card: {
       backgroundColor: colors.card,
