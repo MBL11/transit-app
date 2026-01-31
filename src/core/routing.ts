@@ -103,8 +103,8 @@ export async function findRoute(
   const journeys: JourneyResult[] = [];
 
   // Récupère les routes qui passent par les deux arrêts
-  const fromRoutes = await db.getRoutesByStopId(fromStopId);
-  const toRoutes = await db.getRoutesByStopId(toStopId);
+  const fromRoutes = await db.getRoutesByStopId(fromStopId, true);
+  const toRoutes = await db.getRoutesByStopId(toStopId, true);
 
   // Trouve les routes communes (trajet direct)
   const fromRouteIds = new Set(fromRoutes.map(r => r.id));
@@ -157,7 +157,7 @@ export async function findRoute(
         if (transferStop.id === fromStopId) continue; // Skip départ
 
         // Vérifie les routes qui passent par cet arrêt de correspondance
-        let transferRoutes = await db.getRoutesByStopId(transferStop.id);
+        let transferRoutes = await db.getRoutesByStopId(transferStop.id, true);
         let connectingRoutes = transferRoutes.filter(r => toRouteIds.has(r.id) && r.id !== fromRoute.id);
 
         // Si pas de connexion directe, cherche des arrêts proches pour les correspondances
@@ -167,7 +167,7 @@ export async function findRoute(
           const nearbyStops = await findBestNearbyStops(transferStop.lat, transferStop.lon, 10, TRANSFER_SEARCH_RADIUS_M);
           for (const nearbyStop of nearbyStops) {
             if (nearbyStop.id === transferStop.id) continue;
-            const nearbyRoutes = await db.getRoutesByStopId(nearbyStop.id);
+            const nearbyRoutes = await db.getRoutesByStopId(nearbyStop.id, true);
             const nearbyConnecting = nearbyRoutes.filter(r => toRouteIds.has(r.id) && r.id !== fromRoute.id);
             if (nearbyConnecting.length > 0) {
               connectingRoutes = nearbyConnecting;

@@ -464,7 +464,7 @@ export async function getStopById(id: string): Promise<Stop | null> {
  * Get routes that serve a specific stop
  * Also finds routes for stops with the same name at nearby locations (same station, different lines)
  */
-export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
+export async function getRoutesByStopId(stopId: string, includeBus: boolean = false): Promise<Route[]> {
   const db = openDatabase();
 
   try {
@@ -483,14 +483,16 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
     // This handles cases like Konak which has metro_konak, tram_konak, etc.
     // IMPORTANT: Exclude bus stops when the clicked stop is non-bus to avoid
     // showing 100+ bus route numbers on metro/tram/ferry stop details.
+    // When includeBus is true (used by routing engine), include all stops.
     const isBusStop = stopId.startsWith('bus_');
+    const excludeBus = !isBusStop && !includeBus;
     const radiusDegrees = 100 / 111000; // ~100 meters in degrees
     const sameStationStops = db.getAllSync<{ id: string }>(
       `SELECT id FROM stops
        WHERE name = ?
        AND lat BETWEEN ? AND ?
        AND lon BETWEEN ? AND ?
-       ${!isBusStop ? "AND id NOT LIKE 'bus_%'" : ''}`,
+       ${excludeBus ? "AND id NOT LIKE 'bus_%'" : ''}`,
       [
         stop.name,
         stop.lat - radiusDegrees,
