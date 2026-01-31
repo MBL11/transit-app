@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Alert } from '../types/alert';
+import type { Alert } from '../core/types/adapter';
 import { logger } from '../utils/logger';
 
 const NOTIFICATION_SETTINGS_KEY = '@notifications_enabled';
@@ -152,22 +152,22 @@ export async function scheduleAlertNotification(alert: Alert): Promise<string | 
     let emoji = '⚠️';
     let channelId = 'alerts';
 
-    if (alert.severity === 'SEVERE') {
+    if (alert.severity === 'severe') {
       emoji = '🚨';
-    } else if (alert.severity === 'MODERATE') {
+    } else if (alert.severity === 'warning') {
       emoji = '⚠️';
     } else {
       emoji = 'ℹ️';
       channelId = 'default';
     }
 
-    // Format the title
-    const title = `${emoji} ${alert.header}`;
+    // Format the notification title
+    const notifTitle = `${emoji} ${alert.title}`;
 
     // Schedule notification immediately
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title,
+        title: notifTitle,
         body: alert.description || 'Tap to view details',
         data: {
           alertId: alert.id,
@@ -175,7 +175,7 @@ export async function scheduleAlertNotification(alert: Alert): Promise<string | 
           severity: alert.severity,
           type: 'alert',
         },
-        sound: alert.severity === 'SEVERE',
+        sound: alert.severity === 'severe',
         badge: 1,
       },
       trigger: null, // null = immediate

@@ -15,6 +15,7 @@ import * as db from '../../core/database';
 import { izmirConfig, izmirDataSource } from './config';
 import { runMigrations } from '../../core/database-migration';
 import { getLineColor, formatTime } from './utils';
+import { fetchIzmirAlerts } from '../../services/izmir-alert-scraper';
 import { logger } from '../../utils/logger';
 
 /**
@@ -240,8 +241,23 @@ export class IzmirAdapter implements TransitAdapter {
    */
   async getAlerts(routeIds?: string[]): Promise<Alert[]> {
     logger.log('[IzmirAdapter] Getting alerts...');
-    // TODO: Implement web scraping or RSS feed for ESHOT announcements
-    return [];
+    try {
+      const alerts = await fetchIzmirAlerts();
+
+      // Filter by route IDs if specified
+      if (routeIds && routeIds.length > 0) {
+        return alerts.filter(alert =>
+          !alert.affectedRoutes ||
+          alert.affectedRoutes.length === 0 ||
+          alert.affectedRoutes.some(r => routeIds.some(id => id.toLowerCase().includes(r)))
+        );
+      }
+
+      return alerts;
+    } catch (error) {
+      logger.warn('[IzmirAdapter] Failed to fetch alerts:', error);
+      return [];
+    }
   }
 
   /**

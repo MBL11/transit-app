@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from '../types/alert';
+import type { Alert } from '../core/types/adapter';
 import { scheduleAlertNotification, areNotificationsEnabled } from './notifications';
 import * as favoritesStorage from '../core/favorites';
 import { logger } from '../utils/logger';
@@ -81,7 +81,7 @@ async function checkFavoriteAlertsInternal(
 
     // Filter severe and warning alerts only
     const importantAlerts = alerts.filter(
-      (alert) => alert.severity === 'SEVERE' || alert.severity === 'MODERATE'
+      (alert) => alert.severity === 'severe' || alert.severity === 'warning'
     );
 
     if (importantAlerts.length === 0) {
