@@ -266,6 +266,25 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
         if (unique.length >= 2) break;
       }
       shortName = unique.join('-') || rawRoute.route_id || 'Vapur';
+    } else if (routeType === 0) {
+      // Tram routes: generate T1, T2, etc. from route_id
+      const id = rawRoute.route_id || '';
+      // Group by direction: route_ids 1,2 → T1 (Konak), 3,4 → T2 (Karşıyaka)
+      const numericId = parseInt(id, 10);
+      if (!isNaN(numericId)) {
+        shortName = `T${Math.ceil(numericId / 2)}`;
+      } else {
+        shortName = `T${id}`;
+      }
+    } else if (routeType === 1) {
+      // Metro routes: generate M1, M2, etc.
+      const id = rawRoute.route_id || '';
+      const numericId = parseInt(id, 10);
+      if (!isNaN(numericId)) {
+        shortName = `M${Math.ceil(numericId / 2)}`;
+      } else {
+        shortName = `M${id}`;
+      }
     } else {
       shortName = rawRoute.route_id || rawRoute.route_long_name || 'Unknown';
       // Truncate if too long
