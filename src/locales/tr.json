@@ -154,7 +154,9 @@
     "currentLocation": "Konumum",
     "enterAddressToSearch": "Aramak için bir adres girin",
     "typeMoreCharacters": "En az 3 karakter yazın",
-    "recentSearches": "Son aramalar"
+    "recentSearches": "Son aramalar",
+    "departure": "Kalkış",
+    "arrival": "Varış"
   },
   "routing": {
     "filters": {

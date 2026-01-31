@@ -58,6 +58,8 @@
     "metro": "Metro",
     "bus": "Autobús",
     "tram": "Tranvía",
+    "izban": "İZBAN",
+    "ferry": "Ferry",
     "rer": "Tren",
     "train": "Tren",
     "linesServing": "Líneas que sirven esta parada",
@@ -152,7 +154,9 @@
     "currentLocation": "Mi ubicación",
     "enterAddressToSearch": "Ingresa una dirección para buscar",
     "typeMoreCharacters": "Escribe al menos 3 caracteres",
-    "recentSearches": "Búsquedas recientes"
+    "recentSearches": "Búsquedas recientes",
+    "departure": "Salida",
+    "arrival": "Llegada"
   },
   "routing": {
     "filters": {

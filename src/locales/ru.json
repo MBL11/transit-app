@@ -58,6 +58,8 @@
     "metro": "Метро",
     "bus": "Автобус",
     "tram": "Трамвай",
+    "izban": "İZBAN",
+    "ferry": "Паром",
     "rer": "Электричка",
     "train": "Поезд",
     "linesServing": "Линии на этой остановке",
@@ -152,7 +154,9 @@
     "currentLocation": "Моё местоположение",
     "enterAddressToSearch": "Введите адрес для поиска",
     "typeMoreCharacters": "Введите не менее 3 символов",
-    "recentSearches": "Недавние адреса"
+    "recentSearches": "Недавние адреса",
+    "departure": "Отправление",
+    "arrival": "Прибытие"
   },
   "routing": {
     "filters": {
