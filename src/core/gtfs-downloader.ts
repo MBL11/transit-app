@@ -8,6 +8,7 @@ import JSZip from 'jszip';
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
 import { downloadAndImportEshot } from './eshot-data-fetcher';
+import { generateT3CigliData } from './t3-cigli-data';
 import { logger } from '../utils/logger';
 
 // Available GTFS sources - İzmir official open data
@@ -360,6 +361,32 @@ export async function downloadAndImportAllIzmir(
       totalStopTimes += parsedData.stopTimes.length;
 
       onProgress?.('importing', baseProgress + progressPerSource, sourceInfo.name);
+    }
+
+    // Import T3 Cigli tram data (not in official GTFS, generated from OSM + timetables)
+    try {
+      logger.log('[GTFSDownloader] Importing T3 Cigli tram data...');
+      onProgress?.('importing', 0.82, 'T3 Çiğli Tramvay');
+
+      const t3Data = generateT3CigliData();
+      await db.insertRoutes(t3Data.routes);
+      await db.insertStops(t3Data.stops);
+      await db.insertTrips(t3Data.trips);
+
+      const batchSize = 10000;
+      for (let j = 0; j < t3Data.stopTimes.length; j += batchSize) {
+        const batch = t3Data.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+
+      totalStops += t3Data.stops.length;
+      totalRoutes += t3Data.routes.length;
+      totalTrips += t3Data.trips.length;
+      totalStopTimes += t3Data.stopTimes.length;
+
+      logger.log(`[GTFSDownloader] ✅ T3 Cigli data imported: ${t3Data.stops.length} stops, ${t3Data.routes.length} routes, ${t3Data.trips.length} trips`);
+    } catch (t3Error) {
+      logger.warn('[GTFSDownloader] ⚠️ T3 Cigli import failed (non-fatal):', t3Error);
     }
 
     // Import ESHOT bus data from open data portal
