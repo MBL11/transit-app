@@ -222,10 +222,10 @@ const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = 
   // Metro - Red (kırmızı)
   'M1': { color: '#D61C1F', textColor: '#FFFFFF' },
   'M2': { color: '#D61C1F', textColor: '#FFFFFF' }, // Under construction
-  // Tramway - Green (yeşil)
-  'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Karşıyaka
-  'T2': { color: '#00A651', textColor: '#FFFFFF' }, // Konak
-  'T3': { color: '#00A651', textColor: '#FFFFFF' }, // Çiğli (generic)
+  // Tramway - Each line has a distinct color
+  'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Konak tram (green)
+  'T2': { color: '#F7941D', textColor: '#FFFFFF' }, // Karşıyaka tram (orange)
+  'T3': { color: '#9B59B6', textColor: '#FFFFFF' }, // Çiğli circular (purple)
   // T3 Çiğli directional variants
   'CIGLI-IC': { color: '#4ABEFF', textColor: '#000000' },  // İç Hat (inner, light blue)
   'CIGLI-DIS': { color: '#FF6EC7', textColor: '#000000' },  // Dış Hat (outer, rose/magenta)

@@ -139,7 +139,7 @@ export function generateT3CigliData(): {
       shortName: 'T3',
       longName: 'Cigli Ring - Dis Hat (Kirmizi)',
       type: 0, // tram
-      color: '#00A651',
+      color: '#9B59B6',
       textColor: '#FFFFFF',
     },
     {
@@ -147,7 +147,7 @@ export function generateT3CigliData(): {
       shortName: 'T3',
       longName: 'Cigli Ring - Ic Hat (Mavi)',
       type: 0, // tram
-      color: '#00A651',
+      color: '#9B59B6',
       textColor: '#FFFFFF',
     },
   ];

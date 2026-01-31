@@ -175,7 +175,7 @@ export function RouteScreen() {
   };
 
   const handleJourneyPress = (journey: JourneyResult) => {
-    trackEvent(AnalyticsEvents.ROUTE_SELECTED, { duration: journey.duration, transfers: journey.transfers, legs: journey.legs.length });
+    trackEvent(AnalyticsEvents.ROUTE_SELECTED, { duration: journey.totalDuration, transfers: journey.numberOfTransfers, segments: journey.segments.length });
     navigation.navigate('RouteDetails', { journey: serializeJourney(journey) });
   };
 

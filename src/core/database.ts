@@ -480,13 +480,17 @@ export async function getRoutesByStopId(stopId: string): Promise<Route[]> {
     }
 
     // Find all stop IDs with the same name within 100m (same station, different lines)
-    // This handles cases like République which has M3_REPUBLIQUE, M5_REPUBLIQUE, etc.
+    // This handles cases like Konak which has metro_konak, tram_konak, etc.
+    // IMPORTANT: Exclude bus stops when the clicked stop is non-bus to avoid
+    // showing 100+ bus route numbers on metro/tram/ferry stop details.
+    const isBusStop = stopId.startsWith('bus_');
     const radiusDegrees = 100 / 111000; // ~100 meters in degrees
     const sameStationStops = db.getAllSync<{ id: string }>(
       `SELECT id FROM stops
        WHERE name = ?
        AND lat BETWEEN ? AND ?
-       AND lon BETWEEN ? AND ?`,
+       AND lon BETWEEN ? AND ?
+       ${!isBusStop ? "AND id NOT LIKE 'bus_%'" : ''}`,
       [
         stop.name,
         stop.lat - radiusDegrees,

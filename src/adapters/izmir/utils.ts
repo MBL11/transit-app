@@ -117,10 +117,10 @@ export function getLineColor(routeShortName: string, routeType: number): string 
   // Rail type 2 = İZBAN
   if (routeType === 2) return '#005BBB';
 
-  // Tramway - Green (#00A651)
-  if (name.startsWith('T') || routeType === 0) {
-    return '#00A651';
-  }
+  // Tramway - distinct color per line
+  if (name === 'T2' || name === '2') return '#F7941D'; // Karşıyaka (orange)
+  if (name === 'T3' || name === '3' || name.includes('CIGLI')) return '#9B59B6'; // Çiğli (purple)
+  if (name.startsWith('T') || routeType === 0) return '#00A651'; // T1 / default tram (green)
 
   // Ferry (Vapur) - Turquoise (#0099CC)
   if (routeType === 4) return '#0099CC';

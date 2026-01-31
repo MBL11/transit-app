@@ -35,15 +35,15 @@ const RER_COLORS: Record<string, { bg: string; text: string }> = {
   'B': { bg: '#005BBB', text: '#FFFFFF' },
 };
 
-// İzmir Tramway colors - Green (#00A651)
-// T3 Çiğli: İç Hat = light blue (#4ABEFF), Dış Hat = rose (#FF6EC7)
+// İzmir Tramway colors - Each line has a distinct color
+// T1 Konak: Green (#00A651), T2 Karşıyaka: Orange (#F7941D), T3 Çiğli: Purple (#9B59B6)
 const TRAM_COLORS: Record<string, { bg: string; text: string }> = {
-  'T1': { bg: '#00A651', text: '#FFFFFF' },
-  'T2': { bg: '#00A651', text: '#FFFFFF' },
-  'T3': { bg: '#00A651', text: '#FFFFFF' },
+  'T1': { bg: '#00A651', text: '#FFFFFF' },  // Konak tram (green)
+  'T2': { bg: '#F7941D', text: '#FFFFFF' },  // Karşıyaka tram (orange)
+  'T3': { bg: '#9B59B6', text: '#FFFFFF' },  // Çiğli circular (purple)
   '1': { bg: '#00A651', text: '#FFFFFF' },
-  '2': { bg: '#00A651', text: '#FFFFFF' },
-  '3': { bg: '#00A651', text: '#FFFFFF' },
+  '2': { bg: '#F7941D', text: '#FFFFFF' },
+  '3': { bg: '#9B59B6', text: '#FFFFFF' },
   'CIGLI-IC': { bg: '#4ABEFF', text: '#000000' },  // İç Hat (inner, light blue)
   'CIGLI-DIS': { bg: '#FF6EC7', text: '#000000' },  // Dış Hat (outer, rose/magenta)
 };

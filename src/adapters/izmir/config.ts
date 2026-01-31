@@ -113,17 +113,23 @@ export const izbanLines = {
 };
 
 /**
- * Tramway lines (Green - official)
+ * Tramway lines - each line has a distinct color
+ * T1 Konak: Green, T2 Karşıyaka: Orange, T3 Çiğli: Purple
  */
 export const izmirTramwayLines = {
   T1: {
-    name: 'Karşıyaka Tramvayı',
-    color: '#00A651', // Green (official)
-    stations: 15,
+    name: 'Konak Tramvayı',
+    color: '#00A651', // Green (yeşil)
+    stations: 12,
   },
   T2: {
-    name: 'Konak Tramvayı',
-    color: '#00A651', // Green (official)
-    stations: 12,
+    name: 'Karşıyaka Tramvayı',
+    color: '#F7941D', // Orange (turuncu)
+    stations: 15,
+  },
+  T3: {
+    name: 'Çiğli Tramvayı',
+    color: '#9B59B6', // Purple (mor)
+    stations: 14,
   },
 };
