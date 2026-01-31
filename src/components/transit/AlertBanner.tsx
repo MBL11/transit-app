@@ -54,32 +54,34 @@ export function AlertBanner({ alert, compact = false, onPress }: AlertBannerProp
 
   return (
     <TouchableOpacity
-      style={[styles.container, severityStyles.container]}
+      style={[styles.container, severityStyles.container, compact && styles.containerCompact]}
       onPress={isClickable ? handlePress : undefined}
       disabled={!isClickable}
       activeOpacity={isClickable ? 0.7 : 1}
     >
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{severityStyles.icon}</Text>
+      <View style={[styles.iconContainer, compact && styles.iconContainerCompact]}>
+        <Text style={[styles.icon, compact && styles.iconCompact]}>{severityStyles.icon}</Text>
       </View>
       <View style={styles.content}>
-        <Text style={styles.title}>{alert.title}</Text>
-        {alert.description && (
-          <Text style={styles.description} numberOfLines={compact ? 2 : undefined}>
+        <Text style={[styles.title, compact && styles.titleCompact]} numberOfLines={compact ? 1 : undefined}>
+          {alert.title}
+        </Text>
+        {alert.description && !compact && (
+          <Text style={styles.description}>
             {alert.description}
           </Text>
         )}
         {alert.affectedRoutes && alert.affectedRoutes.length > 0 && alert.affectedRoutes.length < 5 && (
           <View style={styles.badgesContainer}>
             {alert.affectedRoutes.map((route, index) => (
-              <View key={index} style={styles.badge}>
-                <Text style={styles.badgeText}>{route}</Text>
+              <View key={index} style={[styles.badge, compact && styles.badgeCompact]}>
+                <Text style={[styles.badgeText, compact && styles.badgeTextCompact]}>{route}</Text>
               </View>
             ))}
           </View>
         )}
         {alert.affectedRoutes && alert.affectedRoutes.length >= 5 && (
-          <Text style={styles.affected}>
+          <Text style={[styles.affected, compact && styles.affectedCompact]}>
             {t('transit.affectedLinesCount', { count: alert.affectedRoutes.length })}
           </Text>
         )}
@@ -108,6 +110,11 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  containerCompact: {
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 0,
+  },
   severeBg: {
     backgroundColor: '#DC143C',
   },
@@ -121,8 +128,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
     justifyContent: 'center',
   },
+  iconContainerCompact: {
+    marginRight: 6,
+  },
   icon: {
     fontSize: 24,
+  },
+  iconCompact: {
+    fontSize: 16,
   },
   content: {
     flex: 1,
@@ -133,6 +146,10 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 4,
   },
+  titleCompact: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
   description: {
     fontSize: 14,
     color: '#333',
@@ -142,6 +159,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#555',
     fontStyle: 'italic',
+  },
+  affectedCompact: {
+    fontSize: 10,
   },
   badgesContainer: {
     flexDirection: 'row',
@@ -155,16 +175,24 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
+  badgeCompact: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
   badgeText: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#FFF',
   },
+  badgeTextCompact: {
+    fontSize: 10,
+  },
   seeMore: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#0066CC',
     fontWeight: '600',
-    marginTop: 6,
+    marginTop: 4,
   },
   arrowContainer: {
     justifyContent: 'center',

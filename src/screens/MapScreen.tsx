@@ -71,6 +71,16 @@ export function MapScreen({ navigation }: Props) {
     [alerts]
   );
 
+  // Reset dismissed state when alerts change (new alerts should be shown)
+  useEffect(() => {
+    if (alerts.length > 0) {
+      setAlertsDismissed(false);
+    }
+  }, [alerts.length]);
+
+  // Alerts dismissed by user (resets when alerts change)
+  const [alertsDismissed, setAlertsDismissed] = useState(false);
+
   // Bottom sheet state
   const [sheetVisible, setSheetVisible] = useState(false);
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
@@ -470,24 +480,34 @@ export function MapScreen({ navigation }: Props) {
           </View>
         )}
 
-      {/* Alerts Banner */}
-      {alerts.length > 0 && (
+      {/* Alerts Banner - only show if there are severe/warning alerts and not dismissed */}
+      {severeAlerts.length > 0 && !alertsDismissed && (
         <View style={[styles.alertsContainer, { top: insets.top + 68 }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.alertsContent}
-          >
-            {alerts.slice(0, 5).map(alert => (
-              <View key={alert.id} style={styles.alertItem}>
-                <AlertBanner
-                  alert={alert}
-                  compact
-                  onPress={() => navigation.navigate('Alerts')}
-                />
-              </View>
-            ))}
-          </ScrollView>
+          <View style={styles.alertsRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.alertsContent}
+              style={styles.alertsScroll}
+            >
+              {severeAlerts.slice(0, 3).map(alert => (
+                <View key={alert.id} style={styles.alertItem}>
+                  <AlertBanner
+                    alert={alert}
+                    compact
+                    onPress={() => navigation.navigate('Alerts')}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.alertsDismissButton}
+              onPress={() => setAlertsDismissed(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.alertsDismissText}>✕</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -742,12 +762,35 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
+  alertsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  alertsScroll: {
+    flex: 1,
+  },
   alertsContent: {
-    paddingHorizontal: 16,
+    paddingLeft: 12,
+    paddingRight: 4,
   },
   alertItem: {
-    width: 300,
+    width: 240,
+    marginRight: 8,
+  },
+  alertsDismissButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 4,
     marginRight: 12,
+  },
+  alertsDismissText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   bannerAdContainer: {
     position: 'absolute',
