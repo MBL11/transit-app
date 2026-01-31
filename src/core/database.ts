@@ -746,8 +746,11 @@ export async function searchStops(query: string): Promise<Stop[]> {
       }
     }
 
-    // Limit results to 50
-    return Array.from(seen.values()).slice(0, 50).map((row: any) => ({
+    // Sort alphabetically by name and limit to 50
+    const sortedRows = Array.from(seen.values()).sort((a: any, b: any) =>
+      a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' })
+    );
+    return sortedRows.slice(0, 50).map((row: any) => ({
       id: row.id,
       name: row.name,
       lat: row.lat,
@@ -805,8 +808,11 @@ export async function searchRoutes(query: string): Promise<Route[]> {
              normalizedLongName.includes(normalizedQuery);
     });
 
-    // Limit results to 50
-    return filteredRows.slice(0, 50).map((row: any) => ({
+    // Sort alphabetically by short name (line number) and limit to 50
+    const sortedRows = filteredRows.sort((a: any, b: any) =>
+      a.short_name.localeCompare(b.short_name, 'tr', { numeric: true, sensitivity: 'base' })
+    );
+    return sortedRows.slice(0, 50).map((row: any) => ({
       id: row.id,
       shortName: row.short_name,
       longName: row.long_name,

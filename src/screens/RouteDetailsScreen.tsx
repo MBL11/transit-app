@@ -153,18 +153,10 @@ export function RouteDetailsScreen({ route }: Props) {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Journey Summary */}
       <View style={styles.summaryCard}>
-        {/* Time row */}
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryTime}>
-            {formatTime(journey.departureTime)} → {formatTime(journey.arrivalTime)}
-          </Text>
-          <Text style={styles.summaryDuration}>{formatDuration(journey.totalDuration)}</Text>
-        </View>
-
         {/* Departure / Arrival locations */}
         <View style={styles.summaryLocations}>
           <View style={styles.summaryLocation}>
-            <Text style={styles.summaryLocationLabel}>{t('route.departure')}</Text>
+            <Text style={styles.summaryLocationLabel}>{t('route.departure').toUpperCase()}</Text>
             <Text style={styles.summaryLocationName} numberOfLines={1}>
               {displaySegments[0]?.from.name || ''}
             </Text>
@@ -173,14 +165,14 @@ export function RouteDetailsScreen({ route }: Props) {
             <Text style={styles.arrowText}>→</Text>
           </View>
           <View style={styles.summaryLocation}>
-            <Text style={styles.summaryLocationLabel}>{t('route.arrival')}</Text>
+            <Text style={styles.summaryLocationLabel}>{t('route.arrival').toUpperCase()}</Text>
             <Text style={styles.summaryLocationName} numberOfLines={1}>
               {displaySegments[displaySegments.length - 1]?.to.name || ''}
             </Text>
           </View>
         </View>
 
-        {/* Additional info */}
+        {/* Stats row */}
         <View style={styles.summaryExtras}>
           {journey.numberOfTransfers > 0 && (
             <Text style={styles.summaryTransfers}>
@@ -290,8 +282,10 @@ export function RouteDetailsScreen({ route }: Props) {
                   <View style={styles.stepRight}>
                     {isWalk ? (
                       <View style={styles.walkDetails}>
-                        <Text style={styles.segmentAction}>{t('route.walk')} {segment.duration} min</Text>
-                        {segment.distance && (
+                        <Text style={styles.segmentAction}>
+                          <Text style={styles.segmentActionBold}>{t('route.walk')}</Text> {segment.duration} min
+                        </Text>
+                        {segment.distance != null && segment.distance > 0 && (
                           <Text style={styles.segmentInfo}>≈ {Math.round(segment.distance)}m</Text>
                         )}
                       </View>
@@ -366,33 +360,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  summaryTime: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  summaryDuration: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0066CC',
-  },
   summaryTransfers: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
   },
   summaryWalk: {
     fontSize: 14,
@@ -401,10 +378,6 @@ const styles = StyleSheet.create({
   summaryLocations: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   summaryLocation: {
     flex: 1,
@@ -412,7 +385,7 @@ const styles = StyleSheet.create({
   summaryLocationLabel: {
     fontSize: 11,
     color: '#999',
-    textTransform: 'uppercase',
+    fontWeight: '600',
     marginBottom: 2,
   },
   summaryLocationName: {
@@ -429,7 +402,7 @@ const styles = StyleSheet.create({
   },
   summaryExtras: {
     marginTop: 12,
-    paddingTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#eee',
     flexDirection: 'row',
@@ -503,6 +476,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    backgroundColor: '#fff',
+    zIndex: 2,
   },
   walkIcon: {
     fontSize: 24,
@@ -542,9 +517,11 @@ const styles = StyleSheet.create({
   },
   segmentAction: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#000',
     marginBottom: 4,
+  },
+  segmentActionBold: {
+    fontWeight: '700',
   },
   segmentInfo: {
     fontSize: 14,
