@@ -210,7 +210,18 @@ export function RouteScreenContent({
 
           {/* Compact Time Selector */}
           <View style={styles.timeRow}>
-            <Text style={styles.timeLabel}>🕒</Text>
+            {/* Depart at / Arrive by toggle */}
+            <TouchableOpacity
+              style={styles.timeModeToggle}
+              onPress={() => dispatch({
+                type: 'SET_TIME_MODE',
+                payload: state.timeMode === 'departure' ? 'arrival' : 'departure',
+              })}
+            >
+              <Text style={styles.timeModeText}>
+                {state.timeMode === 'departure' ? t('route.departAt') : t('route.arriveBy')}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.timeButton}
               onPress={() => dispatch({ type: 'ADJUST_DEPARTURE_TIME', payload: -15 })}
@@ -606,8 +617,18 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       marginVertical: 8,
       gap: 8,
     },
-    timeLabel: {
-      fontSize: 16,
+    timeModeToggle: {
+      backgroundColor: colors.primary + '18',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.primary + '40',
+    },
+    timeModeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.primary,
     },
     timeButton: {
       backgroundColor: colors.buttonBackground,

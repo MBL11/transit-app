@@ -135,14 +135,6 @@ export function RouteScreen() {
       dispatch({ type: 'SET_CALCULATING', payload: true });
       dispatch({ type: 'SET_HAS_SEARCHED', payload: false });
 
-      // Calculate departure time based on mode
-      let searchTime = state.departureTime;
-      if (state.timeMode === 'arrival') {
-        // For arrival mode, subtract estimated journey time (30 min by default)
-        searchTime = new Date(state.departureTime.getTime() - 30 * 60000);
-        logger.log('[RouteScreen] Arrival mode: searching from', formatTime(searchTime));
-      }
-
       // Prepare from and to locations as GeocodingResult
       let fromLocation: GeocodingResult;
       let toLocation: GeocodingResult;
@@ -174,20 +166,44 @@ export function RouteScreen() {
       }
 
       logger.log('[RouteScreen] Calculating multiple routes with preferences:', state.preferences.optimizeFor);
+      logger.log('[RouteScreen] Time mode:', state.timeMode);
 
-      // Use findMultipleRoutes to get optimized routes
-      const results = await findMultipleRoutes(
-        fromLocation,
-        toLocation,
-        searchTime,
-        state.preferences,
-        5 // Get up to 5 route options
-      );
+      let filteredResults: JourneyResult[];
 
-      // Filter results for arrival mode
-      const filteredResults = state.timeMode === 'arrival'
-        ? results.filter(j => j.arrivalTime <= state.departureTime)
-        : results;
+      if (state.timeMode === 'arrival') {
+        // Arrive-by mode: search from multiple earlier departure times
+        // to find the latest departure that arrives on time
+        const targetArrival = state.departureTime;
+        logger.log('[RouteScreen] Arrive-by mode: target arrival', formatTime(targetArrival));
+
+        // Search from 90 min before target arrival (covers most urban journeys)
+        const searchTime = new Date(targetArrival.getTime() - 90 * 60000);
+        const results = await findMultipleRoutes(
+          fromLocation,
+          toLocation,
+          searchTime,
+          state.preferences,
+          8 // Get more results to have better chances after filtering
+        );
+
+        // Keep only journeys arriving before target, sort by latest departure
+        filteredResults = results
+          .filter(j => j.arrivalTime <= targetArrival)
+          .sort((a, b) => b.departureTime.getTime() - a.departureTime.getTime())
+          .slice(0, 5);
+
+        logger.log('[RouteScreen] Arrive-by: found', results.length, 'total,', filteredResults.length, 'arriving on time');
+      } else {
+        // Depart-at mode: standard search
+        const results = await findMultipleRoutes(
+          fromLocation,
+          toLocation,
+          state.departureTime,
+          state.preferences,
+          5
+        );
+        filteredResults = results;
+      }
 
       dispatch({ type: 'SET_JOURNEYS', payload: filteredResults });
       dispatch({ type: 'SET_HAS_SEARCHED', payload: true });
