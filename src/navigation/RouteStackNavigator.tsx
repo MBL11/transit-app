@@ -10,7 +10,12 @@ import { RouteDetailsScreen } from '../screens/RouteDetailsScreen';
 import type { SerializableJourneyResult } from '../core/types/routing-serialization';
 
 export type RouteStackParamList = {
-  RouteCalculation: undefined;
+  RouteCalculation: {
+    fromStopId?: string;
+    fromStopName?: string;
+    toStopId?: string;
+    toStopName?: string;
+  } | undefined;
   RouteDetails: {
     journey: SerializableJourneyResult;
   };

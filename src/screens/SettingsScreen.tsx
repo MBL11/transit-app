@@ -23,6 +23,7 @@ import { useGTFSData } from '../hooks/useGTFSData';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useNotificationPermissions } from '../hooks/useNotifications';
 import { changeLanguage } from '../i18n';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as favoritesStorage from '../core/favorites';
 import * as notificationService from '../services/notifications';
 import { trackEvent, AnalyticsEvents } from '../services/analytics';
@@ -91,8 +92,20 @@ export function SettingsScreen({ navigation }: Props) {
           text: t('common.confirm'),
           style: 'destructive',
           onPress: async () => {
-            // Clear cache logic here
-            Alert.alert(t('common.confirm'), t('settings.cacheCleared'));
+            try {
+              // Clear cached data (alerts, routing prefs, ad counter)
+              await Promise.all([
+                AsyncStorage.removeItem('@izmir_alerts_cache'),
+                AsyncStorage.removeItem('@routing_preferences'),
+                AsyncStorage.removeItem('@route_calculations'),
+                AsyncStorage.removeItem('@sent_alert_ids'),
+              ]);
+              logger.log('[Settings] Cache cleared successfully');
+              Alert.alert(t('common.confirm'), t('settings.cacheCleared'));
+            } catch (error) {
+              logger.error('[Settings] Failed to clear cache:', error);
+              Alert.alert(t('common.error'), t('common.error'));
+            }
           },
         },
       ]

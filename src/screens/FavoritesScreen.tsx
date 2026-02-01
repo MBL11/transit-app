@@ -56,9 +56,21 @@ export function FavoritesScreen({ navigation }: Props) {
     navigation.navigate('LineDetails', { routeId: route.data.id });
   }, [navigation]);
 
-  const handleJourneyPress = useCallback((_journey: FavoriteJourney) => {
-    // TODO: Navigate to Route screen with pre-filled stops when RouteScreen supports params
-  }, []);
+  const handleJourneyPress = useCallback((journey: FavoriteJourney) => {
+    // Navigate to Route tab with pre-filled from/to stops
+    const rootNav = navigation.getParent();
+    if (rootNav) {
+      rootNav.navigate('Route', {
+        screen: 'RouteCalculation',
+        params: {
+          fromStopId: journey.data.fromStopId,
+          fromStopName: journey.data.fromStopName,
+          toStopId: journey.data.toStopId,
+          toStopName: journey.data.toStopName,
+        },
+      });
+    }
+  }, [navigation]);
 
   const getRouteType = (routeType: number): 'metro' | 'bus' | 'tram' | 'rer' | 'train' => {
     switch (routeType) {

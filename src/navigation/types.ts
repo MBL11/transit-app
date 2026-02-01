@@ -23,7 +23,7 @@ export type SearchStackParamList = {
 };
 
 export type RouteStackParamList = {
-  RouteView: undefined;
+  RouteView: { fromStopId?: string; fromStopName?: string; toStopId?: string; toStopName?: string } | undefined;
   RouteDetails: { route: any };
   StopDetails: { stopId: string };
 };

@@ -8,13 +8,15 @@
 
 import React, { useEffect, useMemo, useReducer, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { ScreenContainer } from '../../components/ui/ScreenContainer';
+import { OfflineBanner } from '../../components/ui/OfflineBanner';
 import { BannerAdComponent } from '../../components/ads/BannerAd';
+import { useNetwork } from '../../contexts/NetworkContext';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useInterstitialAd } from '../../hooks/useInterstitialAd';
 import { findMultipleRoutes } from '../../core/routing';
@@ -36,7 +38,9 @@ type NavigationProp = NativeStackNavigationProp<RouteStackParamList, 'RouteCalcu
 export function RouteScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const { isOffline } = useNetwork();
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<any>();
   const { showAdIfNeeded } = useInterstitialAd();
 
   // Use reducer instead of multiple useState
@@ -53,6 +57,33 @@ export function RouteScreen() {
   useEffect(() => {
     loadPreferences();
   }, []);
+
+  // Handle pre-filled stops from navigation params (e.g., from Favorites)
+  useEffect(() => {
+    const params = route.params;
+    if (params?.fromStopId && params?.fromStopName) {
+      const fromStop: Stop = {
+        id: params.fromStopId,
+        name: params.fromStopName,
+        lat: 0,
+        lon: 0,
+        locationType: 0,
+      };
+      dispatch({ type: 'SET_FROM_MODE', payload: 'stop' });
+      dispatch({ type: 'SELECT_FROM_STOP', payload: fromStop });
+    }
+    if (params?.toStopId && params?.toStopName) {
+      const toStop: Stop = {
+        id: params.toStopId,
+        name: params.toStopName,
+        lat: 0,
+        lon: 0,
+        locationType: 0,
+      };
+      dispatch({ type: 'SET_TO_MODE', payload: 'stop' });
+      dispatch({ type: 'SELECT_TO_STOP', payload: toStop });
+    }
+  }, [route.params]);
 
   const loadStops = async () => {
     try {
@@ -199,6 +230,7 @@ export function RouteScreen() {
   return (
     <ScreenContainer>
       <ScreenHeader title={t('tabs.route')} />
+      <OfflineBanner visible={isOffline} />
 
       <RouteScreenContent
         state={state}

@@ -9,6 +9,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
+import { OfflineBanner } from '../components/ui/OfflineBanner';
+import { useNetwork } from '../contexts/NetworkContext';
 import { SearchBar } from '../components/transit/SearchBar';
 import { StopCard } from '../components/transit/StopCard';
 import { LineCard } from '../components/transit/LineCard';
@@ -45,6 +47,7 @@ function getRouteType(type: number): 'metro' | 'bus' | 'tram' | 'rer' | 'train' 
 export function SearchScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const { isOffline } = useNetwork();
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('stops');
   const [stopResults, setStopResults] = useState<StopWithRoutes[]>([]);
@@ -166,6 +169,7 @@ export function SearchScreen({ navigation }: Props) {
   return (
     <ScreenContainer>
       <ScreenHeader title={t('tabs.search')} />
+      <OfflineBanner visible={isOffline} />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
