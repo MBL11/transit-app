@@ -158,7 +158,9 @@
     "typeMoreCharacters": "Tapez au moins 3 caractères",
     "recentSearches": "Recherches récentes",
     "calculating": "Recherche du meilleur itinéraire...",
-    "calculatingHint": "Analyse des lignes et correspondances"
+    "calculatingHint": "Analyse des lignes et correspondances",
+    "noStopsNear": "Aucun arrêt trouvé près de {{location}} (rayon 2.5 km)",
+    "noStopsNearPosition": "Aucun arrêt trouvé près de votre position (rayon 2.5 km)"
   },
   "routing": {
     "filters": {

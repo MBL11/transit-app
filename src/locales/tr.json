@@ -158,7 +158,9 @@
     "departure": "Kalkış",
     "arrival": "Varış",
     "calculating": "En iyi güzergah aranıyor...",
-    "calculatingHint": "Hatlar ve aktarmalar analiz ediliyor"
+    "calculatingHint": "Hatlar ve aktarmalar analiz ediliyor",
+    "noStopsNear": "{{location}} yakınında durak bulunamadı (2.5 km yarıçap)",
+    "noStopsNearPosition": "Konumunuz yakınında durak bulunamadı (2.5 km yarıçap)"
   },
   "routing": {
     "filters": {

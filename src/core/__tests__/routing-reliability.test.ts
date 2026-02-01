@@ -70,6 +70,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
     (getWalkingTime as jest.Mock).mockImplementation((distanceMeters: number) => {
       return Math.round(distanceMeters / 83.33);
     });
+    // Return null for schedule-based lookups → fall back to distance estimates
+    (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
+    (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
   });
 
   // ==========================================================================
@@ -309,9 +312,10 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       const results = await findRoute('metro_fahrettin', 'metro_bornova', DEPARTURE);
 
       expect(results.length).toBeGreaterThan(0);
-      // Real: ~22 min. Estimate: 12km × 1.7 min/km = 20 min
-      expect(results[0].totalDuration).toBeGreaterThanOrEqual(15);
-      expect(results[0].totalDuration).toBeLessThanOrEqual(25);
+      // Real: ~22 min travel + ~3 min wait + dwell ≈ 30 min total
+      // Engine: 12km × 1.7 + ~12 stops × 0.5 dwell + 3 wait ≈ 30 min
+      expect(results[0].totalDuration).toBeGreaterThanOrEqual(20);
+      expect(results[0].totalDuration).toBeLessThanOrEqual(40);
     });
 
     it('İZBAN speed: Aliağa→Cumaovası ~65km should be 60-100 min', async () => {
@@ -327,9 +331,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       const results = await findRoute('rail_aliaga', 'rail_cumaovasi', DEPARTURE);
 
       expect(results.length).toBeGreaterThan(0);
-      // Real: ~90 min. Estimate: 65km × 1.3 min/km = 85 min
+      // Real: ~90 min. Engine: 65km × 1.3 + ~25 stops × 0.5 dwell + 5 wait ≈ 102 min
       expect(results[0].totalDuration).toBeGreaterThanOrEqual(60);
-      expect(results[0].totalDuration).toBeLessThanOrEqual(100);
+      expect(results[0].totalDuration).toBeLessThanOrEqual(120);
     });
 
     it('Bus speed: should be slower than metro for same distance', async () => {
@@ -410,7 +414,7 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         .mockResolvedValueOnce([{ ...HALKAPINAR, distance: 200 }]);
 
       await expect(findRouteFromLocations(from, to, DEPARTURE))
-        .rejects.toThrow(/Aucun arrêt trouvé/);
+        .rejects.toThrow(/NO_STOPS_NEAR/);
     });
   });
 

@@ -61,7 +61,7 @@ export function RouteScreen() {
       dispatch({ type: 'SET_STOPS', payload: allStops });
     } catch (err) {
       logger.error('[RouteScreen] Error loading stops:', err);
-      Alert.alert(t('common.error'), 'Unable to load stops');
+      Alert.alert(t('common.error'), t('route.unableToCalculate'));
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -96,7 +96,7 @@ export function RouteScreen() {
     const hasToLocation = state.toMode === 'stop' ? state.toStop !== null : state.toAddress !== null;
 
     if (!hasFromLocation || !hasToLocation) {
-      Alert.alert(t('common.error'), 'Please select departure and arrival locations');
+      Alert.alert(t('common.error'), t('route.selectDepartureArrival'));
       return;
     }
 
@@ -168,7 +168,17 @@ export function RouteScreen() {
     } catch (err: any) {
       logger.error('[RouteScreen] Error calculating route:', err);
       captureException(err, { tags: { screen: 'route', action: 'calculate' } });
-      Alert.alert(t('common.error'), err.message || 'Unable to calculate route');
+      const msg = err.message || '';
+      let userMessage = t('route.unableToCalculate');
+      if (msg.startsWith('NO_STOPS_NEAR:')) {
+        const location = msg.split(':')[1];
+        userMessage = t('route.noStopsNear', { location });
+      } else if (msg === 'NO_STOPS_NEAR_POSITION') {
+        userMessage = t('route.noStopsNearPosition');
+      } else if (msg === 'NO_ROUTE_FOUND') {
+        userMessage = t('route.noRouteFound');
+      }
+      Alert.alert(t('common.error'), userMessage);
     } finally {
       dispatch({ type: 'SET_CALCULATING', payload: false });
     }

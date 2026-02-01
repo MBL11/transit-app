@@ -123,6 +123,9 @@ describe('Real-World İzmir Route Comparisons', () => {
     (getWalkingTime as jest.Mock).mockImplementation((distanceMeters: number) => {
       return Math.ceil(distanceMeters / 83.33);
     });
+    // Return null for schedule-based lookups → fall back to distance estimates
+    (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
+    (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
   });
 
   // ==========================================================================

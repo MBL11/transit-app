@@ -122,6 +122,8 @@ export async function extractGTFSZip(zipUri: string): Promise<{
   trips: string;
   stopTimes: string;
   shapes?: string;
+  calendar?: string;
+  calendarDates?: string;
 }> {
   logger.log('[GTFSDownloader] Extracting ZIP file...');
 
@@ -160,12 +162,28 @@ export async function extractGTFSZip(zipUri: string): Promise<{
       logger.log('[GTFSDownloader] ✅ Extracted shapes.txt (optional)');
     }
 
+    // Optional: calendar.txt
+    const calendarFile = findFileInZip(zip, 'calendar.txt');
+    if (calendarFile) {
+      extractedFiles['calendar.txt'] = await calendarFile.async('string');
+      logger.log('[GTFSDownloader] ✅ Extracted calendar.txt (optional)');
+    }
+
+    // Optional: calendar_dates.txt
+    const calendarDatesFile = findFileInZip(zip, 'calendar_dates.txt');
+    if (calendarDatesFile) {
+      extractedFiles['calendar_dates.txt'] = await calendarDatesFile.async('string');
+      logger.log('[GTFSDownloader] ✅ Extracted calendar_dates.txt (optional)');
+    }
+
     return {
       stops: extractedFiles['stops.txt'],
       routes: extractedFiles['routes.txt'],
       trips: extractedFiles['trips.txt'],
       stopTimes: extractedFiles['stop_times.txt'],
       shapes: extractedFiles['shapes.txt'],
+      calendar: extractedFiles['calendar.txt'],
+      calendarDates: extractedFiles['calendar_dates.txt'],
     };
   } catch (error) {
     logger.error('[GTFSDownloader] ❌ Extraction error:', error);
@@ -328,11 +346,19 @@ export async function downloadAndImportAllIzmir(
       parsedData.trips.forEach(t => {
         t.id = prefix + t.id;
         t.routeId = prefix + t.routeId;
+        t.serviceId = prefix + t.serviceId; // Prefix service_id to avoid collisions between sources
       });
       parsedData.stopTimes.forEach(st => { st.tripId = prefix + st.tripId; });
       // Prefix stop IDs to prevent collisions (each İzmir GTFS source uses sequential IDs from 1)
       parsedData.stops.forEach(s => { s.id = prefix + s.id; });
       parsedData.stopTimes.forEach(st => { st.stopId = prefix + st.stopId; });
+      // Prefix calendar service IDs
+      if (parsedData.calendar) {
+        parsedData.calendar.forEach(c => { c.serviceId = prefix + c.serviceId; });
+      }
+      if (parsedData.calendarDates) {
+        parsedData.calendarDates.forEach(cd => { cd.serviceId = prefix + cd.serviceId; });
+      }
 
       // Validate data
       const validation = validateGTFSData(parsedData);
@@ -354,6 +380,14 @@ export async function downloadAndImportAllIzmir(
       for (let j = 0; j < parsedData.stopTimes.length; j += batchSize) {
         const batch = parsedData.stopTimes.slice(j, j + batchSize);
         await db.insertStopTimes(batch);
+      }
+
+      // Insert calendar data if available
+      if (parsedData.calendar && parsedData.calendar.length > 0) {
+        await db.insertCalendar(parsedData.calendar);
+      }
+      if (parsedData.calendarDates && parsedData.calendarDates.length > 0) {
+        await db.insertCalendarDates(parsedData.calendarDates);
       }
 
       // Cleanup ZIP

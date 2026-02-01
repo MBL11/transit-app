@@ -10,9 +10,11 @@ import type {
   GTFSTrip,
   GTFSStopTime,
   GTFSShape,
+  GTFSCalendar,
+  GTFSCalendarDate,
   GTFSFeed,
 } from './types/gtfs';
-import type { Stop, Route, Trip, StopTime } from './types/models';
+import type { Stop, Route, Trip, StopTime, Calendar, CalendarDate } from './types/models';
 import { logger } from '../utils/logger';
 
 /**
@@ -79,6 +81,20 @@ export function parseStopTimes(csvContent: string): GTFSStopTime[] {
  */
 export function parseShapes(csvContent: string): GTFSShape[] {
   return parseCSV<GTFSShape>(csvContent, 'shapes.txt');
+}
+
+/**
+ * Parse calendar.txt (optional)
+ */
+export function parseCalendar(csvContent: string): GTFSCalendar[] {
+  return parseCSV<GTFSCalendar>(csvContent, 'calendar.txt');
+}
+
+/**
+ * Parse calendar_dates.txt (optional)
+ */
+export function parseCalendarDates(csvContent: string): GTFSCalendarDate[] {
+  return parseCSV<GTFSCalendarDate>(csvContent, 'calendar_dates.txt');
 }
 
 /**
@@ -387,6 +403,35 @@ export function normalizeStopTime(gtfsStopTime: GTFSStopTime): StopTime {
 }
 
 /**
+ * Normalize GTFS calendar to internal Calendar model
+ */
+export function normalizeCalendar(gtfsCal: GTFSCalendar): Calendar {
+  return {
+    serviceId: gtfsCal.service_id,
+    monday: gtfsCal.monday === '1',
+    tuesday: gtfsCal.tuesday === '1',
+    wednesday: gtfsCal.wednesday === '1',
+    thursday: gtfsCal.thursday === '1',
+    friday: gtfsCal.friday === '1',
+    saturday: gtfsCal.saturday === '1',
+    sunday: gtfsCal.sunday === '1',
+    startDate: gtfsCal.start_date,
+    endDate: gtfsCal.end_date,
+  };
+}
+
+/**
+ * Normalize GTFS calendar date to internal CalendarDate model
+ */
+export function normalizeCalendarDate(gtfsCalDate: GTFSCalendarDate): CalendarDate {
+  return {
+    serviceId: gtfsCalDate.service_id,
+    date: gtfsCalDate.date,
+    exceptionType: parseInt(gtfsCalDate.exception_type, 10),
+  };
+}
+
+/**
  * Parse and normalize all GTFS data
  * Automatically filters out stops with invalid coordinates
  */
@@ -396,11 +441,15 @@ export function parseGTFSFeed(feedData: {
   trips: string;
   stopTimes: string;
   shapes?: string;
+  calendar?: string;
+  calendarDates?: string;
 }): {
   stops: Stop[];
   routes: Route[];
   trips: Trip[];
   stopTimes: StopTime[];
+  calendar?: Calendar[];
+  calendarDates?: CalendarDate[];
 } {
   logger.log('[GTFSParser] Parsing complete GTFS feed...');
 
@@ -445,13 +494,31 @@ export function parseGTFSFeed(feedData: {
     });
   }
 
+  // Parse optional calendar data
+  let calendar: Calendar[] | undefined;
+  let calendarDates: CalendarDate[] | undefined;
+
+  if (feedData.calendar) {
+    const rawCalendar = parseCalendar(feedData.calendar);
+    calendar = rawCalendar.map(normalizeCalendar);
+    logger.log(`[GTFSParser] Parsed ${calendar.length} calendar entries`);
+  }
+
+  if (feedData.calendarDates) {
+    const rawCalendarDates = parseCalendarDates(feedData.calendarDates);
+    calendarDates = rawCalendarDates.map(normalizeCalendarDate);
+    logger.log(`[GTFSParser] Parsed ${calendarDates.length} calendar date exceptions`);
+  }
+
   logger.log('[GTFSParser] ✅ GTFS feed parsed successfully');
   logger.log(`  - ${stops.length} stops (${filteredCount} filtered)`);
   logger.log(`  - ${routes.length} routes`);
   logger.log(`  - ${trips.length} trips`);
   logger.log(`  - ${stopTimes.length} stop times`);
+  if (calendar) logger.log(`  - ${calendar.length} calendar entries`);
+  if (calendarDates) logger.log(`  - ${calendarDates.length} calendar date exceptions`);
 
-  return { stops, routes, trips, stopTimes };
+  return { stops, routes, trips, stopTimes, calendar, calendarDates };
 }
 
 /**

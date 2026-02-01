@@ -158,7 +158,9 @@
     "typeMoreCharacters": "Type at least 3 characters",
     "recentSearches": "Recent searches",
     "calculating": "Finding the best route...",
-    "calculatingHint": "Analysing lines and connections"
+    "calculatingHint": "Analysing lines and connections",
+    "noStopsNear": "No transit stops found near {{location}} (2.5 km radius)",
+    "noStopsNearPosition": "No transit stops found near your location (2.5 km radius)"
   },
   "routing": {
     "filters": {

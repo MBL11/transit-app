@@ -158,7 +158,9 @@
     "departure": "Salida",
     "arrival": "Llegada",
     "calculating": "Buscando la mejor ruta...",
-    "calculatingHint": "Analizando líneas y conexiones"
+    "calculatingHint": "Analizando líneas y conexiones",
+    "noStopsNear": "No se encontraron paradas cerca de {{location}} (radio de 2.5 km)",
+    "noStopsNearPosition": "No se encontraron paradas cerca de su ubicación (radio de 2.5 km)"
   },
   "routing": {
     "filters": {

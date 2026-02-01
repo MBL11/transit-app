@@ -52,6 +52,57 @@ function getTransitMinPerKm(routeType: number): number {
   }
 }
 
+/**
+ * Estimate average wait time at a stop (half the typical headway).
+ * During peak hours, headways are shorter; off-peak they're longer.
+ * These are rough averages for İzmir.
+ */
+function getAverageWaitTime(routeType: number): number {
+  switch (routeType) {
+    case 1: return 3;   // Metro: ~6 min headway → 3 min avg wait
+    case 2: return 5;   // İZBAN: ~10 min headway → 5 min avg wait
+    case 0: return 4;   // Tram: ~8 min headway → 4 min avg wait
+    case 3: return 5;   // Bus: ~10 min headway → 5 min avg wait
+    case 4: return 8;   // Ferry: ~15-20 min headway → 8 min avg wait
+    default: return 5;
+  }
+}
+
+/**
+ * Estimate dwell time per intermediate stop (boarding/alighting).
+ * Adds up across all stops on the segment to improve accuracy.
+ */
+function getDwellTimePerStop(routeType: number): number {
+  switch (routeType) {
+    case 1: return 0.5;  // Metro: 30s per stop
+    case 2: return 0.5;  // İZBAN: 30s per stop
+    case 0: return 0.4;  // Tram: ~25s per stop
+    case 3: return 0.5;  // Bus: 30s per stop (varies with passengers)
+    case 4: return 1.0;  // Ferry: ~1 min per dock (limited stops)
+    default: return 0.5;
+  }
+}
+
+/**
+ * Estimate number of intermediate stops between two points on a route.
+ * Uses average inter-station distances per mode.
+ */
+function estimateIntermediateStops(distanceKm: number, routeType: number): number {
+  // Average distance between stops in km by mode
+  const avgInterStopKm: Record<number, number> = {
+    1: 0.9,   // Metro: ~900m between stations
+    2: 2.5,   // İZBAN: ~2.5km between stations
+    0: 0.5,   // Tram: ~500m between stops
+    3: 0.4,   // Bus: ~400m between stops
+    4: 5.0,   // Ferry: ~5km between docks
+  };
+  const avgKm = avgInterStopKm[routeType] || 0.5;
+  return Math.max(0, Math.round(distanceKm / avgKm) - 1);
+}
+
+// Transfer penalty: platform walking + waiting for next vehicle
+const TRANSFER_PENALTY_MIN = 5; // 5 min (was 4): walk between platforms + wait
+
 // Parse "HH:MM:SS" en minutes depuis minuit
 function parseGtfsTime(time: string): number {
   const [h, m, s] = time.split(':').map(Number);
@@ -111,10 +162,24 @@ export async function findRoute(
   const directRoutes = toRoutes.filter(r => fromRouteIds.has(r.id));
 
   for (const route of directRoutes.slice(0, 3)) { // Max 3 itinéraires directs
-    // Estime le temps de trajet basé sur la distance et le type de transport
-    const distanceKm = directDistance / 1000;
-    const minPerKm = getTransitMinPerKm(route.type);
-    const estimatedDuration = Math.max(3, Math.round(distanceKm * minPerKm));
+    // Try to get actual travel time from GTFS stop_times first
+    const actualTime = db.getActualTravelTime(route.id, fromStopId, toStopId);
+
+    let estimatedDuration: number;
+    if (actualTime !== null) {
+      // Real GTFS schedule data available — add wait time only
+      const waitTime = getAverageWaitTime(route.type);
+      estimatedDuration = Math.max(3, actualTime + waitTime);
+    } else {
+      // Fallback: estimate based on distance and transport mode
+      const distanceKm = directDistance / 1000;
+      const minPerKm = getTransitMinPerKm(route.type);
+      const travelTime = distanceKm * minPerKm;
+      const intermediateStops = estimateIntermediateStops(distanceKm, route.type);
+      const dwellTime = intermediateStops * getDwellTimePerStop(route.type);
+      const waitTime = getAverageWaitTime(route.type);
+      estimatedDuration = Math.max(3, Math.round(travelTime + dwellTime + waitTime));
+    }
 
     // Try to get headsign for this route (pass both origin and destination for correct direction)
     const tripInfo = await db.getTripInfoForRoute(route.id, toStopId, fromStopId);
@@ -181,12 +246,31 @@ export async function findRoute(
           // Correspondance trouvée !
           const connectingRoute = connectingRoutes[0];
 
-          // Calcul des durées (avec vitesse selon le type de transport)
-          const dist1 = haversineDistance(fromStop.lat, fromStop.lon, transferStop.lat, transferStop.lon);
-          const dist2 = haversineDistance(actualTransferStop.lat, actualTransferStop.lon, toStop.lat, toStop.lon);
-          const duration1 = Math.max(3, Math.round((dist1 / 1000) * getTransitMinPerKm(fromRoute.type)));
-          const duration2 = Math.max(3, Math.round((dist2 / 1000) * getTransitMinPerKm(connectingRoute.type)));
-          const transferTime = 4; // 4 min pour la correspondance
+          // Try real GTFS times first, fallback to estimates
+          const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStop.id);
+          const actual2 = db.getActualTravelTime(connectingRoute.id, actualTransferStop.id, toStopId);
+
+          let duration1: number;
+          if (actual1 !== null) {
+            duration1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
+          } else {
+            const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStop.lat, transferStop.lon) / 1000;
+            const travel1 = dist1Km * getTransitMinPerKm(fromRoute.type);
+            const dwell1 = estimateIntermediateStops(dist1Km, fromRoute.type) * getDwellTimePerStop(fromRoute.type);
+            duration1 = Math.max(3, Math.round(travel1 + dwell1 + getAverageWaitTime(fromRoute.type)));
+          }
+
+          let duration2: number;
+          if (actual2 !== null) {
+            duration2 = Math.max(3, actual2);
+          } else {
+            const dist2Km = haversineDistance(actualTransferStop.lat, actualTransferStop.lon, toStop.lat, toStop.lon) / 1000;
+            const travel2 = dist2Km * getTransitMinPerKm(connectingRoute.type);
+            const dwell2 = estimateIntermediateStops(dist2Km, connectingRoute.type) * getDwellTimePerStop(connectingRoute.type);
+            duration2 = Math.max(3, Math.round(travel2 + dwell2));
+          }
+
+          const transferTime = TRANSFER_PENALTY_MIN;
           const totalDuration = duration1 + transferTime + duration2;
 
           // Get headsigns (pass origin and destination for correct direction)
@@ -238,6 +322,142 @@ export async function findRoute(
     // Trie par durée et garde les meilleurs
     transferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
     journeys.push(...transferJourneys.slice(0, 3));
+  }
+
+  // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
+  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0) {
+    logger.log('[Routing] No 1-transfer route, looking for 2-transfer connections...');
+
+    const toRouteIds = new Set(toRoutes.map(r => r.id));
+    const twoTransferJourneys: JourneyResult[] = [];
+
+    // For each departure route, find its stops and look for intermediate connections
+    for (const fromRoute of fromRoutes.slice(0, 3)) {
+      const fromRouteStops = await db.getStopsByRouteId(fromRoute.id);
+
+      for (const midStop1 of fromRouteStops) {
+        if (midStop1.id === fromStopId) continue;
+
+        // Get routes at first transfer point
+        let midRoutes1 = await db.getRoutesByStopId(midStop1.id, true);
+        midRoutes1 = midRoutes1.filter(r => r.id !== fromRoute.id);
+
+        for (const midRoute of midRoutes1.slice(0, 3)) {
+          // Get stops on the intermediate route
+          const midRouteStops = await db.getStopsByRouteId(midRoute.id);
+
+          for (const midStop2 of midRouteStops) {
+            if (midStop2.id === midStop1.id) continue;
+
+            // Check if any route from midStop2 reaches the destination
+            let midRoutes2 = await db.getRoutesByStopId(midStop2.id, true);
+            const finalRoutes = midRoutes2.filter(r => toRouteIds.has(r.id) && r.id !== midRoute.id);
+
+            // Also check nearby stops for the second transfer
+            let actualMidStop2 = midStop2;
+            if (finalRoutes.length === 0) {
+              const nearbyStops = await findBestNearbyStops(midStop2.lat, midStop2.lon, 5, TRANSFER_SEARCH_RADIUS_M);
+              for (const ns of nearbyStops) {
+                if (ns.id === midStop2.id) continue;
+                const nsRoutes = await db.getRoutesByStopId(ns.id, true);
+                const nsConnecting = nsRoutes.filter(r => toRouteIds.has(r.id) && r.id !== midRoute.id);
+                if (nsConnecting.length > 0) {
+                  finalRoutes.push(...nsConnecting);
+                  actualMidStop2 = ns;
+                  break;
+                }
+              }
+            }
+
+            if (finalRoutes.length > 0) {
+              const finalRoute = finalRoutes[0];
+
+              // Try real GTFS times first, fallback to distance estimates
+              const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, midStop1.id);
+              const actual2 = db.getActualTravelTime(midRoute.id, midStop1.id, midStop2.id);
+              const actual3 = db.getActualTravelTime(finalRoute.id, actualMidStop2.id, toStopId);
+
+              const dur1 = actual1 !== null
+                ? Math.max(3, actual1 + getAverageWaitTime(fromRoute.type))
+                : Math.max(3, Math.round(
+                    haversineDistance(fromStop.lat, fromStop.lon, midStop1.lat, midStop1.lon) / 1000 * getTransitMinPerKm(fromRoute.type) +
+                    estimateIntermediateStops(haversineDistance(fromStop.lat, fromStop.lon, midStop1.lat, midStop1.lon) / 1000, fromRoute.type) * getDwellTimePerStop(fromRoute.type) +
+                    getAverageWaitTime(fromRoute.type)
+                  ));
+              const dur2 = actual2 !== null
+                ? Math.max(3, actual2)
+                : Math.max(3, Math.round(
+                    haversineDistance(midStop1.lat, midStop1.lon, midStop2.lat, midStop2.lon) / 1000 * getTransitMinPerKm(midRoute.type) +
+                    estimateIntermediateStops(haversineDistance(midStop1.lat, midStop1.lon, midStop2.lat, midStop2.lon) / 1000, midRoute.type) * getDwellTimePerStop(midRoute.type)
+                  ));
+              const dur3 = actual3 !== null
+                ? Math.max(3, actual3)
+                : Math.max(3, Math.round(
+                    haversineDistance(actualMidStop2.lat, actualMidStop2.lon, toStop.lat, toStop.lon) / 1000 * getTransitMinPerKm(finalRoute.type) +
+                    estimateIntermediateStops(haversineDistance(actualMidStop2.lat, actualMidStop2.lon, toStop.lat, toStop.lon) / 1000, finalRoute.type) * getDwellTimePerStop(finalRoute.type)
+                  ));
+              const totalDuration = dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN + dur3;
+
+              const trip1Info = await db.getTripInfoForRoute(fromRoute.id, midStop1.id, fromStopId);
+              const trip2Info = await db.getTripInfoForRoute(midRoute.id, midStop2.id, midStop1.id);
+              const trip3Info = await db.getTripInfoForRoute(finalRoute.id, toStopId, midStop2.id);
+
+              const journey: JourneyResult = {
+                segments: [
+                  {
+                    type: 'transit',
+                    from: fromStop,
+                    to: midStop1,
+                    route: fromRoute,
+                    trip: trip1Info ? { headsign: trip1Info.headsign } : undefined,
+                    departureTime: departureTime,
+                    arrivalTime: new Date(departureTime.getTime() + dur1 * 60000),
+                    duration: dur1,
+                  },
+                  {
+                    type: 'transit',
+                    from: midStop1,
+                    to: actualMidStop2,
+                    route: midRoute,
+                    trip: trip2Info ? { headsign: trip2Info.headsign } : undefined,
+                    departureTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN) * 60000),
+                    arrivalTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN + dur2) * 60000),
+                    duration: dur2,
+                  },
+                  {
+                    type: 'transit',
+                    from: actualMidStop2,
+                    to: toStop,
+                    route: finalRoute,
+                    trip: trip3Info ? { headsign: trip3Info.headsign } : undefined,
+                    departureTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN) * 60000),
+                    arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+                    duration: dur3,
+                  },
+                ],
+                totalDuration: totalDuration,
+                totalWalkDistance: 0,
+                numberOfTransfers: 2,
+                departureTime: departureTime,
+                arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+              };
+
+              twoTransferJourneys.push(journey);
+              if (twoTransferJourneys.length >= 3) break;
+            }
+          }
+          if (twoTransferJourneys.length >= 3) break;
+        }
+        if (twoTransferJourneys.length >= 3) break;
+      }
+      if (twoTransferJourneys.length >= 3) break;
+    }
+
+    if (twoTransferJourneys.length > 0) {
+      twoTransferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+      journeys.push(...twoTransferJourneys.slice(0, 2));
+      logger.log(`[Routing] Found ${twoTransferJourneys.length} 2-transfer routes`);
+    }
   }
 
   // Filter out journeys with absurd durations (coordinate errors can cause 40+ hour estimates)
@@ -339,10 +559,10 @@ export async function findRouteFromLocations(
     ]);
 
     if (fromStops.length === 0) {
-      throw new Error(`Aucun arrêt trouvé près de ${fromLocation.shortAddress || fromLocation.displayName}. Rayon de recherche: 2.5km. Vérifiez que les données GTFS sont chargées.`);
+      throw new Error(`NO_STOPS_NEAR:${fromLocation.shortAddress || fromLocation.displayName}`);
     }
     if (toStops.length === 0) {
-      throw new Error(`Aucun arrêt trouvé près de ${toLocation.shortAddress || toLocation.displayName}. Rayon de recherche: 2.5km. Vérifiez que les données GTFS sont chargées.`);
+      throw new Error(`NO_STOPS_NEAR:${toLocation.shortAddress || toLocation.displayName}`);
     }
 
     logger.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
@@ -425,7 +645,7 @@ export async function findRouteFromLocations(
     const validJourneys = allJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
 
     if (validJourneys.length === 0) {
-      throw new Error('Aucun itinéraire raisonnable trouvé entre ces deux adresses. Essayez des points plus proches des transports en commun.');
+      throw new Error('NO_ROUTE_FOUND');
     }
 
     // Sort by duration and return top 5
@@ -639,7 +859,7 @@ export async function findRouteFromAddresses(
     logger.log(`[Routing] Found ${allJourneys.length} journey options`);
 
     if (allJourneys.length === 0) {
-      throw new Error('Aucun itinéraire raisonnable trouvé. Vérifiez les données GTFS ou essayez des points plus proches.');
+      throw new Error('NO_ROUTE_FOUND');
     }
 
     return allJourneys;
@@ -673,7 +893,7 @@ export async function findRouteFromCoordinates(
     // 2. Find nearby stops from starting coordinates
     const fromStops = await findBestNearbyStops(fromLat, fromLon, 15, 2500);
     if (fromStops.length === 0) {
-      throw new Error('Aucun arrêt trouvé près de votre position. Rayon de recherche: 2.5km.');
+      throw new Error('NO_STOPS_NEAR_POSITION');
     }
 
     // 3. Find nearby stops for destination
@@ -747,7 +967,7 @@ export async function findRouteFromCoordinates(
     const validJourneys = allJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
 
     if (validJourneys.length === 0) {
-      throw new Error('Aucun itinéraire raisonnable trouvé');
+      throw new Error('NO_ROUTE_FOUND');
     }
 
     validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);

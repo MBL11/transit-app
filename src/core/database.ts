@@ -4,7 +4,7 @@
  */
 
 import * as SQLite from 'expo-sqlite';
-import type { Stop, Route, Trip, StopTime } from './types/models';
+import type { Stop, Route, Trip, StopTime, Calendar, CalendarDate } from './types/models';
 import { logger } from '../utils/logger';
 
 const DATABASE_NAME = 'transit.db';
@@ -90,6 +90,32 @@ export async function initializeDatabase(): Promise<void> {
       );
     `);
 
+    // Create calendar table (service schedules by day of week)
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS calendar (
+        service_id TEXT PRIMARY KEY,
+        monday INTEGER NOT NULL DEFAULT 0,
+        tuesday INTEGER NOT NULL DEFAULT 0,
+        wednesday INTEGER NOT NULL DEFAULT 0,
+        thursday INTEGER NOT NULL DEFAULT 0,
+        friday INTEGER NOT NULL DEFAULT 0,
+        saturday INTEGER NOT NULL DEFAULT 0,
+        sunday INTEGER NOT NULL DEFAULT 0,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL
+      );
+    `);
+
+    // Create calendar_dates table (service exceptions)
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS calendar_dates (
+        service_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        exception_type INTEGER NOT NULL,
+        PRIMARY KEY (service_id, date)
+      );
+    `);
+
     // Create indexes for performance
     logger.log('[Database] Creating indexes...');
 
@@ -141,6 +167,18 @@ export async function initializeDatabase(): Promise<void> {
       ON stop_times(stop_id, trip_id);
     `);
 
+    // Index on trips service_id for calendar filtering
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_trips_service
+      ON trips(service_id);
+    `);
+
+    // Index on calendar_dates for quick date lookups
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_calendar_dates_date
+      ON calendar_dates(date);
+    `);
+
     logger.log('[Database] ✅ Database initialized successfully');
   } catch (error) {
     logger.error('[Database] ❌ Failed to initialize database:', error);
@@ -157,6 +195,8 @@ export async function dropAllTables(): Promise<void> {
   logger.log('[Database] Dropping all tables...');
 
   try {
+    db.execSync('DROP TABLE IF EXISTS calendar_dates;');
+    db.execSync('DROP TABLE IF EXISTS calendar;');
     db.execSync('DROP TABLE IF EXISTS shapes;');
     db.execSync('DROP TABLE IF EXISTS stop_times;');
     db.execSync('DROP TABLE IF EXISTS trips;');
@@ -224,6 +264,8 @@ export async function clearAllData(): Promise<void> {
 
   try {
     db.execSync('BEGIN TRANSACTION;');
+    db.execSync('DELETE FROM calendar_dates;');
+    db.execSync('DELETE FROM calendar;');
     db.execSync('DELETE FROM stop_times;');
     db.execSync('DELETE FROM trips;');
     db.execSync('DELETE FROM routes;');
@@ -387,6 +429,157 @@ export async function insertStopTimes(stopTimes: StopTime[]): Promise<void> {
     logger.error('[Database] ❌ Failed to insert stop times:', error);
     throw error;
   }
+}
+
+/**
+ * Insert calendar entries in batch with transaction
+ */
+export async function insertCalendar(calendar: Calendar[]): Promise<void> {
+  if (calendar.length === 0) return;
+  const db = openDatabase();
+
+  logger.log(`[Database] Inserting ${calendar.length} calendar entries...`);
+
+  try {
+    db.execSync('BEGIN TRANSACTION;');
+
+    const statement = db.prepareSync(
+      'INSERT OR REPLACE INTO calendar (service_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+
+    for (const cal of calendar) {
+      statement.executeSync([
+        cal.serviceId,
+        cal.monday ? 1 : 0,
+        cal.tuesday ? 1 : 0,
+        cal.wednesday ? 1 : 0,
+        cal.thursday ? 1 : 0,
+        cal.friday ? 1 : 0,
+        cal.saturday ? 1 : 0,
+        cal.sunday ? 1 : 0,
+        cal.startDate,
+        cal.endDate,
+      ]);
+    }
+
+    statement.finalizeSync();
+    db.execSync('COMMIT;');
+
+    logger.log(`[Database] ✅ ${calendar.length} calendar entries inserted`);
+  } catch (error) {
+    db.execSync('ROLLBACK;');
+    logger.error('[Database] ❌ Failed to insert calendar:', error);
+    throw error;
+  }
+}
+
+/**
+ * Insert calendar date exceptions in batch with transaction
+ */
+export async function insertCalendarDates(calendarDates: CalendarDate[]): Promise<void> {
+  if (calendarDates.length === 0) return;
+  const db = openDatabase();
+
+  logger.log(`[Database] Inserting ${calendarDates.length} calendar date exceptions...`);
+
+  try {
+    db.execSync('BEGIN TRANSACTION;');
+
+    const statement = db.prepareSync(
+      'INSERT OR REPLACE INTO calendar_dates (service_id, date, exception_type) VALUES (?, ?, ?)'
+    );
+
+    for (const cd of calendarDates) {
+      statement.executeSync([
+        cd.serviceId,
+        cd.date,
+        cd.exceptionType,
+      ]);
+    }
+
+    statement.finalizeSync();
+    db.execSync('COMMIT;');
+
+    logger.log(`[Database] ✅ ${calendarDates.length} calendar date exceptions inserted`);
+  } catch (error) {
+    db.execSync('ROLLBACK;');
+    logger.error('[Database] ❌ Failed to insert calendar dates:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get active service IDs for a given date.
+ * Uses calendar table (day of week) and calendar_dates (exceptions).
+ * Returns a Set of service_ids that are active on the given date.
+ * If no calendar data exists, returns null (meaning: don't filter by service).
+ */
+export function getActiveServiceIds(date: Date): Set<string> | null {
+  const db = openDatabase();
+
+  try {
+    // Check if calendar table has any data
+    const calCount = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM calendar');
+    const calDatesCount = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM calendar_dates');
+
+    if ((!calCount || calCount.count === 0) && (!calDatesCount || calDatesCount.count === 0)) {
+      // No calendar data → don't filter (assume all services active)
+      return null;
+    }
+
+    const dateStr = formatDateYYYYMMDD(date);
+    const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const dayColumn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dayOfWeek];
+
+    const activeServiceIds = new Set<string>();
+
+    // 1. Get services from calendar where the day-of-week flag is 1 and date is within range
+    if (calCount && calCount.count > 0) {
+      const rows = db.getAllSync<{ service_id: string }>(
+        `SELECT service_id FROM calendar
+         WHERE ${dayColumn} = 1
+         AND start_date <= ?
+         AND end_date >= ?`,
+        [dateStr, dateStr]
+      );
+      for (const row of rows) {
+        activeServiceIds.add(row.service_id);
+      }
+    }
+
+    // 2. Apply calendar_dates exceptions
+    if (calDatesCount && calDatesCount.count > 0) {
+      const exceptions = db.getAllSync<{ service_id: string; exception_type: number }>(
+        `SELECT service_id, exception_type FROM calendar_dates WHERE date = ?`,
+        [dateStr]
+      );
+      for (const exc of exceptions) {
+        if (exc.exception_type === 1) {
+          // Service added for this date
+          activeServiceIds.add(exc.service_id);
+        } else if (exc.exception_type === 2) {
+          // Service removed for this date
+          activeServiceIds.delete(exc.service_id);
+        }
+      }
+    }
+
+    logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size}`);
+    return activeServiceIds;
+  } catch (error) {
+    logger.warn('[Database] Failed to get active service IDs, skipping calendar filter:', error);
+    return null;
+  }
+}
+
+/**
+ * Format a Date to YYYYMMDD string (for calendar queries)
+ */
+function formatDateYYYYMMDD(date: Date): string {
+  const y = date.getFullYear().toString();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}${m}${d}`;
 }
 
 /**
@@ -976,8 +1169,135 @@ export interface TheoreticalDeparture {
 }
 
 /**
+ * Find the next real departure from stop_times for a given route between two stops.
+ * Returns the actual departure time from the origin stop and arrival at the destination,
+ * based on GTFS stop_times data.
+ *
+ * @param routeId - The route ID
+ * @param fromStopId - Origin stop ID
+ * @param toStopId - Destination stop ID
+ * @param afterTime - Earliest departure time (HH:MM:SS format)
+ * @param activeServiceIds - Set of active service IDs (null = no filter)
+ * @returns Departure and arrival times in minutes since midnight, or null if not found
+ */
+export function findNextDepartureOnRoute(
+  routeId: string,
+  fromStopId: string,
+  toStopId: string,
+  afterTime: string,
+  activeServiceIds: Set<string> | null
+): { departureMinutes: number; arrivalMinutes: number; tripId: string } | null {
+  const db = openDatabase();
+
+  try {
+    // Build service filter clause
+    let serviceFilter = '';
+    const params: any[] = [routeId, fromStopId, toStopId, afterTime];
+
+    if (activeServiceIds !== null && activeServiceIds.size > 0) {
+      const serviceList = Array.from(activeServiceIds);
+      const placeholders = serviceList.map(() => '?').join(', ');
+      serviceFilter = `AND trips.service_id IN (${placeholders})`;
+      params.push(...serviceList);
+    }
+
+    // Find a trip on this route where:
+    // 1. It stops at fromStopId before toStopId (sequence check)
+    // 2. Departure from fromStopId is after the requested time
+    const row = db.getFirstSync<{
+      from_departure: string;
+      to_arrival: string;
+      trip_id: string;
+    }>(
+      `SELECT
+         st_from.departure_time AS from_departure,
+         st_to.arrival_time AS to_arrival,
+         trips.id AS trip_id
+       FROM trips
+       JOIN stop_times st_from ON trips.id = st_from.trip_id AND st_from.stop_id = ?
+       JOIN stop_times st_to ON trips.id = st_to.trip_id AND st_to.stop_id = ?
+       WHERE trips.route_id = ?
+         AND st_from.stop_sequence < st_to.stop_sequence
+         AND st_from.departure_time >= ?
+         ${serviceFilter}
+       ORDER BY st_from.departure_time ASC
+       LIMIT 1`,
+      [fromStopId, toStopId, routeId, afterTime, ...(activeServiceIds !== null && activeServiceIds.size > 0 ? Array.from(activeServiceIds) : [])]
+    );
+
+    if (!row) return null;
+
+    return {
+      departureMinutes: parseTimeToMinutes(row.from_departure),
+      arrivalMinutes: parseTimeToMinutes(row.to_arrival),
+      tripId: row.trip_id,
+    };
+  } catch (error) {
+    logger.warn('[Database] Failed to find next departure on route:', error);
+    return null;
+  }
+}
+
+/**
+ * Find actual travel time between two stops on a route using stop_times data.
+ * Returns the median travel time in minutes across all trips on this route.
+ * Falls back to null if no data found.
+ */
+export function getActualTravelTime(
+  routeId: string,
+  fromStopId: string,
+  toStopId: string
+): number | null {
+  const db = openDatabase();
+
+  try {
+    // Get travel times from all trips on this route between these two stops
+    const rows = db.getAllSync<{ from_dep: string; to_arr: string }>(
+      `SELECT
+         st_from.departure_time AS from_dep,
+         st_to.arrival_time AS to_arr
+       FROM trips
+       JOIN stop_times st_from ON trips.id = st_from.trip_id AND st_from.stop_id = ?
+       JOIN stop_times st_to ON trips.id = st_to.trip_id AND st_to.stop_id = ?
+       WHERE trips.route_id = ?
+         AND st_from.stop_sequence < st_to.stop_sequence
+       LIMIT 10`,
+      [fromStopId, toStopId, routeId]
+    );
+
+    if (rows.length === 0) return null;
+
+    // Calculate median travel time
+    const travelTimes = rows.map(r => {
+      const dep = parseTimeToMinutes(r.from_dep);
+      const arr = parseTimeToMinutes(r.to_arr);
+      return arr - dep;
+    }).filter(t => t > 0 && t < 180); // Sanity check: 0 < duration < 3 hours
+
+    if (travelTimes.length === 0) return null;
+
+    travelTimes.sort((a, b) => a - b);
+    const median = travelTimes[Math.floor(travelTimes.length / 2)];
+    return Math.round(median);
+  } catch (error) {
+    logger.warn('[Database] Failed to get actual travel time:', error);
+    return null;
+  }
+}
+
+/**
+ * Parse GTFS time string (HH:MM:SS) to minutes since midnight.
+ * Handles times > 24:00:00 (GTFS convention for trips past midnight).
+ */
+function parseTimeToMinutes(time: string): number {
+  const parts = time.split(':').map(Number);
+  return parts[0] * 60 + parts[1] + (parts[2] || 0) / 60;
+}
+
+/**
  * Get next theoretical departures for a stop
  * Returns upcoming departures sorted by time
+ * Filters by active service IDs when calendar data is available
  */
 export async function getNextDepartures(stopId: string, limit: number = 20): Promise<TheoreticalDeparture[]> {
   const db = openDatabase();
@@ -987,22 +1307,52 @@ export async function getNextDepartures(stopId: string, limit: number = 20): Pro
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
 
-    const rows = db.getAllSync<any>(
-      `SELECT
-         routes.short_name,
-         routes.color,
-         trips.headsign,
-         stop_times.departure_time
-       FROM stop_times
-       JOIN trips ON stop_times.trip_id = trips.id
-       JOIN routes ON trips.route_id = routes.id
-       WHERE stop_times.stop_id = ?
-         AND stop_times.departure_time >= ?
-       GROUP BY stop_times.departure_time, routes.id, trips.headsign
-       ORDER BY stop_times.departure_time
-       LIMIT ?`,
-      [stopId, currentTime, limit]
-    );
+    // Get active service IDs for today (if calendar data exists)
+    const activeServices = getActiveServiceIds(now);
+
+    let rows: any[];
+
+    if (activeServices !== null && activeServices.size > 0) {
+      // Calendar data available → filter by active services
+      const serviceList = Array.from(activeServices);
+      const placeholders = serviceList.map(() => '?').join(', ');
+
+      rows = db.getAllSync<any>(
+        `SELECT
+           routes.short_name,
+           routes.color,
+           trips.headsign,
+           stop_times.departure_time
+         FROM stop_times
+         JOIN trips ON stop_times.trip_id = trips.id
+         JOIN routes ON trips.route_id = routes.id
+         WHERE stop_times.stop_id = ?
+           AND stop_times.departure_time >= ?
+           AND trips.service_id IN (${placeholders})
+         GROUP BY stop_times.departure_time, routes.id, trips.headsign
+         ORDER BY stop_times.departure_time
+         LIMIT ?`,
+        [stopId, currentTime, ...serviceList, limit]
+      );
+    } else {
+      // No calendar data → show all departures (existing behavior)
+      rows = db.getAllSync<any>(
+        `SELECT
+           routes.short_name,
+           routes.color,
+           trips.headsign,
+           stop_times.departure_time
+         FROM stop_times
+         JOIN trips ON stop_times.trip_id = trips.id
+         JOIN routes ON trips.route_id = routes.id
+         WHERE stop_times.stop_id = ?
+           AND stop_times.departure_time >= ?
+         GROUP BY stop_times.departure_time, routes.id, trips.headsign
+         ORDER BY stop_times.departure_time
+         LIMIT ?`,
+        [stopId, currentTime, limit]
+      );
+    }
 
     // Convert to Date objects and return
     return rows.map((row) => {
@@ -1014,7 +1364,7 @@ export async function getNextDepartures(stopId: string, limit: number = 20): Pro
       return {
         routeShortName: row.short_name,
         routeColor: row.color,
-        headsign: row.headsign || 'Direction inconnue',
+        headsign: row.headsign || '—',
         departureTime: departureDate,
       };
     });

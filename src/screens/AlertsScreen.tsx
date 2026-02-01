@@ -3,7 +3,7 @@
  * Displays all active service alerts and disruptions
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -12,16 +12,19 @@ import { OfflineBanner } from '../components/ui/OfflineBanner';
 import { AlertBanner } from '../components/transit/AlertBanner';
 import { useAlerts } from '../hooks';
 import { useNetwork } from '../contexts/NetworkContext';
+import { useThemeColors } from '../hooks/useThemeColors';
 import type { Alert } from '../core/types/adapter';
 import { trackEvent, AnalyticsEvents } from '../services/analytics';
 
 export function AlertsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isOffline } = useNetwork();
   const { alerts, loading, refresh } = useAlerts();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -40,8 +43,20 @@ export function AlertsScreen() {
     setSelectedAlert(null);
   };
 
+  // Map i18n language codes to BCP 47 locale tags for date formatting
+  const getDateLocale = (): string => {
+    const localeMap: Record<string, string> = {
+      fr: 'fr-FR',
+      en: 'en-GB',
+      tr: 'tr-TR',
+      es: 'es-ES',
+      ru: 'ru-RU',
+    };
+    return localeMap[i18n.language] || i18n.language;
+  };
+
   const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString(getDateLocale(), {
       day: 'numeric',
       month: 'long',
       hour: '2-digit',
@@ -54,7 +69,7 @@ export function AlertsScreen() {
       <ScreenContainer>
         <ScreenHeader title={t('alerts.title')} showBack />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#0066CC" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </ScreenContainer>
@@ -74,7 +89,7 @@ export function AlertsScreen() {
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0066CC']} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -140,98 +155,99 @@ export function AlertsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  listContent: {
-    padding: 16,
-  },
-  emptyContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#666',
-  },
-  modalBody: {
-    padding: 16,
-  },
-  detailSection: {
-    marginTop: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 16,
-    color: '#000',
-  },
-});
+const createStyles = (colors: ReturnType<typeof import('../hooks/useThemeColors').useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    listContent: {
+      padding: 16,
+    },
+    emptyContainer: {
+      paddingVertical: 60,
+      alignItems: 'center',
+    },
+    emptyIcon: {
+      fontSize: 64,
+      marginBottom: 16,
+    },
+    emptyText: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    // Modal styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '80%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.borderLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonText: {
+      fontSize: 20,
+      color: colors.textSecondary,
+    },
+    modalBody: {
+      padding: 16,
+    },
+    detailSection: {
+      marginTop: 16,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    detailLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    detailValue: {
+      fontSize: 16,
+      color: colors.text,
+    },
+  });

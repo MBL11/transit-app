@@ -37,3 +37,22 @@ export interface StopTime {
   stopId: string;
   stopSequence: number;
 }
+
+export interface Calendar {
+  serviceId: string;
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+  startDate: string; // YYYYMMDD
+  endDate: string;   // YYYYMMDD
+}
+
+export interface CalendarDate {
+  serviceId: string;
+  date: string;          // YYYYMMDD
+  exceptionType: number; // 1=added, 2=removed
+}

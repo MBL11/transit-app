@@ -48,6 +48,10 @@ describe('routing.ts', () => {
     (getWalkingTime as jest.Mock).mockImplementation((distanceMeters: number) => {
       return Math.round(distanceMeters / 83.33); // 5 km/h
     });
+    // getActualTravelTime and getActiveServiceIds are auto-mocked → return undefined.
+    // Return null to signal "no data" and use distance-based estimates.
+    (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
+    (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
   });
 
   describe('findRoute', () => {
@@ -158,7 +162,7 @@ describe('routing.ts', () => {
 
       await expect(
         findRouteFromLocations(fromLocation, toLocation, new Date())
-      ).rejects.toThrow(/Aucun arrêt trouvé/);
+      ).rejects.toThrow(/NO_STOPS_NEAR/);
     });
 
     it('should find routes with walking segments when stops are found', async () => {
