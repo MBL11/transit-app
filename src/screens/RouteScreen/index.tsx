@@ -176,21 +176,21 @@ export function RouteScreen() {
         const targetArrival = state.departureTime;
         logger.log('[RouteScreen] Arrive-by mode: target arrival', formatTime(targetArrival));
 
-        // Search from 90 min before target arrival (covers most urban journeys)
-        const searchTime = new Date(targetArrival.getTime() - 90 * 60000);
+        // Search from 60 min before target arrival (covers most urban journeys)
+        const searchTime = new Date(targetArrival.getTime() - 60 * 60000);
         const results = await findMultipleRoutes(
           fromLocation,
           toLocation,
           searchTime,
           state.preferences,
-          8 // Get more results to have better chances after filtering
+          5 // Reduced from 8 for faster results
         );
 
         // Keep only journeys arriving before target, sort by latest departure
         filteredResults = results
           .filter(j => j.arrivalTime <= targetArrival)
           .sort((a, b) => b.departureTime.getTime() - a.departureTime.getTime())
-          .slice(0, 5);
+          .slice(0, 3);
 
         logger.log('[RouteScreen] Arrive-by: found', results.length, 'total,', filteredResults.length, 'arriving on time');
       } else {

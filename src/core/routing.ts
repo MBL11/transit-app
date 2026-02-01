@@ -116,15 +116,63 @@ const MAX_WALKING_DURATION_MIN = 60;
 // Transfer search radius in meters (bus stops can be 300-500m from rail stations in İzmir)
 const TRANSFER_SEARCH_RADIUS_M = 500;
 
+/**
+ * Cache for stop and route lookups to avoid redundant DB queries
+ * across multiple findRoute combinations (3×3 = 9 calls share the same stops)
+ */
+interface RoutingCache {
+  stops: Map<string, Stop | null>;
+  routes: Map<string, Route[]>;
+}
+
+function createRoutingCache(): RoutingCache {
+  return { stops: new Map(), routes: new Map() };
+}
+
+async function getCachedStop(id: string, cache?: RoutingCache): Promise<Stop | null> {
+  if (cache?.stops.has(id)) return cache.stops.get(id)!;
+  const stop = await db.getStopById(id);
+  if (cache) cache.stops.set(id, stop);
+  return stop;
+}
+
+async function getCachedRoutes(stopId: string, cache?: RoutingCache): Promise<Route[]> {
+  if (cache?.routes.has(stopId)) return cache.routes.get(stopId)!;
+  const routes = await db.getRoutesByStopId(stopId, true);
+  if (cache) cache.routes.set(stopId, routes);
+  return routes;
+}
+
+/**
+ * Post-process journeys to add headsign info (skipped during search for speed)
+ */
+async function enrichWithHeadsigns(journeys: JourneyResult[]): Promise<void> {
+  for (const journey of journeys) {
+    for (const segment of journey.segments) {
+      if (segment.type === 'transit' && segment.route && !segment.trip) {
+        const tripInfo = await db.getTripInfoForRoute(
+          segment.route.id,
+          segment.to.id,
+          segment.from.id
+        );
+        if (tripInfo) {
+          segment.trip = { headsign: tripInfo.headsign } as any;
+        }
+      }
+    }
+  }
+}
+
 export async function findRoute(
   fromStopId: string,
   toStopId: string,
-  departureTime: Date
+  departureTime: Date,
+  cache?: RoutingCache
 ): Promise<JourneyResult[]> {
 
-  // 1. Charge les stops
-  const fromStop = await db.getStopById(fromStopId);
-  const toStop = await db.getStopById(toStopId);
+  // 1. Charge les stops (using cache to avoid redundant queries)
+  const fromStop = await getCachedStop(fromStopId, cache);
+  const toStop = await getCachedStop(toStopId, cache);
 
   if (!fromStop || !toStop) {
     throw new Error('Stop not found');
@@ -153,11 +201,11 @@ export async function findRoute(
   // 3. Algorithme : trouve les lignes directes d'abord
   const journeys: JourneyResult[] = [];
 
-  // Récupère les routes qui passent par les deux arrêts
+  // Récupère les routes qui passent par les deux arrêts (using cache)
   // Cap at 10 routes per stop to prevent huge transfer queries
   const MAX_ROUTES_PER_STOP = 10;
-  const fromRoutesRaw = await db.getRoutesByStopId(fromStopId, true);
-  const toRoutesRaw = await db.getRoutesByStopId(toStopId, true);
+  const fromRoutesRaw = await getCachedRoutes(fromStopId, cache);
+  const toRoutesRaw = await getCachedRoutes(toStopId, cache);
   const fromRoutes = fromRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
   const toRoutes = toRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
 
@@ -189,8 +237,7 @@ export async function findRoute(
       estimatedDuration = Math.max(3, Math.round(travelTime + dwellTime + waitTime));
     }
 
-    // Try to get headsign for this route (pass both origin and destination for correct direction)
-    const tripInfo = await db.getTripInfoForRoute(route.id, toStopId, fromStopId);
+    // Headsign lookup deferred to enrichWithHeadsigns() for performance
 
     const journey: JourneyResult = {
       segments: [{
@@ -198,7 +245,6 @@ export async function findRoute(
         from: fromStop,
         to: toStop,
         route: route,
-        trip: tripInfo ? { headsign: tripInfo.headsign } : undefined,
         departureTime: departureTime,
         arrivalTime: new Date(departureTime.getTime() + estimatedDuration * 60000),
         duration: estimatedDuration,
@@ -274,8 +320,7 @@ export async function findRoute(
       const transferTime = TRANSFER_PENALTY_MIN;
       const totalDuration = duration1 + transferTime + duration2;
 
-      const trip1Info = await db.getTripInfoForRoute(fromRoute.id, transferStop.id, fromStopId);
-      const trip2Info = await db.getTripInfoForRoute(toRoute.id, toStopId, transferStop.id);
+      // Headsign lookups deferred to enrichWithHeadsigns() for performance
 
       const journey: JourneyResult = {
         segments: [
@@ -284,7 +329,6 @@ export async function findRoute(
             from: fromStop,
             to: transferStop,
             route: fromRoute,
-            trip: trip1Info ? { headsign: trip1Info.headsign } : undefined,
             departureTime: departureTime,
             arrivalTime: new Date(departureTime.getTime() + duration1 * 60000),
             duration: duration1,
@@ -294,7 +338,6 @@ export async function findRoute(
             from: transferStop,
             to: toStop,
             route: toRoute,
-            trip: trip2Info ? { headsign: trip2Info.headsign } : undefined,
             departureTime: new Date(departureTime.getTime() + (duration1 + transferTime) * 60000),
             arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
             duration: duration2,
@@ -404,9 +447,7 @@ export async function findRoute(
       const dur3 = calcDuration(toRoute, transferStop2.lat, transferStop2.lon, toStop.lat, toStop.lon, toRoute.id, transferStop2.id, toStopId, false);
       const totalDuration = dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN + dur3;
 
-      const trip1Info = await db.getTripInfoForRoute(fromRoute.id, transferStop1.id, fromStopId);
-      const trip2Info = await db.getTripInfoForRoute(midRoute.id, transferStop2.id, transferStop1.id);
-      const trip3Info = await db.getTripInfoForRoute(toRoute.id, toStopId, transferStop2.id);
+      // Headsign lookups deferred to enrichWithHeadsigns() for performance
 
       const journey: JourneyResult = {
         segments: [
@@ -415,7 +456,6 @@ export async function findRoute(
             from: fromStop,
             to: transferStop1,
             route: fromRoute,
-            trip: trip1Info ? { headsign: trip1Info.headsign } : undefined,
             departureTime: departureTime,
             arrivalTime: new Date(departureTime.getTime() + dur1 * 60000),
             duration: dur1,
@@ -425,7 +465,6 @@ export async function findRoute(
             from: transferStop1,
             to: transferStop2,
             route: midRoute,
-            trip: trip2Info ? { headsign: trip2Info.headsign } : undefined,
             departureTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN) * 60000),
             arrivalTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN + dur2) * 60000),
             duration: dur2,
@@ -435,7 +474,6 @@ export async function findRoute(
             from: transferStop2,
             to: toStop,
             route: toRoute,
-            trip: trip3Info ? { headsign: trip3Info.headsign } : undefined,
             departureTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN) * 60000),
             arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
             duration: dur3,
@@ -567,8 +605,9 @@ export async function findRouteFromLocations(
     logger.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
     logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
-    // 3. Build combinations and run in parallel with per-combination timeout
-    const ROUTE_CALC_TIMEOUT_MS = 8000; // 8s timeout per combination
+    // 3. Build combinations and run with shared cache + timeout
+    const ROUTE_CALC_TIMEOUT_MS = 5000; // 5s timeout (reduced from 8s)
+    const routingCache = createRoutingCache();
     const combinations: { fromStop: NearbyStop; toStop: NearbyStop }[] = [];
     for (const fromStop of fromStops) {
       for (const toStop of toStops) {
@@ -576,12 +615,12 @@ export async function findRouteFromLocations(
       }
     }
 
-    logger.log(`[Routing] Trying ${combinations.length} combinations in parallel...`);
+    logger.log(`[Routing] Trying ${combinations.length} combinations with shared cache...`);
 
     const routeResults = await Promise.all(
       combinations.map(({ fromStop, toStop }) =>
         Promise.race([
-          findRoute(fromStop.id, toStop.id, departureTime)
+          findRoute(fromStop.id, toStop.id, departureTime, routingCache)
             .then(routes => ({ fromStop, toStop, routes }))
             .catch(() => ({ fromStop, toStop, routes: [] as JourneyResult[] })),
           new Promise<{ fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }>(resolve =>
@@ -653,6 +692,9 @@ export async function findRouteFromLocations(
     // Sort by duration and return top 5
     validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
     const topJourneys = validJourneys.slice(0, 5);
+
+    // Enrich final results with headsigns (deferred from findRoute for speed)
+    await enrichWithHeadsigns(topJourneys);
 
     logger.log(`[Routing] Found ${topJourneys.length} journey options`);
     return topJourneys;
@@ -777,13 +819,14 @@ export async function findRouteFromAddresses(
         }
       }
 
-      logger.log(`[Routing] Calculating ${combinations.length} route combinations in parallel`);
+      logger.log(`[Routing] Calculating ${combinations.length} route combinations with shared cache`);
 
-      // Execute all route calculations in parallel
+      // Execute all route calculations with shared cache for deduplication
+      const routingCache = createRoutingCache();
       const routeResults = await Promise.all(
         combinations.map(async ({ fromStop, toStop }) => {
           try {
-            const routes = await findRoute(fromStop.id, toStop.id, departureTime);
+            const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
             return { fromStop, toStop, routes };
           } catch (error) {
             logger.warn(`[Routing] Failed to find route between ${fromStop.name} and ${toStop.name}`);
@@ -863,6 +906,9 @@ export async function findRouteFromAddresses(
       throw new Error('NO_ROUTE_FOUND');
     }
 
+    // Enrich final results with headsigns (deferred from findRoute for speed)
+    await enrichWithHeadsigns(allJourneys);
+
     return allJourneys;
 
   } catch (error) {
@@ -928,10 +974,11 @@ export async function findRouteFromCoordinates(
       }
     }
 
+    const routingCache = createRoutingCache();
     const routeResults = await Promise.all(
       combinations.map(async ({ fromStop, toStop }) => {
         try {
-          const routes = await findRoute(fromStop.id, toStop.id, departureTime);
+          const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
           return { fromStop, toStop, routes };
         } catch (error) {
           return { fromStop, toStop, routes: [] };
@@ -981,8 +1028,13 @@ export async function findRouteFromCoordinates(
     }
 
     validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
+    const topJourneys = validJourneys.slice(0, 3);
+
+    // Enrich final results with headsigns (deferred from findRoute for speed)
+    await enrichWithHeadsigns(topJourneys);
+
     logger.log(`[Routing] Found ${validJourneys.length} journeys, returning top 3`);
-    return validJourneys.slice(0, 3);
+    return topJourneys;
 
   } catch (error) {
     logger.error('[Routing] Error finding route from coordinates:', error);
