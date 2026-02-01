@@ -160,6 +160,10 @@
     "recentSearches": "Recherches récentes",
     "calculating": "Recherche du meilleur itinéraire...",
     "calculatingHint": "Analyse des lignes et correspondances",
+    "searchingStops": "Recherche des arrêts proches...",
+    "analyzingLines": "Analyse des lignes de transport...",
+    "findingTransfers": "Recherche de correspondances...",
+    "optimizingRoute": "Optimisation de l'itinéraire...",
     "noStopsNear": "Aucun arrêt trouvé près de {{location}} (rayon 2.5 km)",
     "noStopsNearPosition": "Aucun arrêt trouvé près de votre position (rayon 2.5 km)"
   },

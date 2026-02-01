@@ -3,7 +3,7 @@
  * Welcome slides for new users
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ interface OnboardingSlide {
   titleKey: string;
   descriptionKey: string;
   backgroundColor: string;
+  backgroundColorDark: string;
 }
 
 const SLIDES: OnboardingSlide[] = [
@@ -37,6 +38,7 @@ const SLIDES: OnboardingSlide[] = [
     titleKey: 'onboarding.welcome.title',
     descriptionKey: 'onboarding.welcome.description',
     backgroundColor: '#0066CC',
+    backgroundColorDark: '#004C99',
   },
   {
     id: '2',
@@ -44,6 +46,7 @@ const SLIDES: OnboardingSlide[] = [
     titleKey: 'onboarding.route.title',
     descriptionKey: 'onboarding.route.description',
     backgroundColor: '#00AA55',
+    backgroundColorDark: '#008844',
   },
   {
     id: '3',
@@ -51,6 +54,7 @@ const SLIDES: OnboardingSlide[] = [
     titleKey: 'onboarding.realtime.title',
     descriptionKey: 'onboarding.realtime.description',
     backgroundColor: '#FF6600',
+    backgroundColorDark: '#CC5200',
   },
   {
     id: '4',
@@ -58,6 +62,7 @@ const SLIDES: OnboardingSlide[] = [
     titleKey: 'onboarding.favorites.title',
     descriptionKey: 'onboarding.favorites.description',
     backgroundColor: '#7B68EE',
+    backgroundColorDark: '#6050CC',
   },
 ];
 
@@ -69,6 +74,7 @@ export function OnboardingScreen({ onComplete }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -92,7 +98,7 @@ export function OnboardingScreen({ onComplete }: Props) {
   };
 
   const renderSlide = ({ item }: { item: OnboardingSlide }) => (
-    <View style={[styles.slide, { width, backgroundColor: item.backgroundColor }]}>
+    <View style={[styles.slide, { width, backgroundColor: colors.isDark ? item.backgroundColorDark : item.backgroundColor }]}>
       <View style={styles.slideContent}>
         <Text style={styles.emoji}>{item.emoji}</Text>
         <Text style={styles.title}>{t(item.titleKey)}</Text>
@@ -193,86 +199,87 @@ export async function resetOnboarding(): Promise<void> {
   await AsyncStorage.removeItem(ONBOARDING_KEY);
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  slide: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  slideContent: {
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emoji: {
-    fontSize: 100,
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 4,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  skipButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  skipText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  nextButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 30,
-    marginLeft: 'auto',
-  },
-  startButton: {
-    backgroundColor: '#FFFFFF',
-    flex: 1,
-    alignItems: 'center',
-  },
-  nextText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  startText: {
-    color: '#7B68EE',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    slide: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    slideContent: {
+      alignItems: 'center',
+      paddingHorizontal: 40,
+    },
+    emoji: {
+      fontSize: 100,
+      marginBottom: 40,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: 'bold',
+      color: '#FFFFFF',
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    description: {
+      fontSize: 18,
+      color: 'rgba(255, 255, 255, 0.9)',
+      textAlign: 'center',
+      lineHeight: 26,
+    },
+    footer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 20,
+    },
+    dotsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 30,
+    },
+    dot: {
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#FFFFFF',
+      marginHorizontal: 4,
+    },
+    buttonContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    skipButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+    },
+    skipText: {
+      fontSize: 16,
+      color: 'rgba(255, 255, 255, 0.7)',
+    },
+    nextButton: {
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+      paddingVertical: 14,
+      paddingHorizontal: 32,
+      borderRadius: 30,
+      marginLeft: 'auto',
+    },
+    startButton: {
+      backgroundColor: colors.isDark ? 'rgba(255, 255, 255, 0.9)' : '#FFFFFF',
+      flex: 1,
+      alignItems: 'center',
+    },
+    nextText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    startText: {
+      color: colors.primary,
+    },
+  });

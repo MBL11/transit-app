@@ -160,6 +160,10 @@
     "recentSearches": "Recent searches",
     "calculating": "Finding the best route...",
     "calculatingHint": "Analysing lines and connections",
+    "searchingStops": "Searching nearby stops...",
+    "analyzingLines": "Analysing transit lines...",
+    "findingTransfers": "Finding connections...",
+    "optimizingRoute": "Optimising the route...",
     "noStopsNear": "No transit stops found near {{location}} (2.5 km radius)",
     "noStopsNearPosition": "No transit stops found near your location (2.5 km radius)"
   },

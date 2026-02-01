@@ -13,7 +13,6 @@ import Constants from 'expo-constants';
 import { useTheme } from '../contexts/ThemeContext';
 import { MapStackNavigator } from './MapStackNavigator';
 import { LinesStackNavigator } from './LinesStackNavigator';
-import { SearchStackNavigator } from './SearchStackNavigator';
 import { RouteStackNavigator } from './RouteStackNavigator';
 import { FavoritesStackNavigator } from './FavoritesStackNavigator';
 import { SettingsStackNavigator } from './SettingsStackNavigator';
@@ -67,17 +66,15 @@ function NavigationContent() {
 
   // Setup notification handlers (must be inside NavigationContainer)
   // Hook will handle Expo Go detection internally
-  // TODO: Re-enable when app is stable - currently disabled to avoid potential crashes
-  // useNotifications();
-  logger.log('[NavigationContent] useNotifications DISABLED (for stability)');
+  if (!isExpoGo) {
+    useNotifications();
+    logger.log('[NavigationContent] useNotifications enabled');
+  } else {
+    logger.log('[NavigationContent] useNotifications skipped (Expo Go)');
+  }
 
-  // Start alert monitoring
-  // TEMPORARILY DISABLED FOR DEBUG
-  /*
+  // Start alert monitoring for favorite lines
   useEffect(() => {
-    logger.log('[NavigationContent] Setting up alert monitoring...');
-
-    // Skip alert monitoring in Expo Go since it depends on notifications
     if (isExpoGo) {
       logger.log('[NavigationContent] Skipping alert monitoring (Expo Go)');
       return;
@@ -88,22 +85,18 @@ function NavigationContent() {
       try {
         logger.log('[NavigationContent] Starting alert monitoring...');
         const adapter = getAdapter();
-
-        // Start monitoring for alerts on favorite lines
         startAlertMonitoring((routeIds) => adapter.getAlerts(routeIds));
         logger.log('[NavigationContent] Alert monitoring started');
       } catch (error) {
         logger.warn('[NavigationContent] Failed to start alert monitoring:', error);
       }
-    }, 5000); // Wait 5 seconds after app loads to avoid blocking
+    }, 5000);
 
-    // Cleanup on unmount
     return () => {
       clearTimeout(timer);
       stopAlertMonitoring();
     };
   }, [isExpoGo]);
-  */
 
   logger.log('[NavigationContent] Rendering Tab.Navigator...');
 
@@ -138,16 +131,6 @@ function NavigationContent() {
           title: t('tabs.lines'),
           tabBarLabel: t('tabs.lines'),
           tabBarIcon: ({ color }) => <TabIcon icon="🚇" color={color} />,
-          headerShown: false, // Let the stack handle its own headers
-        }}
-      />
-      <Tab.Screen
-        name="SearchTab"
-        component={SearchStackNavigator}
-        options={{
-          title: t('tabs.search'),
-          tabBarLabel: t('tabs.search'),
-          tabBarIcon: ({ color }) => <TabIcon icon="🔍" color={color} />,
           headerShown: false, // Let the stack handle its own headers
         }}
       />

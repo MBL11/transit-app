@@ -154,12 +154,20 @@ export async function findRoute(
   const journeys: JourneyResult[] = [];
 
   // Récupère les routes qui passent par les deux arrêts
-  const fromRoutes = await db.getRoutesByStopId(fromStopId, true);
-  const toRoutes = await db.getRoutesByStopId(toStopId, true);
+  // Cap at 10 routes per stop to prevent huge transfer queries
+  const MAX_ROUTES_PER_STOP = 10;
+  const fromRoutesRaw = await db.getRoutesByStopId(fromStopId, true);
+  const toRoutesRaw = await db.getRoutesByStopId(toStopId, true);
+  const fromRoutes = fromRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
+  const toRoutes = toRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
 
   // Trouve les routes communes (trajet direct)
   const fromRouteIds = new Set(fromRoutes.map(r => r.id));
   const directRoutes = toRoutes.filter(r => fromRouteIds.has(r.id));
+
+  if (directRoutes.length > 0) {
+    logger.log(`[Routing] Direct route found: ${directRoutes.map(r => r.shortName).join(', ')} (${fromStop.name} → ${toStop.name})`);
+  }
 
   for (const route of directRoutes.slice(0, 3)) { // Max 3 itinéraires directs
     // Try to get actual travel time from GTFS stop_times first
@@ -310,7 +318,8 @@ export async function findRoute(
   // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
   //    Strategy: find routes that bridge from-routes to to-routes via an intermediate route
   //    Uses batch queries: fromRoutes → midRoutes (via transfer stops) → toRoutes (via transfer stops)
-  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0) {
+  //    Only attempt if route sets are small enough to be tractable (skip for bus-heavy combos)
+  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0 && fromRoutes.length <= 6 && toRoutes.length <= 6) {
     logger.log('[Routing] No 1-transfer route, looking for 2-transfer connections...');
 
     const fromRouteIds = fromRoutes.map(r => r.id);
@@ -540,11 +549,11 @@ export async function findRouteFromLocations(
       }];
     }
 
-    // 2. Find nearby stops for both locations
+    // 2. Find nearby stops for both locations (3 per side → max 9 combinations)
     logger.log('[Routing] Finding nearby stops...');
     const [fromStops, toStops] = await Promise.all([
-      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 15, 2500), // 2.5km radius, up to 15 stops
-      findBestNearbyStops(toLocation.lat, toLocation.lon, 15, 2500),
+      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500),
+      findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500),
     ]);
 
     if (fromStops.length === 0) {
@@ -558,75 +567,79 @@ export async function findRouteFromLocations(
     logger.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
     logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
-    // 3. Try to find routes between nearby stops
+    // 3. Build combinations and run in parallel with per-combination timeout
+    const ROUTE_CALC_TIMEOUT_MS = 8000; // 8s timeout per combination
+    const combinations: { fromStop: NearbyStop; toStop: NearbyStop }[] = [];
+    for (const fromStop of fromStops) {
+      for (const toStop of toStops) {
+        combinations.push({ fromStop, toStop });
+      }
+    }
+
+    logger.log(`[Routing] Trying ${combinations.length} combinations in parallel...`);
+
+    const routeResults = await Promise.all(
+      combinations.map(({ fromStop, toStop }) =>
+        Promise.race([
+          findRoute(fromStop.id, toStop.id, departureTime)
+            .then(routes => ({ fromStop, toStop, routes }))
+            .catch(() => ({ fromStop, toStop, routes: [] as JourneyResult[] })),
+          new Promise<{ fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }>(resolve =>
+            setTimeout(() => {
+              logger.warn(`[Routing] Timeout: ${fromStop.name} → ${toStop.name}`);
+              resolve({ fromStop, toStop, routes: [] });
+            }, ROUTE_CALC_TIMEOUT_MS)
+          ),
+        ])
+      )
+    );
+
+    // 4. Collect journeys with walking segments, deduplicating by route signature
     const allJourneys: JourneyResult[] = [];
+    const seenRouteKeys = new Set<string>();
 
-    // Try combinations of nearby stops (max 5x5 = 25 combinations)
-    for (const fromStop of fromStops.slice(0, 5)) {
-      for (const toStop of toStops.slice(0, 5)) {
-        try {
-          // Find routes between these stops
-          const routes = await findRoute(fromStop.id, toStop.id, departureTime);
+    const fromVirtualStop: Stop = {
+      id: 'virtual_from',
+      name: fromLocation.shortAddress || fromLocation.displayName,
+      lat: fromLocation.lat,
+      lon: fromLocation.lon,
+      locationType: 0,
+    };
+    const toVirtualStop: Stop = {
+      id: 'virtual_to',
+      name: toLocation.shortAddress || toLocation.displayName,
+      lat: toLocation.lat,
+      lon: toLocation.lon,
+      locationType: 0,
+    };
 
-          // Add walking segments to the beginning and end
-          for (const route of routes) {
-            // Calculate walking time to first stop
-            const walkToStop = getWalkingTime(fromStop.distance);
+    for (const { fromStop, toStop, routes } of routeResults) {
+      for (const route of routes) {
+        // Deduplicate: same transit lines in same order = same route
+        const routeKey = route.segments
+          .filter(s => s.type === 'transit')
+          .map(s => s.route?.id || 'walk')
+          .join('→');
+        if (seenRouteKeys.has(routeKey)) continue;
+        seenRouteKeys.add(routeKey);
 
-            // Calculate walking time from last stop
-            const walkFromStop = getWalkingTime(toStop.distance);
+        const walkToStop = getWalkingTime(fromStop.distance);
+        const walkFromStop = getWalkingTime(toStop.distance);
 
-            // Create virtual stops for the locations
-            const fromVirtualStop: Stop = {
-              id: 'virtual_from',
-              name: fromLocation.shortAddress || fromLocation.displayName,
-              lat: fromLocation.lat,
-              lon: fromLocation.lon,
-              locationType: 0,
-            };
+        const newJourney: JourneyResult = {
+          segments: [
+            { type: 'walk', from: fromVirtualStop, to: fromStop, duration: walkToStop, distance: Math.round(fromStop.distance) },
+            ...route.segments,
+            { type: 'walk', from: toStop, to: toVirtualStop, duration: walkFromStop, distance: Math.round(toStop.distance) },
+          ],
+          totalDuration: route.totalDuration + walkToStop + walkFromStop,
+          totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
+          numberOfTransfers: route.numberOfTransfers,
+          departureTime: route.departureTime,
+          arrivalTime: route.arrivalTime,
+        };
 
-            const toVirtualStop: Stop = {
-              id: 'virtual_to',
-              name: toLocation.shortAddress || toLocation.displayName,
-              lat: toLocation.lat,
-              lon: toLocation.lon,
-              locationType: 0,
-            };
-
-            // Prepend walking segment to first stop
-            const walkToSegment: RouteSegment = {
-              type: 'walk',
-              from: fromVirtualStop,
-              to: fromStop,
-              duration: walkToStop,
-              distance: Math.round(fromStop.distance),
-            };
-
-            // Append walking segment from last stop
-            const walkFromSegment: RouteSegment = {
-              type: 'walk',
-              from: toStop,
-              to: toVirtualStop,
-              duration: walkFromStop,
-              distance: Math.round(toStop.distance),
-            };
-
-            // Create new journey with walking segments
-            const newJourney: JourneyResult = {
-              segments: [walkToSegment, ...route.segments, walkFromSegment],
-              totalDuration: route.totalDuration + walkToStop + walkFromStop,
-              totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
-              numberOfTransfers: route.numberOfTransfers,
-              departureTime: route.departureTime,
-              arrivalTime: route.arrivalTime,
-            };
-
-            allJourneys.push(newJourney);
-          }
-        } catch (error) {
-          // Continue trying other combinations
-          logger.log(`[Routing] No route found between ${fromStop.name} and ${toStop.name}`);
-        }
+        allJourneys.push(newJourney);
       }
     }
 

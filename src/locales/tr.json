@@ -160,6 +160,10 @@
     "arrival": "Varış",
     "calculating": "En iyi güzergah aranıyor...",
     "calculatingHint": "Hatlar ve aktarmalar analiz ediliyor",
+    "searchingStops": "Yakındaki duraklar aranıyor...",
+    "analyzingLines": "Ulaşım hatları analiz ediliyor...",
+    "findingTransfers": "Aktarma noktaları aranıyor...",
+    "optimizingRoute": "Güzergah optimize ediliyor...",
     "noStopsNear": "{{location}} yakınında durak bulunamadı (2.5 km yarıçap)",
     "noStopsNearPosition": "Konumunuz yakınında durak bulunamadı (2.5 km yarıçap)"
   },

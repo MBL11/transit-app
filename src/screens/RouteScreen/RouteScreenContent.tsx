@@ -11,6 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { RouteOptionCard } from '../../components/routing/RouteOptionCard';
 import { RouteFiltersModal } from '../../components/routing/RouteFiltersModal';
+import { RouteSearchAnimation } from '../../components/routing/RouteSearchAnimation';
 import type { Stop } from '../../core/types/models';
 import type { JourneyResult } from '../../core/types/routing';
 import { AddressSearchModal } from '../../components/routing/AddressSearchModal';
@@ -322,11 +323,7 @@ export function RouteScreenContent({
         {/* Results - now part of the same ScrollView */}
         <View style={styles.resultsContainer}>
           {state.calculating && (
-          <View style={styles.calculatingContainer}>
-            <ActivityIndicator size="large" color="#0066CC" />
-            <Text style={styles.calculatingText}>{t('route.calculating', { defaultValue: 'Recherche du meilleur itinéraire...' })}</Text>
-            <Text style={styles.calculatingSubtext}>{t('route.calculatingHint', { defaultValue: 'Analyse des lignes et correspondances' })}</Text>
-          </View>
+          <RouteSearchAnimation />
         )}
 
         {!state.calculating && state.hasSearched && state.journeys.length === 0 && (
