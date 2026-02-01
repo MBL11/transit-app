@@ -65,7 +65,7 @@ const DEPARTURE = new Date('2025-01-31T08:00:00');
 
 describe('Routing Reliability - İzmir Scenarios', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     // Always provide real getWalkingTime implementation
     (getWalkingTime as jest.Mock).mockImplementation((distanceMeters: number) => {
       return Math.round(distanceMeters / 83.33);
@@ -73,6 +73,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
     // Return null for schedule-based lookups → fall back to distance estimates
     (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
     (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
+    // Batch query mocks — return empty by default
+    (db.findTransferStops as jest.Mock).mockReturnValue([]);
+    (db.getRoutesByStopIds as jest.Mock).mockResolvedValue(new Map());
   });
 
   // ==========================================================================
@@ -148,39 +151,25 @@ describe('Routing Reliability - İzmir Scenarios', () => {
   describe('Transfer Routes', () => {
     it('Metro → Tram transfer at Konak (M1 Üçyol → T2 to Alaybey)', async () => {
       // Üçyol is on M1, Alaybey is on T2 (Karşıyaka tram)
-      // Transfer at Konak/Halkapınar area
+      // Transfer at Konak area via findTransferStops batch query
 
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(UCYOL)     // from
         .mockResolvedValueOnce(ALAYBEY);  // to
 
-      // Use mockImplementation for getRoutesByStopId to handle variable call order
-      const routesByStop: Record<string, Route[]> = {
-        'metro_ucyol': [METRO_M1],
-        'tram_alaybey': [TRAM_T2],
-        'metro_fahrettin': [METRO_M1],
-        'metro_konak': [METRO_M1, TRAM_T1],
-        'metro_halkapinar': [METRO_M1],
-        'metro_bornova': [METRO_M1],
-        'tram_karsiyaka': [TRAM_T2],
-      };
-      (db.getRoutesByStopId as jest.Mock).mockImplementation(async (stopId: string) => {
-        return routesByStop[stopId] || [];
-      });
+      (db.getRoutesByStopId as jest.Mock)
+        .mockResolvedValueOnce([METRO_M1])   // fromRoutes
+        .mockResolvedValueOnce([TRAM_T2]);   // toRoutes
 
-      // M1 stops
-      (db.getStopsByRouteId as jest.Mock)
-        .mockResolvedValue([FAHRETTIN_ALTAY, UCYOL, KONAK, HALKAPINAR, BORNOVA]);
-
-      // Nearby stops search at transfer points - Karşıyaka tram near Konak
-      (findBestNearbyStops as jest.Mock)
-        .mockImplementation(async (lat: number, lon: number) => {
-          // Near Konak area → find Karşıyaka tram
-          if (Math.abs(lat - KONAK.lat) < 0.02 && Math.abs(lon - KONAK.lon) < 0.02) {
-            return [{ ...KARSIYAKA_TRAM, distance: 400 }];
-          }
-          return [];
-        });
+      // Mock findTransferStops to return Konak as a transfer point between M1 and T2
+      (db.findTransferStops as jest.Mock).mockReturnValue([{
+        stopId: 'metro_konak',
+        stopName: 'Konak',
+        lat: KONAK.lat,
+        lon: KONAK.lon,
+        fromRouteId: 'metro_m1',
+        toRouteId: 'tram_t2',
+      }]);
 
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue({ headsign: 'Direction' });
@@ -193,7 +182,7 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       const transitSegments = journey.segments.filter(s => s.type === 'transit');
       expect(transitSegments.length).toBe(2);
       expect(journey.numberOfTransfers).toBe(1);
-      // Total should be reasonable: M1 ~5min + 4min transfer + T2 ~15min = ~24min
+      // Total should be reasonable: M1 ~5min + 5min transfer + T2 ~15min = ~25min
       expect(journey.totalDuration).toBeGreaterThanOrEqual(10);
       expect(journey.totalDuration).toBeLessThanOrEqual(60);
     });

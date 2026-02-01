@@ -27,7 +27,8 @@
     "offline": "Hors ligne",
     "retry": "Réessayer",
     "apply": "Appliquer",
-    "reset": "Réinitialiser"
+    "reset": "Réinitialiser",
+    "mapLegend": "Transports"
   },
   "tabs": {
     "map": "Carte",

@@ -1169,6 +1169,82 @@ export interface TheoreticalDeparture {
 }
 
 /**
+ * Find transfer stops between two sets of routes in a single query.
+ * Returns stops that are served by at least one route from each set.
+ * This replaces the O(n) loop of getRoutesByStopId calls with a single SQL query.
+ *
+ * @param fromRouteIds - Route IDs from the departure side
+ * @param toRouteIds - Route IDs from the arrival side
+ * @param limit - Max number of transfer points to return
+ * @returns Array of { stopId, stopName, lat, lon, fromRouteId, toRouteId }
+ */
+export function findTransferStops(
+  fromRouteIds: string[],
+  toRouteIds: string[],
+  limit: number = 10
+): Array<{
+  stopId: string;
+  stopName: string;
+  lat: number;
+  lon: number;
+  fromRouteId: string;
+  toRouteId: string;
+}> {
+  const db = openDatabase();
+
+  if (fromRouteIds.length === 0 || toRouteIds.length === 0) return [];
+
+  try {
+    const fromPlaceholders = fromRouteIds.map(() => '?').join(', ');
+    const toPlaceholders = toRouteIds.map(() => '?').join(', ');
+
+    // Find stops served by both a "from" route and a "to" route
+    // Matches by: same name (multi-modal stations) OR proximity within ~330m (bus near rail)
+    const rows = db.getAllSync<{
+      stop_id: string;
+      stop_name: string;
+      lat: number;
+      lon: number;
+      from_route_id: string;
+      to_route_id: string;
+    }>(
+      `SELECT
+         s1.id AS stop_id,
+         s1.name AS stop_name,
+         s1.lat,
+         s1.lon,
+         t1_routes.route_id AS from_route_id,
+         t2_routes.route_id AS to_route_id
+       FROM stops s1
+       JOIN stop_times st1 ON s1.id = st1.stop_id
+       JOIN trips t1_routes ON st1.trip_id = t1_routes.id AND t1_routes.route_id IN (${fromPlaceholders})
+       JOIN stops s2 ON (
+         (s2.name = s1.name AND ABS(s2.lat - s1.lat) < 0.005 AND ABS(s2.lon - s1.lon) < 0.005)
+         OR (ABS(s2.lat - s1.lat) < 0.003 AND ABS(s2.lon - s1.lon) < 0.003)
+       )
+       JOIN stop_times st2 ON s2.id = st2.stop_id
+       JOIN trips t2_routes ON st2.trip_id = t2_routes.id AND t2_routes.route_id IN (${toPlaceholders})
+       WHERE t1_routes.route_id != t2_routes.route_id
+       GROUP BY s1.name, t1_routes.route_id, t2_routes.route_id
+       LIMIT ?`,
+      [...fromRouteIds, ...toRouteIds, limit]
+    );
+
+    return rows.map(r => ({
+      stopId: r.stop_id,
+      stopName: r.stop_name,
+      lat: r.lat,
+      lon: r.lon,
+      fromRouteId: r.from_route_id,
+      toRouteId: r.to_route_id,
+    }));
+  } catch (error) {
+    logger.warn('[Database] Failed to find transfer stops:', error);
+    return [];
+  }
+}
+
+/**
  * Find the next real departure from stop_times for a given route between two stops.
  * Returns the actual departure time from the origin stop and arrival at the destination,
  * based on GTFS stop_times data.

@@ -126,6 +126,9 @@ describe('Real-World İzmir Route Comparisons', () => {
     // Return null for schedule-based lookups → fall back to distance estimates
     (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
     (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
+    // Batch query mocks — return empty by default
+    (db.findTransferStops as jest.Mock).mockReturnValue([]);
+    (db.getRoutesByStopIds as jest.Mock).mockResolvedValue(new Map());
   });
 
   // ==========================================================================
@@ -242,14 +245,15 @@ describe('Real-World İzmir Route Comparisons', () => {
       (db.getStopsByRouteId as jest.Mock)
         .mockResolvedValue([FAHRETTIN_ALTAY, HATAY, UCYOL, KONAK, CANKAYA, BASMANE, HALKAPINAR, BORNOVA]);
 
-      // At Konak, ferry stop is ~400m from metro
-      (findBestNearbyStops as jest.Mock).mockImplementation(async (lat: number, lon: number) => {
-        // Near Konak metro → find Konak ferry terminal
-        if (Math.abs(lat - KONAK.lat) < 0.01 && Math.abs(lon - KONAK.lon) < 0.01) {
-          return [{ ...KONAK_FERRY, distance: 400 }];
-        }
-        return [];
-      });
+      // Mock findTransferStops: Konak is where M1 meets Ferry (nearby stops ~400m)
+      (db.findTransferStops as jest.Mock).mockReturnValue([{
+        stopId: 'metro_konak',
+        stopName: 'Konak',
+        lat: KONAK.lat,
+        lon: KONAK.lon,
+        fromRouteId: 'metro_m1',
+        toRouteId: 'ferry_kk',
+      }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Karşıyaka' });
 
@@ -313,13 +317,15 @@ describe('Real-World İzmir Route Comparisons', () => {
         return [];
       });
 
-      // At Halkapınar, İZBAN is adjacent to metro (~50m)
-      (findBestNearbyStops as jest.Mock).mockImplementation(async (lat: number, lon: number) => {
-        if (Math.abs(lat - HALKAPINAR.lat) < 0.005 && Math.abs(lon - HALKAPINAR.lon) < 0.005) {
-          return [{ ...HALKAPINAR_IZBAN, distance: 50 }];
-        }
-        return [];
-      });
+      // Mock findTransferStops: Halkapınar is where M1 meets İZBAN (~50m)
+      (db.findTransferStops as jest.Mock).mockReturnValue([{
+        stopId: 'metro_halkapinar',
+        stopName: 'Halkapınar',
+        lat: HALKAPINAR.lat,
+        lon: HALKAPINAR.lon,
+        fromRouteId: 'metro_m1',
+        toRouteId: 'izban_s1',
+      }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Alsancak' });
 
@@ -373,13 +379,15 @@ describe('Real-World İzmir Route Comparisons', () => {
         return [];
       });
 
-      // At Bostanlı, tram stop is ~200m from ferry
-      (findBestNearbyStops as jest.Mock).mockImplementation(async (lat: number, lon: number) => {
-        if (Math.abs(lat - BOSTANLI_FERRY.lat) < 0.005 && Math.abs(lon - BOSTANLI_FERRY.lon) < 0.005) {
-          return [{ ...BOSTANLI_TRAM, distance: 200 }];
-        }
-        return [];
-      });
+      // Mock findTransferStops: Bostanlı is where Ferry meets Tram T1 (~200m)
+      (db.findTransferStops as jest.Mock).mockReturnValue([{
+        stopId: 'ferry_bostanli',
+        stopName: 'Bostanlı',
+        lat: BOSTANLI_FERRY.lat,
+        lon: BOSTANLI_FERRY.lon,
+        fromRouteId: 'ferry_ub',
+        toRouteId: 'tram_t1',
+      }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Mavişehir' });
 
@@ -444,13 +452,15 @@ describe('Real-World İzmir Route Comparisons', () => {
         return [];
       });
 
-      // At Halkapınar, İZBAN interchange (~50m)
-      (findBestNearbyStops as jest.Mock).mockImplementation(async (lat: number, lon: number) => {
-        if (Math.abs(lat - HALKAPINAR.lat) < 0.005 && Math.abs(lon - HALKAPINAR.lon) < 0.005) {
-          return [{ ...HALKAPINAR_IZBAN, distance: 50 }];
-        }
-        return [];
-      });
+      // Mock findTransferStops: Halkapınar is where M1 meets İZBAN (~50m)
+      (db.findTransferStops as jest.Mock).mockReturnValue([{
+        stopId: 'metro_halkapinar',
+        stopName: 'Halkapınar',
+        lat: HALKAPINAR.lat,
+        lon: HALKAPINAR.lon,
+        fromRouteId: 'metro_m1',
+        toRouteId: 'izban_s1',
+      }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Aliağa' });
 

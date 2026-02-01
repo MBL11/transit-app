@@ -453,14 +453,14 @@ export function MapScreen({ navigation }: Props) {
 
         {/* Offline Banner */}
         {isOffline && (
-          <View style={[styles.offlineBannerContainer, { top: insets.top + 60 }]}>
+          <View style={[styles.offlineBannerContainer, { top: insets.top + 52 }]}>
             <OfflineBanner visible={isOffline} />
           </View>
         )}
 
         {/* Location Permission Prompt */}
         {showLocationPrompt && (
-          <View style={[styles.locationPromptContainer, { top: insets.top + 68 }]}>
+          <View style={[styles.locationPromptContainer, { top: insets.top + 52 }]}>
             <View style={styles.locationPrompt}>
               <Text style={styles.locationPromptIcon}>📍</Text>
               <View style={styles.locationPromptTextContainer}>
@@ -491,7 +491,7 @@ export function MapScreen({ navigation }: Props) {
 
       {/* Alerts Banner - only show if there are severe/warning alerts and not dismissed */}
       {severeAlerts.length > 0 && !alertsDismissed && (
-        <View style={[styles.alertsContainer, { top: insets.top + 68 }]}>
+        <View style={[styles.alertsContainer, { top: insets.top + 52 }]}>
           <View style={styles.alertsRow}>
             <ScrollView
               horizontal
@@ -521,7 +521,7 @@ export function MapScreen({ navigation }: Props) {
       )}
 
       {/* Reimport button (floating) */}
-      <View style={[styles.reimportContainer, { top: insets.top + 68 }]}>
+      <View style={[styles.reimportContainer, { top: insets.top + 52 }]}>
         <TouchableOpacity
           style={styles.reimportButton}
           onPress={handleImportData}
@@ -541,7 +541,7 @@ export function MapScreen({ navigation }: Props) {
       {/* Alerts Badge */}
       {severeAlerts.length > 0 && (
         <TouchableOpacity
-          style={[styles.alertsBadge, { top: insets.top + 68 }]}
+          style={[styles.alertsBadge, { top: insets.top + 52 }]}
           onPress={() => navigation.navigate('Alerts')}
         >
           <Text style={styles.alertsBadgeText}>⚠️ {severeAlerts.length}</Text>
@@ -585,9 +585,9 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 60,
+    paddingBottom: 10,
     backgroundColor: '#D61C1F', // İzmir Metro Red
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {

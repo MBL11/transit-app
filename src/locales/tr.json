@@ -27,7 +27,8 @@
     "offline": "Çevrimdışı",
     "retry": "Yeniden dene",
     "apply": "Uygula",
-    "reset": "Sıfırla"
+    "reset": "Sıfırla",
+    "mapLegend": "Ulaşım"
   },
   "tabs": {
     "map": "Harita",

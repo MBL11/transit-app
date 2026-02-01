@@ -27,7 +27,8 @@
     "offline": "Sin conexión",
     "retry": "Reintentar",
     "apply": "Aplicar",
-    "reset": "Restablecer"
+    "reset": "Restablecer",
+    "mapLegend": "Transporte"
   },
   "tabs": {
     "map": "Mapa",

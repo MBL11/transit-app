@@ -27,6 +27,7 @@
     "offline": "Offline",
     "retry": "Retry",
     "apply": "Apply",
+    "mapLegend": "Transit",
     "reset": "Reset"
   },
   "tabs": {

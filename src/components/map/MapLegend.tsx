@@ -6,6 +6,7 @@
 
 import React, { memo, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { TransitLogo, getAllTransitBrands, type TransitType } from '../transit/TransitLogo';
 
 // Enable LayoutAnimation on Android
@@ -17,6 +18,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const LEGEND_TYPES: TransitType[] = ['metro', 'izban', 'tram', 'ferry'];
 
 export const MapLegend = memo(function MapLegend() {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const allBrands = getAllTransitBrands().filter(b => LEGEND_TYPES.includes(b.type));
@@ -37,7 +39,7 @@ export const MapLegend = memo(function MapLegend() {
           // Expanded: show all transport types
           <View style={styles.expandedContent}>
             <View style={styles.headerRow}>
-              <Text style={styles.headerText}>Ulaşım</Text>
+              <Text style={styles.headerText}>{t('common.mapLegend')}</Text>
               <Text style={styles.collapseIcon}>▼</Text>
             </View>
             {allBrands.map((brand) => (
