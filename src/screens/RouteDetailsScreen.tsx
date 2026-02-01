@@ -3,7 +3,7 @@
  * Displays detailed journey information with vertical timeline
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RouteStackParamList } from '../navigation/RouteStackNavigator';
@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { LineBadge, TransportType } from '../components/transit/LineBadge';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { logger } from '../utils/logger';
 
 // Helper to determine transport type from route type
@@ -29,6 +30,8 @@ type Props = NativeStackScreenProps<RouteStackParamList, 'RouteDetails'>;
 
 export function RouteDetailsScreen({ route }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const journey = deserializeJourney(route.params.journey);
 
   // Filter out useless segments (walking 0 min or duplicate stops)
@@ -348,227 +351,228 @@ export function RouteDetailsScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-  },
-  summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  summaryTransfers: {
-    fontSize: 14,
-    color: '#666',
-  },
-  summaryWalk: {
-    fontSize: 14,
-    color: '#666',
-  },
-  summaryLocations: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  summaryLocation: {
-    flex: 1,
-  },
-  summaryLocationLabel: {
-    fontSize: 11,
-    color: '#999',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  summaryLocationName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  summaryLocationArrow: {
-    paddingHorizontal: 8,
-  },
-  arrowText: {
-    fontSize: 18,
-    color: '#999',
-  },
-  summaryExtras: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    flexDirection: 'row',
-    gap: 16,
-  },
-  timeline: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  segmentContainer: {
-    marginBottom: 0,
-  },
-  stepContainer: {
-    flexDirection: 'row',
-  },
-  stepLeft: {
-    width: 40,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  stepRight: {
-    flex: 1,
-    paddingLeft: 12,
-  },
-  timelineNode: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#0066CC',
-    borderWidth: 2,
-    borderColor: '#fff',
-    zIndex: 2,
-  },
-  timelineNodeLast: {
-    backgroundColor: '#00CC66',
-  },
-  timelineLine: {
-    position: 'absolute',
-    top: 12,
-    bottom: 0,
-    width: 2,
-    backgroundColor: '#ddd',
-    zIndex: 1,
-  },
-  stepHeader: {
-    marginBottom: 8,
-  },
-  stepTime: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#0066CC',
-    marginBottom: 4,
-  },
-  stopName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  segmentDetails: {
-    flexDirection: 'row',
-    marginVertical: 8,
-  },
-  segmentIconContainer: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    backgroundColor: '#fff',
-    zIndex: 2,
-  },
-  walkIcon: {
-    fontSize: 24,
-  },
-  transitBadge: {
-    minWidth: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  transitBadgeText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  rerBadge: {
-    minWidth: 44,
-    height: 44,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  rerBadgeText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  walkDetails: {
-    paddingLeft: 12,
-    paddingVertical: 8,
-  },
-  transitDetails: {
-    paddingLeft: 12,
-    paddingVertical: 8,
-  },
-  segmentAction: {
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 4,
-  },
-  segmentActionBold: {
-    fontWeight: '700',
-  },
-  segmentInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  directionText: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 8,
-  },
-  getOffContainer: {
-    marginBottom: 8,
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  getOffText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
-  },
-  segmentDuration: {
-    fontSize: 13,
-    color: '#999',
-  },
-  footer: {
-    marginTop: 20,
-    padding: 16,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  footerSubtext: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-  },
-  shareButton: {
-    padding: 4,
-  },
-  shareIcon: {
-    fontSize: 22,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    content: {
+      padding: 16,
+    },
+    summaryCard: {
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 3,
+    },
+    summaryTransfers: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    summaryWalk: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    summaryLocations: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    summaryLocation: {
+      flex: 1,
+    },
+    summaryLocationLabel: {
+      fontSize: 11,
+      color: colors.textMuted,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    summaryLocationName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    summaryLocationArrow: {
+      paddingHorizontal: 8,
+    },
+    arrowText: {
+      fontSize: 18,
+      color: colors.textMuted,
+    },
+    summaryExtras: {
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      flexDirection: 'row',
+      gap: 16,
+    },
+    timeline: {
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      padding: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 3,
+    },
+    segmentContainer: {
+      marginBottom: 0,
+    },
+    stepContainer: {
+      flexDirection: 'row',
+    },
+    stepLeft: {
+      width: 40,
+      alignItems: 'center',
+      position: 'relative',
+    },
+    stepRight: {
+      flex: 1,
+      paddingLeft: 12,
+    },
+    timelineNode: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.background,
+      zIndex: 2,
+    },
+    timelineNodeLast: {
+      backgroundColor: colors.success,
+    },
+    timelineLine: {
+      position: 'absolute',
+      top: 12,
+      bottom: 0,
+      width: 2,
+      backgroundColor: colors.border,
+      zIndex: 1,
+    },
+    stepHeader: {
+      marginBottom: 8,
+    },
+    stepTime: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: colors.primary,
+      marginBottom: 4,
+    },
+    stopName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    segmentDetails: {
+      flexDirection: 'row',
+      marginVertical: 8,
+    },
+    segmentIconContainer: {
+      width: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      backgroundColor: colors.background,
+      zIndex: 2,
+    },
+    walkIcon: {
+      fontSize: 24,
+    },
+    transitBadge: {
+      minWidth: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+    },
+    transitBadgeText: {
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+    rerBadge: {
+      minWidth: 44,
+      height: 44,
+      borderRadius: 6,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    rerBadgeText: {
+      fontSize: 11,
+      fontWeight: 'bold',
+      textAlign: 'center',
+    },
+    walkDetails: {
+      paddingLeft: 12,
+      paddingVertical: 8,
+    },
+    transitDetails: {
+      paddingLeft: 12,
+      paddingVertical: 8,
+    },
+    segmentAction: {
+      fontSize: 16,
+      color: colors.text,
+      marginBottom: 4,
+    },
+    segmentActionBold: {
+      fontWeight: '700',
+    },
+    segmentInfo: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+    directionText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    getOffContainer: {
+      marginBottom: 8,
+      backgroundColor: colors.backgroundSecondary,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+    },
+    getOffText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    segmentDuration: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    footer: {
+      marginTop: 20,
+      padding: 16,
+      alignItems: 'center',
+    },
+    footerText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    footerSubtext: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    shareButton: {
+      padding: 4,
+    },
+    shareIcon: {
+      fontSize: 22,
+    },
+  });

@@ -62,12 +62,12 @@ const SIZES = {
   large: { width: 48, height: 48, fontSize: 18, borderWidth: 2.5 },
 };
 
-// Ensure color has # prefix
+// Ensure color has exactly one # prefix
 function ensureColorPrefix(color: string | undefined, fallback: string): string {
   if (!color) return fallback;
-  const trimmed = color.trim();
+  const trimmed = color.trim().replace(/^#+/, '');
   if (!trimmed) return fallback;
-  return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+  return `#${trimmed}`;
 }
 
 function getLineColors(lineNumber: string, type: TransportType, customColor?: string, customTextColor?: string) {

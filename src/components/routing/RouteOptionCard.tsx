@@ -118,8 +118,8 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
               <LineBadge
                 lineNumber={segment.route?.shortName || '?'}
                 type={getTransportType(segment)}
-                color={segment.route?.color ? `#${segment.route.color}` : undefined}
-                textColor={segment.route?.textColor ? `#${segment.route.textColor}` : undefined}
+                color={segment.route?.color || undefined}
+                textColor={segment.route?.textColor || undefined}
                 size="small"
               />
               {/* Departure stop → Arrival stop */}

@@ -3,7 +3,7 @@
  * Displays details of a transit line and all its stops
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { StopCard } from '../components/transit/StopCard';
 import { getRouteById, getStopsByRouteId } from '../core/database';
 import type { Route, Stop } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { logger } from '../utils/logger';
 import { trackEvent, AnalyticsEvents } from '../services/analytics';
 import { captureException } from '../services/crash-reporting';
@@ -26,6 +27,8 @@ export function LineDetailsScreen({ route, navigation }: Props) {
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Map GTFS route types to display names
   const getRouteTypeLabel = (type: number): string => {
@@ -78,7 +81,7 @@ export function LineDetailsScreen({ route, navigation }: Props) {
       <ScreenContainer>
         <ScreenHeader title={t('common.loading')} showBack />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#0066CC" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </ScreenContainer>
@@ -153,98 +156,99 @@ export function LineDetailsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  header: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  lineBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lineBadgeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  lineInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  lineName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  lineType: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  stopsSection: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  stopCount: {
-    fontWeight: 'normal',
-    color: '#666',
-  },
-  listContent: {
-    padding: 12,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#CC0000',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+      padding: 20,
+    },
+    header: {
+      backgroundColor: colors.background,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    lineBadge: {
+      width: 64,
+      height: 64,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    lineBadgeText: {
+      fontSize: 24,
+      fontWeight: 'bold',
+    },
+    lineInfo: {
+      flex: 1,
+      marginLeft: 16,
+    },
+    lineName: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    lineType: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    stopsSection: {
+      flex: 1,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      padding: 16,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    stopCount: {
+      fontWeight: 'normal',
+      color: colors.textSecondary,
+    },
+    listContent: {
+      padding: 12,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    errorIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    errorTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.error,
+      marginBottom: 8,
+    },
+    errorMessage: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptyContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+  });

@@ -3,7 +3,7 @@
  * Displays stop information and next departures
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,7 @@ import { getStopById, getRoutesByStopId, getNextDepartures, type TheoreticalDepa
 import type { Stop, Route } from '../core/types/models';
 import type { LinesStackParamList } from '../navigation/types';
 import { useAdapter } from '../hooks/useAdapter';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { logger } from '../utils/logger';
 import { trackEvent, AnalyticsEvents } from '../services/analytics';
 import { captureException } from '../services/crash-reporting';
@@ -42,6 +43,8 @@ export function StopDetailsScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Refresh only departures (for pull-to-refresh and auto-refresh)
   const refreshDepartures = useCallback(async () => {
@@ -146,7 +149,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       <ScreenContainer>
         <ScreenHeader title={t('common.loading')} showBack />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#0066CC" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </ScreenContainer>
@@ -180,8 +183,8 @@ export function StopDetailsScreen({ route, navigation }: Props) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#0066CC']}
-            tintColor="#0066CC"
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
@@ -259,129 +262,130 @@ export function StopDetailsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  header: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  stopName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  coordinates: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 6,
-  },
-  linesSection: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 12,
-  },
-  linesBadgeContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingRight: 16,
-  },
-  lineBadge: {
-    minWidth: 48,
-    height: 36,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  lineBadgePressed: {
-    opacity: 0.7,
-  },
-  lineBadgeText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  departureSectionHeader: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  departuresSection: {
-    backgroundColor: 'white',
-    marginTop: 8,
-    minHeight: 200,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  departureCount: {
-    fontWeight: 'normal',
-    color: '#666',
-  },
-  realtimeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  realtimeBadgeActive: {
-    backgroundColor: '#E8F5E9',
-  },
-  realtimeBadgeInactive: {
-    backgroundColor: '#F5F5F5',
-  },
-  realtimeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#111',
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#CC0000',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+      padding: 20,
+    },
+    header: {
+      backgroundColor: colors.background,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    stopName: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    coordinates: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 6,
+    },
+    linesSection: {
+      backgroundColor: colors.background,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    linesBadgeContainer: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingRight: 16,
+    },
+    lineBadge: {
+      minWidth: 48,
+      height: 36,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+    lineBadgePressed: {
+      opacity: 0.7,
+    },
+    lineBadgeText: {
+      fontWeight: 'bold',
+      fontSize: 14,
+    },
+    departureSectionHeader: {
+      padding: 16,
+      paddingBottom: 8,
+    },
+    departuresSection: {
+      backgroundColor: colors.background,
+      marginTop: 8,
+      minHeight: 200,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    departureCount: {
+      fontWeight: 'normal',
+      color: colors.textSecondary,
+    },
+    realtimeBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    realtimeBadgeActive: {
+      backgroundColor: colors.isDark ? '#1A3A2C' : '#E8F5E9',
+    },
+    realtimeBadgeInactive: {
+      backgroundColor: colors.backgroundSecondary,
+    },
+    realtimeBadgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    emptyContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    errorIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    errorTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.error,
+      marginBottom: 8,
+    },
+    errorMessage: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+  });
