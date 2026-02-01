@@ -208,20 +208,28 @@ export function RouteScreenContent({
             </TouchableOpacity>
           </View>
 
-          {/* Compact Time Selector */}
-          <View style={styles.timeRow}>
-            {/* Depart at / Arrive by toggle */}
+          {/* Depart at / Arrive by - Segmented Control */}
+          <View style={styles.timeModeSegmented}>
             <TouchableOpacity
-              style={styles.timeModeToggle}
-              onPress={() => dispatch({
-                type: 'SET_TIME_MODE',
-                payload: state.timeMode === 'departure' ? 'arrival' : 'departure',
-              })}
+              style={[styles.timeModeOption, state.timeMode === 'departure' && styles.timeModeOptionActive]}
+              onPress={() => dispatch({ type: 'SET_TIME_MODE', payload: 'departure' })}
             >
-              <Text style={styles.timeModeText}>
-                {state.timeMode === 'departure' ? t('route.departAt') : t('route.arriveBy')}
+              <Text style={[styles.timeModeOptionText, state.timeMode === 'departure' && styles.timeModeOptionTextActive]}>
+                🕐 {t('route.departAt')}
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.timeModeOption, state.timeMode === 'arrival' && styles.timeModeOptionActive]}
+              onPress={() => dispatch({ type: 'SET_TIME_MODE', payload: 'arrival' })}
+            >
+              <Text style={[styles.timeModeOptionText, state.timeMode === 'arrival' && styles.timeModeOptionTextActive]}>
+                🎯 {t('route.arriveBy')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Time Controls */}
+          <View style={styles.timeRow}>
             <TouchableOpacity
               style={styles.timeButton}
               onPress={() => dispatch({ type: 'ADJUST_DEPARTURE_TIME', payload: -15 })}
@@ -617,18 +625,30 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       marginVertical: 8,
       gap: 8,
     },
-    timeModeToggle: {
-      backgroundColor: colors.primary + '18',
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.primary + '40',
+    timeModeSegmented: {
+      flexDirection: 'row',
+      backgroundColor: colors.buttonBackground,
+      borderRadius: 8,
+      padding: 3,
+      marginBottom: 4,
     },
-    timeModeText: {
-      fontSize: 11,
+    timeModeOption: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 6,
+      alignItems: 'center',
+    },
+    timeModeOptionActive: {
+      backgroundColor: colors.primary,
+    },
+    timeModeOptionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    timeModeOptionTextActive: {
+      color: '#fff',
       fontWeight: '700',
-      color: colors.primary,
     },
     timeButton: {
       backgroundColor: colors.buttonBackground,
