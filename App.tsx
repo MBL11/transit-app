@@ -1,7 +1,11 @@
 import './global.css';
 import { i18nInitPromise } from './src/i18n';
 import { useState, useEffect } from 'react';
+import { LogBox } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// Suppress known harmless warnings from Amplitude SDK (cookie API not available in RN)
+LogBox.ignoreLogs(['Amplitude Logger [Error]: Failed to set cookie']);
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { RootNavigator } from './src/navigation';
