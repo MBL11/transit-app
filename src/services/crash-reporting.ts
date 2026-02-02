@@ -7,7 +7,7 @@ import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
 
-const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn || process.env.EXPO_PUBLIC_SENTRY_DSN || '';
+const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn || process.env.EXPO_PUBLIC_SENTRY_DSN || 'https://4bdcc0f70091cc94ba76e402440f3f5b@o4510816546914304.ingest.de.sentry.io/4510816549666896';
 
 let isInitialized = false;
 

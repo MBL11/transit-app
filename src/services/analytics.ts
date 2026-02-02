@@ -7,7 +7,7 @@ import * as Amplitude from '@amplitude/analytics-react-native';
 import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
 
-const AMPLITUDE_API_KEY = Constants.expoConfig?.extra?.amplitudeApiKey || process.env.EXPO_PUBLIC_AMPLITUDE_KEY || '';
+const AMPLITUDE_API_KEY = Constants.expoConfig?.extra?.amplitudeApiKey || process.env.EXPO_PUBLIC_AMPLITUDE_KEY || '555ca3e6aa4e16758e13886cc194a4f9';
 
 let isInitialized = false;
 
