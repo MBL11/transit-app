@@ -11,6 +11,7 @@ import { SplashScreen } from './src/screens/SplashScreen';
 import { DataLoadingScreen } from './src/screens/DataLoadingScreen';
 import { initAnalytics, trackEvent, AnalyticsEvents } from './src/services/analytics';
 import { initCrashReporting, captureException } from './src/services/crash-reporting';
+import { logger } from './src/utils/logger';
 import { useGTFSData } from './src/hooks/useGTFSData';
 
 // Initialize crash reporting as early as possible
@@ -44,7 +45,7 @@ function AppContent() {
 
         setAppState(onboardingCompleted ? 'check_data' : 'onboarding');
       } catch (error) {
-        console.error('App initialization error:', error);
+        logger.error('App initialization error:', error);
         captureException(error, { tags: { location: 'app_init' } });
         // Still proceed to app even if there's an error
         setAppState('check_data');

@@ -28,6 +28,7 @@ export async function initAnalytics(): Promise<void> {
   try {
     await Amplitude.init(AMPLITUDE_API_KEY, undefined, {
       logLevel: __DEV__ ? Amplitude.Types.LogLevel.Verbose : Amplitude.Types.LogLevel.None,
+      serverZone: 'EU',
       defaultTracking: {
         sessions: true,
         appLifecycles: true,
