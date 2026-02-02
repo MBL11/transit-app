@@ -20,6 +20,15 @@ import { captureException } from './crash-reporting';
 const CACHE_KEY = '@izmir_alerts_cache';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 const FETCH_TIMEOUT = 8000; // 8 seconds
+const MAX_ALERT_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+// Turkish month names for date parsing
+const TURKISH_MONTHS: Record<string, number> = {
+  'ocak': 0, 'şubat': 1, 'subat': 1, 'mart': 2, 'nisan': 3,
+  'mayıs': 4, 'mayis': 4, 'haziran': 5, 'temmuz': 6, 'ağustos': 7,
+  'agustos': 7, 'eylül': 8, 'eylul': 8, 'ekim': 9, 'kasım': 10,
+  'kasim': 10, 'aralık': 11, 'aralik': 11,
+};
 
 interface CachedAlerts {
   alerts: Alert[];
@@ -71,6 +80,41 @@ function detectAffectedRoutes(text: string): string[] {
   }
 
   return affected;
+}
+
+/**
+ * Try to extract a date from text (Turkish date formats)
+ * Returns the date if found, or null
+ */
+function extractDate(text: string): Date | null {
+  const lower = text.toLowerCase();
+
+  // Format: DD.MM.YYYY or DD/MM/YYYY
+  const numericMatch = lower.match(/(\d{1,2})[./](\d{1,2})[./](20\d{2})/);
+  if (numericMatch) {
+    const [, day, month, year] = numericMatch;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  }
+
+  // Format: DD Month YYYY (Turkish)
+  const turkishMatch = lower.match(/(\d{1,2})\s+(ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylul|ekim|kasım|kasim|aralık|aralik)\s+(20\d{2})/);
+  if (turkishMatch) {
+    const [, day, month, year] = turkishMatch;
+    const monthIndex = TURKISH_MONTHS[month];
+    if (monthIndex !== undefined) {
+      return new Date(parseInt(year), monthIndex, parseInt(day));
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Check if a date is recent (within MAX_ALERT_AGE_MS)
+ */
+function isRecent(date: Date | null): boolean {
+  if (!date) return false;
+  return (Date.now() - date.getTime()) < MAX_ALERT_AGE_MS;
 }
 
 /**
@@ -366,14 +410,28 @@ export async function fetchIzmirAlerts(): Promise<Alert[]> {
 
   const allAlerts = [...metroAlerts, ...izbanAlerts, ...eshotAlerts];
 
+  // Filter: only keep alerts that have a recent date in their text,
+  // or severe alerts (cancellations/breakdowns are always relevant)
+  const recentAlerts = allAlerts.filter(alert => {
+    // Severe alerts (cancellations, breakdowns) always shown
+    if (alert.severity === 'severe') return true;
+
+    // For warning/info: check if the text contains a recent date
+    const dateInText = extractDate(alert.description || alert.title);
+    if (dateInText && isRecent(dateInText)) return true;
+
+    // No date found and not severe → skip (likely old/permanent content)
+    return false;
+  });
+
   // Sort: severe first, then warning, then info
   const severityOrder = { severe: 0, warning: 1, info: 2 };
-  allAlerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  recentAlerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
   // Limit to most recent/important alerts
-  const limitedAlerts = allAlerts.slice(0, 20);
+  const limitedAlerts = recentAlerts.slice(0, 20);
 
-  logger.log(`[AlertScraper] Found ${limitedAlerts.length} alerts (Metro: ${metroAlerts.length}, İZBAN: ${izbanAlerts.length}, ESHOT: ${eshotAlerts.length})`);
+  logger.log(`[AlertScraper] Found ${limitedAlerts.length} recent alerts out of ${allAlerts.length} total (Metro: ${metroAlerts.length}, İZBAN: ${izbanAlerts.length}, ESHOT: ${eshotAlerts.length})`);
 
   // Cache results
   await cacheAlerts(limitedAlerts);
