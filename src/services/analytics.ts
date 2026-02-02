@@ -3,7 +3,7 @@
  * Track user events with Amplitude
  */
 
-import * as Amplitude from '@amplitude/analytics-react-native';
+import * as Amplitude from '@amplitude/analytics-browser';
 import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
 
