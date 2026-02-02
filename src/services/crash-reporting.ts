@@ -1,29 +1,28 @@
 /**
  * Crash Reporting Service
- * Track errors and crashes with Sentry
+ * Track errors and crashes with Sentry (optional dependency)
+ * All functions are safe to call even if @sentry/react-native is not installed.
  */
 
-import * as Sentry from '@sentry/react-native';
-import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
 
-const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn || process.env.EXPO_PUBLIC_SENTRY_DSN || 'https://4bdcc0f70091cc94ba76e402440f3f5b@o4510816546914304.ingest.de.sentry.io/4510816549666896';
-
+let Sentry: any = null;
 let isInitialized = false;
+
+// Try to load Sentry - it's optional
+try {
+  Sentry = require('@sentry/react-native');
+} catch {
+  logger.log('[CrashReporting] @sentry/react-native not installed, crash reporting disabled');
+}
+
+const SENTRY_DSN = 'https://4bdcc0f70091cc94ba76e402440f3f5b@o4510816546914304.ingest.de.sentry.io/4510816549666896';
 
 /**
  * Initialize Sentry crash reporting
  */
 export function initCrashReporting(): void {
-  if (isInitialized) {
-    logger.log('[CrashReporting] Already initialized');
-    return;
-  }
-
-  if (!SENTRY_DSN) {
-    logger.warn('[CrashReporting] No Sentry DSN found, crash reporting disabled');
-    return;
-  }
+  if (isInitialized || !Sentry) return;
 
   try {
     Sentry.init({
@@ -32,15 +31,12 @@ export function initCrashReporting(): void {
       environment: __DEV__ ? 'development' : 'production',
       enableAutoSessionTracking: true,
       sessionTrackingIntervalMillis: 30000,
-      tracesSampleRate: __DEV__ ? 1.0 : 0.2, // 20% of transactions in production
+      tracesSampleRate: __DEV__ ? 1.0 : 0.2,
       attachScreenshot: true,
       attachViewHierarchy: true,
-      // Don't send events in development unless explicitly testing
-      beforeSend: (event) => {
+      beforeSend: (event: any) => {
         if (__DEV__) {
           logger.log('[CrashReporting] Would send event:', event.exception?.values?.[0]?.type);
-          // Return null to not send in development
-          // Comment this line to test Sentry in dev
           return null;
         }
         return event;
@@ -62,11 +58,10 @@ export function captureException(
   context?: {
     tags?: Record<string, string>;
     extra?: Record<string, any>;
-    level?: Sentry.SeverityLevel;
+    level?: string;
     fingerprint?: string[];
   }
 ): string | undefined {
-  // Always log in development
   if (__DEV__) {
     logger.error('[CrashReporting] Exception:', error);
     if (context) {
@@ -74,19 +69,15 @@ export function captureException(
     }
   }
 
-  if (!isInitialized) {
-    return undefined;
-  }
+  if (!isInitialized || !Sentry) return undefined;
 
   try {
-    const eventId = Sentry.captureException(error, {
+    return Sentry.captureException(error, {
       tags: context?.tags,
       extra: context?.extra,
       level: context?.level,
       fingerprint: context?.fingerprint,
     });
-
-    return eventId;
   } catch (err) {
     logger.error('[CrashReporting] Failed to capture exception:', err);
     return undefined;
@@ -98,22 +89,17 @@ export function captureException(
  */
 export function captureMessage(
   message: string,
-  level: Sentry.SeverityLevel = 'info',
+  level: string = 'info',
   context?: Record<string, any>
 ): string | undefined {
   if (__DEV__) {
     logger.log(`[CrashReporting] Message (${level}):`, message, context);
   }
 
-  if (!isInitialized) {
-    return undefined;
-  }
+  if (!isInitialized || !Sentry) return undefined;
 
   try {
-    return Sentry.captureMessage(message, {
-      level,
-      extra: context,
-    });
+    return Sentry.captureMessage(message, { level, extra: context });
   } catch (err) {
     logger.error('[CrashReporting] Failed to capture message:', err);
     return undefined;
@@ -124,11 +110,9 @@ export function captureMessage(
  * Set user context for crash reports
  */
 export function setUser(user: { id?: string; email?: string; username?: string } | null): void {
-  if (!isInitialized) return;
-
+  if (!isInitialized || !Sentry) return;
   try {
     Sentry.setUser(user);
-    logger.log('[CrashReporting] User context set:', user?.id || 'cleared');
   } catch (error) {
     logger.error('[CrashReporting] Failed to set user:', error);
   }
@@ -141,10 +125,9 @@ export function addBreadcrumb(breadcrumb: {
   category?: string;
   message?: string;
   data?: Record<string, any>;
-  level?: Sentry.SeverityLevel;
+  level?: string;
 }): void {
-  if (!isInitialized) return;
-
+  if (!isInitialized || !Sentry) return;
   try {
     Sentry.addBreadcrumb({
       category: breadcrumb.category || 'app',
@@ -162,8 +145,7 @@ export function addBreadcrumb(breadcrumb: {
  * Set a tag that will be included in all future events
  */
 export function setTag(key: string, value: string): void {
-  if (!isInitialized) return;
-
+  if (!isInitialized || !Sentry) return;
   try {
     Sentry.setTag(key, value);
   } catch (error) {
@@ -175,8 +157,7 @@ export function setTag(key: string, value: string): void {
  * Set extra data that will be included in all future events
  */
 export function setExtra(key: string, value: any): void {
-  if (!isInitialized) return;
-
+  if (!isInitialized || !Sentry) return;
   try {
     Sentry.setExtra(key, value);
   } catch (error) {
@@ -187,9 +168,8 @@ export function setExtra(key: string, value: any): void {
 /**
  * Start a performance transaction
  */
-export function startTransaction(name: string, op: string): Sentry.Transaction | undefined {
-  if (!isInitialized) return undefined;
-
+export function startTransaction(name: string, op: string): any {
+  if (!isInitialized || !Sentry) return undefined;
   try {
     return Sentry.startTransaction({ name, op });
   } catch (error) {
@@ -219,11 +199,11 @@ export function wrapWithSentry<T extends (...args: any[]) => Promise<any>>(
 }
 
 /**
- * React Error Boundary wrapper from Sentry
+ * React Error Boundary wrapper from Sentry (no-op if not available)
  */
-export const SentryErrorBoundary = Sentry.ErrorBoundary;
+export const SentryErrorBoundary = Sentry?.ErrorBoundary || null;
 
 /**
  * HOC to wrap navigation screens with Sentry
  */
-export const withSentryScreen = Sentry.withScope;
+export const withSentryScreen = Sentry?.withScope || (() => {});
