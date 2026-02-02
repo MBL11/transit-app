@@ -21,7 +21,12 @@ export function useAlerts() {
       setLoading(true);
       setError(null);
       const fetchedAlerts = await adapter.getAlerts();
-      setAlerts(fetchedAlerts);
+      // Only keep severe and warning alerts - info alerts are often
+      // generic website content scraped from operator sites, not real disruptions
+      const realAlerts = fetchedAlerts.filter(
+        a => a.severity === 'severe' || a.severity === 'warning'
+      );
+      setAlerts(realAlerts);
     } catch (err) {
       logger.error('[useAlerts] Error fetching alerts:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch alerts'));

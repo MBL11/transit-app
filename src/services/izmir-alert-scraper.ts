@@ -214,17 +214,19 @@ async function scrapeIzban(): Promise<Alert[]> {
       }
     }
 
-    // Fallback: just extract all h3s if the combined pattern didn't match
+    // Fallback: extract h3s only if they contain disruption keywords
     if (alerts.length === 0) {
       const h3Pattern = /<h3[^>]*>([\s\S]*?)<\/h3>/gi;
       while ((match = h3Pattern.exec(html)) !== null) {
         const title = stripHtml(match[1]);
-        if (title.length > 10 && title.length < 200) {
+        const severity = detectSeverity(title);
+        // Only include if it looks like a real disruption, not generic news
+        if (title.length > 10 && title.length < 200 && severity !== 'info') {
           alerts.push({
             id: `izban_${hashString(title)}`,
             title,
             description: title,
-            severity: detectSeverity(title),
+            severity,
             affectedRoutes: ['izban'],
             startTime: new Date(),
             url: 'https://www.izban.com.tr/Sayfalar/Duyurular.aspx',
