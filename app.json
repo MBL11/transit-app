@@ -37,16 +37,14 @@
       "expo-sqlite",
       "expo-localization",
       "expo-location",
-      "@react-native-community/datetimepicker",
-      ["@sentry/react-native", { "uploadSourceMaps": false }]
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {
         "projectId": "f84e0f28-ab1d-43fe-a141-70c64873f90c"
       },
       "adsDisabled": true,
-      "amplitudeApiKey": "555ca3e6aa4e16758e13886cc194a4f9",
-      "sentryDsn": "https://4bdcc0f70091cc94ba76e402440f3f5b@o4510816546914304.ingest.de.sentry.io/4510816549666896"
+      "amplitudeApiKey": "555ca3e6aa4e16758e13886cc194a4f9"
     }
   }
 }
