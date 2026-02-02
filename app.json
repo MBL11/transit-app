@@ -36,23 +36,17 @@
     "plugins": [
       "expo-sqlite",
       "expo-localization",
-      "expo-location"
-    ]
-  },
-  "_comment_admob": "AdMob plugin commented out for Expo Go compatibility. Uncomment for production builds or dev client testing.",
-  "_admob_plugin_disabled": {
-    "plugin": [
-      "react-native-google-mobile-ads",
-      {
-        "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-        "iosAppId": "ca-app-pub-3940256099942544~1458002511"
-      }
+      "expo-location",
+      "@react-native-community/datetimepicker",
+      ["@sentry/react-native", { "uploadSourceMaps": false }]
     ],
-    "note": "To enable AdMob: 1) Move this plugin array back to 'plugins' array above, 2) Run 'npx expo prebuild --clean', 3) Use expo-dev-client or production build (not Expo Go)"
-  },
-  "extra": {
-    "adsDisabled": true,
-    "amplitudeApiKey": "555ca3e6aa4e16758e13886cc194a4f9",
-    "sentryDsn": "https://4bdcc0f70091cc94ba76e402440f3f5b@o4510816546914304.ingest.de.sentry.io/4510816549666896"
+    "extra": {
+      "eas": {
+        "projectId": "f84e0f28-ab1d-43fe-a141-70c64873f90c"
+      },
+      "adsDisabled": true,
+      "amplitudeApiKey": "555ca3e6aa4e16758e13886cc194a4f9",
+      "sentryDsn": "https://4bdcc0f70091cc94ba76e402440f3f5b@o4510816546914304.ingest.de.sentry.io/4510816549666896"
+    }
   }
 }
