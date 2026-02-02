@@ -51,6 +51,8 @@
     "note": "To enable AdMob: 1) Move this plugin array back to 'plugins' array above, 2) Run 'npx expo prebuild --clean', 3) Use expo-dev-client or production build (not Expo Go)"
   },
   "extra": {
-    "adsDisabled": true
+    "adsDisabled": true,
+    "amplitudeApiKey": "555ca3e6aa4e16758e13886cc194a4f9",
+    "sentryDsn": "https://4bdcc0f70091cc94ba76e402440f3f5b@o4510816546914304.ingest.de.sentry.io/4510816549666896"
   }
 }
