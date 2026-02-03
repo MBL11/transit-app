@@ -298,6 +298,8 @@
     "clearFailed": "Failed to clear data",
     "infoMessage": "GTFS data provides complete schedules for İzmir Metro, Tram, İZBAN and Ferry lines.",
     "lastUpdate": "Last updated",
-    "outdated": "Data is outdated (> 7 days). Please update."
+    "outdated": "Data is outdated (> 7 days). Please update.",
+    "refreshing": "Updating data...",
+    "refreshingHint": "Please wait a moment"
   }
 }

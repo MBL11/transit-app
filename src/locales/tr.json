@@ -298,6 +298,8 @@
     "clearFailed": "Veriler silinemedi",
     "infoMessage": "GTFS verileri İzmir Metro, Tramvay, İZBAN ve Vapur hatları için tam tarifeleri sağlar.",
     "lastUpdate": "Son güncelleme",
-    "outdated": "Veriler güncel değil (> 7 gün). Lütfen güncelleyin."
+    "outdated": "Veriler güncel değil (> 7 gün). Lütfen güncelleyin.",
+    "refreshing": "Veriler güncelleniyor...",
+    "refreshingHint": "Lütfen birkaç saniye bekleyin"
   }
 }

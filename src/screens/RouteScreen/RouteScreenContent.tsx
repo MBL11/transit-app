@@ -25,6 +25,7 @@ interface RouteScreenContentProps {
   onJourneyPress: (journey: JourneyResult) => void;
   onSavePreferences: (prefs: RoutingPreferences) => Promise<void>;
   formatTime: (date: Date) => string;
+  isDataRefreshing?: boolean;
 }
 
 export function RouteScreenContent({
@@ -34,6 +35,7 @@ export function RouteScreenContent({
   onJourneyPress,
   onSavePreferences,
   formatTime,
+  isDataRefreshing = false,
 }: RouteScreenContentProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -101,18 +103,27 @@ export function RouteScreenContent({
     }
   };
 
-  // Loading state
-  if (state.loading) {
+  // Loading state - show when loading OR when data is refreshing and no stops yet
+  if (state.loading || (isDataRefreshing && state.stops.length === 0)) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        <Text style={styles.loadingText}>
+          {isDataRefreshing
+            ? t('data.refreshing', { defaultValue: 'Mise à jour des données...' })
+            : t('common.loading')}
+        </Text>
+        {isDataRefreshing && (
+          <Text style={styles.loadingSubtext}>
+            {t('data.refreshingHint', { defaultValue: 'Veuillez patienter quelques instants' })}
+          </Text>
+        )}
       </View>
     );
   }
 
-  // Empty state
-  if (state.stops.length === 0) {
+  // Empty state - only show if not refreshing data
+  if (state.stops.length === 0 && !isDataRefreshing) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.emptyIcon}>🗺️</Text>
@@ -550,6 +561,12 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       marginTop: 16,
       fontSize: 16,
       color: colors.textSecondary,
+    },
+    loadingSubtext: {
+      marginTop: 8,
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
     },
     emptyIcon: {
       fontSize: 48,

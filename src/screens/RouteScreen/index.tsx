@@ -19,6 +19,7 @@ import { BannerAdComponent } from '../../components/ads/BannerAd';
 import { useNetwork } from '../../contexts/NetworkContext';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useInterstitialAd } from '../../hooks/useInterstitialAd';
+import { useGTFSData } from '../../hooks/useGTFSData';
 import { findMultipleRoutes } from '../../core/routing';
 import type { Stop } from '../../core/types/models';
 import type { JourneyResult } from '../../core/types/routing';
@@ -39,6 +40,7 @@ export function RouteScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const { isOffline } = useNetwork();
+  const { isRefreshing } = useGTFSData();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<any>();
   const { showAdIfNeeded } = useInterstitialAd();
@@ -269,6 +271,7 @@ export function RouteScreen() {
         onJourneyPress={handleJourneyPress}
         onSavePreferences={savePreferences}
         formatTime={formatTime}
+        isDataRefreshing={isRefreshing}
       />
 
       <BannerAdComponent />

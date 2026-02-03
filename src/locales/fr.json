@@ -298,6 +298,8 @@
     "clearFailed": "Échec de la suppression des données",
     "infoMessage": "Les données GTFS fournissent les horaires complets du Metro, Tramway, İZBAN et Ferry d'İzmir.",
     "lastUpdate": "Dernière mise à jour",
-    "outdated": "Données obsolètes (> 7 jours). Veuillez mettre à jour."
+    "outdated": "Données obsolètes (> 7 jours). Veuillez mettre à jour.",
+    "refreshing": "Mise à jour des données...",
+    "refreshingHint": "Veuillez patienter quelques instants"
   }
 }
