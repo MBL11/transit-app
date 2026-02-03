@@ -1476,7 +1476,7 @@ function parseTimeToMinutes(time: string): number {
  * @param stopId - The stop ID to check departures from
  * @param timeMinutes - Target time in minutes since midnight
  * @param activeServiceIds - Set of active service IDs (or null to skip filter)
- * @param windowMinutes - Time window to search (default 120 = 2 hours after target)
+ * @param windowMinutes - Time window to search (default 45 minutes after target)
  * @returns Next departure time in minutes, or null if no service
  */
 export function getNextDepartureForRoute(
@@ -1484,7 +1484,7 @@ export function getNextDepartureForRoute(
   stopId: string,
   timeMinutes: number,
   activeServiceIds: Set<string> | null,
-  windowMinutes: number = 120
+  windowMinutes: number = 45
 ): number | null {
   const db = openDatabase();
 
