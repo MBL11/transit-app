@@ -153,81 +153,54 @@ function normalizeStopName(name: string): string {
 }
 
 /**
- * Sanitize journey by removing absurd segments:
+ * Sanitize journey by removing only truly absurd segments:
  * - Transit segments where from.name === to.name (same stop, e.g., "Mavişehir → Mavişehir")
- * - Consecutive segments that go back to already visited stops
- * - Truncate journey when destination is already reached mid-journey
- * Returns null if journey becomes invalid after sanitization
+ * - Walk segments of 0 distance
+ * Returns null only if journey becomes completely empty after sanitization
  */
 function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
   const sanitizedSegments: RouteSegment[] = [];
-  const visitedStopNames = new Set<string>();
-
-  // Get the final destination name from the last segment
-  const lastSeg = journey.segments[journey.segments.length - 1];
-  const finalDestName = lastSeg?.to ? normalizeStopName(lastSeg.to.name) : null;
 
   for (let i = 0; i < journey.segments.length; i++) {
     const segment = journey.segments[i];
 
-    // For transit segments: check if from/to have same name (absurd)
+    // For transit segments: check if from/to have same name (absurd - same stop to same stop)
     if (segment.type === 'transit' && segment.from && segment.to) {
       const fromName = normalizeStopName(segment.from.name);
       const toName = normalizeStopName(segment.to.name);
 
       if (fromName === toName) {
         // Same stop to same stop - skip this segment entirely
-        logger.log(`[Routing] Removing absurd segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
+        logger.log(`[Routing] Removing absurd transit segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
+        continue;
+      }
+    }
+
+    // For walk segments: skip if 0 distance or same name stops
+    if (segment.type === 'walk' && segment.from && segment.to) {
+      // Skip 0-distance walks
+      if (segment.distance !== undefined && segment.distance <= 0) {
+        logger.log(`[Routing] Removing 0-distance walk`);
         continue;
       }
 
-      // Check if this transit segment reaches the destination (by name)
-      // If so, add it and truncate the journey here (no need for more segments)
-      if (finalDestName && toName === finalDestName && i < journey.segments.length - 1) {
-        logger.log(`[Routing] Destination "${segment.to.name}" reached at segment ${i}, truncating remaining ${journey.segments.length - i - 1} segments`);
-        sanitizedSegments.push(segment);
-        break; // Stop processing, we've arrived!
-      }
-    }
-
-    // Track visited stops
-    if (segment.from) {
-      visitedStopNames.add(normalizeStopName(segment.from.name));
-    }
-
-    // For walk segments: skip if walking to a stop we're essentially already at
-    if (segment.type === 'walk' && segment.from && segment.to) {
       const fromName = normalizeStopName(segment.from.name);
       const toName = normalizeStopName(segment.to.name);
 
-      // Skip walk if from and to have same name
-      if (fromName === toName) {
-        logger.log(`[Routing] Removing redundant walk: ${segment.from.name} → ${segment.to.name}`);
+      // Skip walk if from and to have exactly same normalized name AND distance is trivial (<100m)
+      if (fromName === toName && segment.distance !== undefined && segment.distance < 100) {
+        logger.log(`[Routing] Removing trivial walk between same-name stops: ${segment.from.name} (${segment.distance}m)`);
         continue;
-      }
-
-      // Skip very short walks (under 50m) between same-name stops
-      if (segment.distance && segment.distance < 50 && fromName === toName) {
-        logger.log(`[Routing] Removing trivial walk: ${segment.distance}m between same stops`);
-        continue;
-      }
-
-      // If previous transit segment already arrived at destination, skip this trailing walk
-      if (finalDestName && sanitizedSegments.length > 0) {
-        const prevSeg = sanitizedSegments[sanitizedSegments.length - 1];
-        if (prevSeg.type === 'transit' && prevSeg.to && normalizeStopName(prevSeg.to.name) === finalDestName) {
-          logger.log(`[Routing] Skipping trailing walk after reaching destination: ${segment.from.name} → ${segment.to.name}`);
-          break;
-        }
       }
     }
 
     sanitizedSegments.push(segment);
   }
 
-  // If no segments left, journey is invalid
+  // If no segments left after sanitization, return original journey (don't lose routes)
   if (sanitizedSegments.length === 0) {
-    return null;
+    logger.warn(`[Routing] Sanitization removed all segments, keeping original journey`);
+    return journey;
   }
 
   // Recalculate totals
@@ -383,21 +356,19 @@ export async function findRoute(
     actualDepartureTime.setHours(Math.floor(nextDepartureMin / 60), Math.round(nextDepartureMin % 60), 0, 0);
 
     // Try to get actual travel time from GTFS stop_times first
+    // This also verifies that fromStop comes BEFORE toStop in the route sequence
     const actualTime = db.getActualTravelTime(route.id, fromStopId, toStopId);
 
-    let estimatedDuration: number;
-    if (actualTime !== null) {
-      // Real GTFS schedule data available
-      estimatedDuration = Math.max(3, actualTime);
-    } else {
-      // Fallback: estimate based on distance and transport mode
-      const distanceKm = directDistance / 1000;
-      const minPerKm = getTransitMinPerKm(route.type);
-      const travelTime = distanceKm * minPerKm;
-      const intermediateStops = estimateIntermediateStops(distanceKm, route.type);
-      const dwellTime = intermediateStops * getDwellTimePerStop(route.type);
-      estimatedDuration = Math.max(3, Math.round(travelTime + dwellTime));
+    // If actualTime is null, it means either:
+    // 1. No GTFS data for this stop pair, or
+    // 2. The stops are in wrong order (toStop comes before fromStop on this route)
+    // In both cases, skip this route - don't use unreliable distance estimates
+    if (actualTime === null) {
+      logger.log(`[Routing] Skipping ${route.shortName}: no valid GTFS times for ${fromStop.name} → ${toStop.name} (wrong direction or no data)`);
+      continue;
     }
+
+    const estimatedDuration = Math.max(3, actualTime);
 
     // Headsign lookup deferred to enrichWithHeadsigns() for performance
 
@@ -481,18 +452,16 @@ export async function findRoute(
       actualDep1.setHours(Math.floor(firstLegDep / 60), Math.round(firstLegDep % 60), 0, 0);
 
       // Calculate durations using correct stop IDs for each route
+      // Must have valid GTFS times for both legs (ensures correct direction and real data)
       const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStopFrom.id);
       const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toStopId);
 
-      let duration1: number;
-      if (actual1 !== null) {
-        duration1 = Math.max(3, actual1);
-      } else {
-        const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStopFrom.lat, transferStopFrom.lon) / 1000;
-        const travel1 = dist1Km * getTransitMinPerKm(fromRoute.type);
-        const dwell1 = estimateIntermediateStops(dist1Km, fromRoute.type) * getDwellTimePerStop(fromRoute.type);
-        duration1 = Math.max(3, Math.round(travel1 + dwell1));
+      // Skip if first leg has no valid GTFS data (wrong direction or missing)
+      if (actual1 === null) {
+        logger.log(`[Routing] Skipping transfer: ${fromRoute.shortName} has no valid data for ${fromStop.name} → ${transferStopFrom.name}`);
+        continue;
       }
+      const duration1 = Math.max(3, actual1);
 
       // Check if second leg has service after arriving at transfer (60 min for night buses)
       const arrivalAtTransferMin = firstLegDep + duration1 + 3; // +3 min to walk/wait
@@ -504,15 +473,12 @@ export async function findRoute(
         continue;
       }
 
-      let duration2: number;
-      if (actual2 !== null) {
-        duration2 = Math.max(3, actual2);
-      } else {
-        const dist2Km = haversineDistance(transferStopTo.lat, transferStopTo.lon, toStop.lat, toStop.lon) / 1000;
-        const travel2 = dist2Km * getTransitMinPerKm(toRoute.type);
-        const dwell2 = estimateIntermediateStops(dist2Km, toRoute.type) * getDwellTimePerStop(toRoute.type);
-        duration2 = Math.max(3, Math.round(travel2 + dwell2));
+      // Skip if second leg has no valid GTFS data (wrong direction or missing)
+      if (actual2 === null) {
+        logger.log(`[Routing] Skipping transfer: ${toRoute.shortName} has no valid data for ${transferStopTo.name} → ${toStop.name}`);
+        continue;
       }
+      const duration2 = Math.max(3, actual2);
 
       // Walking time between transfer stops (if physically > 30m apart)
       const transferWalkTime = tp.walkDistance > 30 ? Math.ceil(tp.walkDistance / 83.33) : 0;
@@ -648,19 +614,20 @@ export async function findRoute(
         locationType: 0,
       };
 
-      // Calculate 3-segment durations
-      const calcDuration = (routeObj: Route, fLat: number, fLon: number, tLat: number, tLon: number, routeId: string, fStopId: string, tStopId: string, addWait: boolean): number => {
-        const actual = db.getActualTravelTime(routeId, fStopId, tStopId);
-        if (actual !== null) return Math.max(3, actual + (addWait ? getAverageWaitTime(routeObj.type) : 0));
-        const distKm = haversineDistance(fLat, fLon, tLat, tLon) / 1000;
-        const travel = distKm * getTransitMinPerKm(routeObj.type);
-        const dwell = estimateIntermediateStops(distKm, routeObj.type) * getDwellTimePerStop(routeObj.type);
-        return Math.max(3, Math.round(travel + dwell + (addWait ? getAverageWaitTime(routeObj.type) : 0)));
-      };
+      // Calculate 3-segment durations - require valid GTFS times for all legs
+      const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStop1.id);
+      const actual2 = db.getActualTravelTime(midRoute.id, transferStop1.id, transferStop2.id);
+      const actual3 = db.getActualTravelTime(toRoute.id, transferStop2.id, toStopId);
 
-      const dur1 = calcDuration(fromRoute, fromStop.lat, fromStop.lon, transferStop1.lat, transferStop1.lon, fromRoute.id, fromStopId, transferStop1.id, true);
-      const dur2 = calcDuration(midRoute, transferStop1.lat, transferStop1.lon, transferStop2.lat, transferStop2.lon, midRoute.id, transferStop1.id, transferStop2.id, false);
-      const dur3 = calcDuration(toRoute, transferStop2.lat, transferStop2.lon, toStop.lat, toStop.lon, toRoute.id, transferStop2.id, toStopId, false);
+      // Skip if any leg has no valid GTFS data (wrong direction or missing)
+      if (actual1 === null || actual2 === null || actual3 === null) {
+        logger.log(`[Routing] Skipping 2-transfer: missing GTFS data for one or more legs`);
+        continue;
+      }
+
+      const dur1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
+      const dur2 = Math.max(3, actual2);
+      const dur3 = Math.max(3, actual3);
       const totalDuration = dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN + dur3;
 
       // Headsign lookups deferred to enrichWithHeadsigns() for performance
