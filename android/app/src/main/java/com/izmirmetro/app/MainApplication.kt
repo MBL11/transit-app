@@ -1,4 +1,4 @@
-package com.izmirmetrootobs
+package com.izmirmetro.app
 
 import android.app.Application
 import android.content.res.Configuration
