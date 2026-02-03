@@ -3,7 +3,7 @@
  * Track user events with Amplitude
  */
 
-import * as Amplitude from '@amplitude/analytics-browser';
+import * as Amplitude from '@amplitude/analytics-react-native';
 import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
 
@@ -29,11 +29,9 @@ export async function initAnalytics(): Promise<void> {
     await Amplitude.init(AMPLITUDE_API_KEY, undefined, {
       logLevel: Amplitude.Types.LogLevel.None,
       serverZone: 'EU',
-      defaultTracking: {
-        sessions: true,
-        appLifecycles: true,
-        deepLinks: true,
-        screenViews: false, // We'll track manually for more control
+      trackingOptions: {
+        adid: false,
+        appSetId: false,
       },
     });
 
