@@ -23,7 +23,7 @@
       }
     },
     "android": {
-      "package": "com.izmir.metro.otobus",
+      "package": "com.izmirmetro.app",
       "adaptiveIcon": {
         "backgroundColor": "#0D47A1",
         "foregroundImage": "./assets/adaptive-icon.png"
