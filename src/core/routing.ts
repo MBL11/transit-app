@@ -222,13 +222,13 @@ export async function findRoute(
   }
 
   for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
-    // Check if this route has a departure around the requested time (within 45 min)
+    // Check if this route has a departure around the requested time (60 min for night buses)
     const nextDepartureMin = db.getNextDepartureForRoute(
       route.id,
       fromStopId,
       requestedTimeMinutes,
       activeServiceIds,
-      45 // Only show routes with departures within 45 minutes
+      60 // 60 min window to catch less frequent night buses
     );
 
     if (nextDepartureMin === null) {
@@ -309,9 +309,9 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
-      // Check if first leg has service at requested time (within 45 min)
+      // Check if first leg has service at requested time (60 min for night buses)
       const firstLegDep = db.getNextDepartureForRoute(
-        fromRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 45
+        fromRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60
       );
       if (firstLegDep === null) {
         logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${fromRoute.shortName} has no service`);
@@ -345,10 +345,10 @@ export async function findRoute(
         duration1 = Math.max(3, Math.round(travel1 + dwell1));
       }
 
-      // Check if second leg has service after arriving at transfer (within 45 min)
+      // Check if second leg has service after arriving at transfer (60 min for night buses)
       const arrivalAtTransferMin = firstLegDep + duration1 + 3; // +3 min to walk/wait
       const secondLegDep = db.getNextDepartureForRoute(
-        toRoute.id, transferStopTo.id, arrivalAtTransferMin, activeServiceIds, 45
+        toRoute.id, transferStopTo.id, arrivalAtTransferMin, activeServiceIds, 60
       );
       if (secondLegDep === null) {
         logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${toRoute.shortName} has no service after transfer`);
