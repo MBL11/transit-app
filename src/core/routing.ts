@@ -221,7 +221,17 @@ export async function findRoute(
     logger.log(`[Routing] Direct route found: ${directRoutes.map(r => r.shortName).join(', ')} (${fromStop.name} → ${toStop.name})`);
   }
 
+  // Check if we're in night hours (1 AM - 5 AM) - only buses run at night in İzmir
+  const isNightHours = requestedTimeMinutes >= 60 && requestedTimeMinutes < 300; // 1:00 - 5:00
+
   for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
+    // During night hours, skip non-bus routes (trams, metro, ferries don't run 1-5 AM)
+    // Route types: 0=tram, 1=metro, 2=rail, 3=bus, 4=ferry
+    if (isNightHours && route.type !== 3) {
+      logger.log(`[Routing] Skipping ${route.shortName} (type ${route.type}): non-bus routes don't run at night`);
+      continue;
+    }
+
     // Check if this route has a departure around the requested time (60 min for night buses)
     const nextDepartureMin = db.getNextDepartureForRoute(
       route.id,
@@ -308,6 +318,12 @@ export async function findRoute(
       const fromRoute = fromRouteMap.get(tp.fromRouteId);
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
+
+      // During night hours, skip non-bus routes
+      if (isNightHours && (fromRoute.type !== 3 || toRoute.type !== 3)) {
+        logger.log(`[Routing] Skipping transfer ${fromRoute.shortName}→${toRoute.shortName}: non-bus routes don't run at night`);
+        continue;
+      }
 
       // Check if first leg has service at requested time (60 min for night buses)
       const firstLegDep = db.getNextDepartureForRoute(
