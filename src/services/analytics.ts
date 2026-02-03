@@ -1,116 +1,60 @@
 /**
  * Analytics Service
  * Track user events with Amplitude
+ *
+ * NOTE: Amplitude is disabled for now. The functions are kept as no-ops
+ * so all call sites continue to work. To re-enable:
+ * 1. npm install @amplitude/analytics-react-native
+ * 2. Uncomment the import and implementation below
+ * 3. Ensure Metro can resolve the package (may need metro.config.js tweak)
  */
 
-import * as Amplitude from '@amplitude/analytics-react-native';
-import Constants from 'expo-constants';
+// import * as Amplitude from '@amplitude/analytics-react-native';
+// import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
 
-const AMPLITUDE_API_KEY = Constants.expoConfig?.extra?.amplitudeApiKey || process.env.EXPO_PUBLIC_AMPLITUDE_KEY || '555ca3e6aa4e16758e13886cc194a4f9';
-
-let isInitialized = false;
+// const AMPLITUDE_API_KEY = Constants.expoConfig?.extra?.amplitudeApiKey || process.env.EXPO_PUBLIC_AMPLITUDE_KEY || '';
 
 /**
  * Initialize Amplitude analytics
  */
 export async function initAnalytics(): Promise<void> {
-  if (isInitialized) {
-    logger.log('[Analytics] Already initialized');
-    return;
-  }
-
-  if (!AMPLITUDE_API_KEY) {
-    logger.warn('[Analytics] No Amplitude API key found, analytics disabled');
-    return;
-  }
-
-  try {
-    await Amplitude.init(AMPLITUDE_API_KEY, undefined, {
-      logLevel: Amplitude.Types.LogLevel.None,
-      serverZone: 'EU',
-      trackingOptions: {
-        adid: false,
-        appSetId: false,
-      },
-    });
-
-    isInitialized = true;
-    logger.log('[Analytics] Amplitude initialized successfully');
-  } catch (error) {
-    logger.error('[Analytics] Failed to initialize Amplitude:', error);
-  }
+  logger.log('[Analytics] Amplitude disabled - skipping init');
 }
 
 /**
  * Track a custom event
  */
-export function trackEvent(eventName: string, properties?: Record<string, any>): void {
-  if (!isInitialized) {
-    return;
-  }
-
-  try {
-    Amplitude.track(eventName, properties);
-  } catch (error) {
-    logger.error('[Analytics] Failed to track event:', error);
-  }
+export function trackEvent(_eventName: string, _properties?: Record<string, any>): void {
+  // no-op while Amplitude is disabled
 }
 
 /**
  * Track screen view
  */
-export function trackScreenView(screenName: string, properties?: Record<string, any>): void {
-  trackEvent('screen_view', {
-    screen_name: screenName,
-    ...properties,
-  });
+export function trackScreenView(_screenName: string, _properties?: Record<string, any>): void {
+  // no-op while Amplitude is disabled
 }
 
 /**
  * Set user ID for tracking
  */
-export function setUserId(userId: string): void {
-  if (!isInitialized) return;
-
-  try {
-    Amplitude.setUserId(userId);
-    logger.log('[Analytics] User ID set:', userId);
-  } catch (error) {
-    logger.error('[Analytics] Failed to set user ID:', error);
-  }
+export function setUserId(_userId: string): void {
+  // no-op while Amplitude is disabled
 }
 
 /**
  * Set user properties
  */
-export function setUserProperties(properties: Record<string, any>): void {
-  if (!isInitialized) return;
-
-  try {
-    const identify = new Amplitude.Identify();
-    Object.entries(properties).forEach(([key, value]) => {
-      identify.set(key, value);
-    });
-    Amplitude.identify(identify);
-    logger.log('[Analytics] User properties set:', properties);
-  } catch (error) {
-    logger.error('[Analytics] Failed to set user properties:', error);
-  }
+export function setUserProperties(_properties: Record<string, any>): void {
+  // no-op while Amplitude is disabled
 }
 
 /**
  * Reset analytics (on logout)
  */
 export function resetAnalytics(): void {
-  if (!isInitialized) return;
-
-  try {
-    Amplitude.reset();
-    logger.log('[Analytics] Analytics reset');
-  } catch (error) {
-    logger.error('[Analytics] Failed to reset:', error);
-  }
+  // no-op while Amplitude is disabled
 }
 
 // ===== Predefined Events =====
