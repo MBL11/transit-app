@@ -168,6 +168,12 @@ export function RouteScreen() {
       logger.log('[RouteScreen] Calculating multiple routes with preferences:', state.preferences.optimizeFor);
       logger.log('[RouteScreen] Time mode:', state.timeMode);
 
+      // Overall timeout: abort if route calculation takes too long
+      const OVERALL_TIMEOUT_MS = 15000;
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('ROUTE_TIMEOUT')), OVERALL_TIMEOUT_MS)
+      );
+
       let filteredResults: JourneyResult[];
 
       if (state.timeMode === 'arrival') {
@@ -178,13 +184,16 @@ export function RouteScreen() {
 
         // Search from 60 min before target arrival (covers most urban journeys)
         const searchTime = new Date(targetArrival.getTime() - 60 * 60000);
-        const results = await findMultipleRoutes(
-          fromLocation,
-          toLocation,
-          searchTime,
-          state.preferences,
-          5 // Reduced from 8 for faster results
-        );
+        const results = await Promise.race([
+          findMultipleRoutes(
+            fromLocation,
+            toLocation,
+            searchTime,
+            state.preferences,
+            5
+          ),
+          timeoutPromise,
+        ]);
 
         // Keep only journeys arriving before target, sort by latest departure
         filteredResults = results
@@ -195,13 +204,16 @@ export function RouteScreen() {
         logger.log('[RouteScreen] Arrive-by: found', results.length, 'total,', filteredResults.length, 'arriving on time');
       } else {
         // Depart-at mode: standard search
-        const results = await findMultipleRoutes(
-          fromLocation,
-          toLocation,
-          state.departureTime,
-          state.preferences,
-          5
-        );
+        const results = await Promise.race([
+          findMultipleRoutes(
+            fromLocation,
+            toLocation,
+            state.departureTime,
+            state.preferences,
+            5
+          ),
+          timeoutPromise,
+        ]);
         filteredResults = results;
       }
 
@@ -217,7 +229,9 @@ export function RouteScreen() {
       captureException(err, { tags: { screen: 'route', action: 'calculate' } });
       const msg = err.message || '';
       let userMessage = t('route.unableToCalculate');
-      if (msg.startsWith('NO_STOPS_NEAR:')) {
+      if (msg === 'ROUTE_TIMEOUT') {
+        userMessage = t('route.searchTimeout', { defaultValue: 'La recherche a pris trop de temps. Essayez avec des arrêts plus proches.' });
+      } else if (msg.startsWith('NO_STOPS_NEAR:')) {
         const location = msg.split(':')[1];
         userMessage = t('route.noStopsNear', { location });
       } else if (msg === 'NO_STOPS_NEAR_POSITION') {
