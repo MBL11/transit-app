@@ -1178,18 +1178,25 @@ export interface TheoreticalDeparture {
  * @param limit - Max number of transfer points to return
  * @returns Array of { stopId, stopName, lat, lon, fromRouteId, toRouteId }
  */
-export function findTransferStops(
-  fromRouteIds: string[],
-  toRouteIds: string[],
-  limit: number = 10
-): Array<{
+export interface TransferPoint {
   stopId: string;
   stopName: string;
   lat: number;
   lon: number;
   fromRouteId: string;
   toRouteId: string;
-}> {
+  // The to-route's actual stop (may differ from stopId for proximity matches)
+  toStopId: string;
+  toStopLat: number;
+  toStopLon: number;
+  walkDistance: number; // meters between the two physical stops
+}
+
+export function findTransferStops(
+  fromRouteIds: string[],
+  toRouteIds: string[],
+  limit: number = 10
+): TransferPoint[] {
   const db = openDatabase();
 
   if (fromRouteIds.length === 0 || toRouteIds.length === 0) return [];
@@ -1245,15 +1252,17 @@ export function findTransferStops(
       toByGrid.get(gridKey)!.push(ts);
     }
 
+    // Haversine helper (inline to avoid circular dep)
+    const dist = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
     // Match: find stops served by both a fromRoute and a toRoute
-    const results: Array<{
-      stopId: string;
-      stopName: string;
-      lat: number;
-      lon: number;
-      fromRouteId: string;
-      toRouteId: string;
-    }> = [];
+    const results: TransferPoint[] = [];
     const seen = new Set<string>();
 
     for (const fs of fromStops) {
@@ -1267,6 +1276,7 @@ export function findTransferStops(
         const dedupKey = `${fs.route_id}-${ts.route_id}-${nameKey}`;
         if (seen.has(dedupKey)) continue;
         seen.add(dedupKey);
+        const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
         results.push({
           stopId: fs.stop_id,
           stopName: fs.stop_name,
@@ -1274,6 +1284,10 @@ export function findTransferStops(
           lon: fs.lon,
           fromRouteId: fs.route_id,
           toRouteId: ts.route_id,
+          toStopId: ts.stop_id,
+          toStopLat: ts.lat,
+          toStopLon: ts.lon,
+          walkDistance: Math.round(walkDist),
         });
         if (results.length >= limit) break;
       }
@@ -1293,6 +1307,7 @@ export function findTransferStops(
             const dedupKey = `${fs.route_id}-${ts.route_id}-${fs.stop_id}`;
             if (seen.has(dedupKey)) continue;
             seen.add(dedupKey);
+            const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
             results.push({
               stopId: fs.stop_id,
               stopName: fs.stop_name,
@@ -1300,6 +1315,10 @@ export function findTransferStops(
               lon: fs.lon,
               fromRouteId: fs.route_id,
               toRouteId: ts.route_id,
+              toStopId: ts.stop_id,
+              toStopLat: ts.lat,
+              toStopLon: ts.lon,
+              walkDistance: Math.round(walkDist),
             });
             if (results.length >= limit) break;
           }

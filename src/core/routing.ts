@@ -285,23 +285,24 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
-      const transferStop: Stop = {
-        id: tp.stopId,
-        name: tp.stopName,
-        lat: tp.lat,
-        lon: tp.lon,
-        locationType: 0,
+      // From-route alights here
+      const transferStopFrom: Stop = {
+        id: tp.stopId, name: tp.stopName, lat: tp.lat, lon: tp.lon, locationType: 0,
+      };
+      // To-route boards here (may be physically different stop)
+      const transferStopTo: Stop = {
+        id: tp.toStopId, name: tp.stopName, lat: tp.toStopLat, lon: tp.toStopLon, locationType: 0,
       };
 
-      // Calculate durations: try real GTFS times first
-      const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStop.id);
-      const actual2 = db.getActualTravelTime(toRoute.id, transferStop.id, toStopId);
+      // Calculate durations using correct stop IDs for each route
+      const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStopFrom.id);
+      const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toStopId);
 
       let duration1: number;
       if (actual1 !== null) {
         duration1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
       } else {
-        const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStop.lat, transferStop.lon) / 1000;
+        const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStopFrom.lat, transferStopFrom.lon) / 1000;
         const travel1 = dist1Km * getTransitMinPerKm(fromRoute.type);
         const dwell1 = estimateIntermediateStops(dist1Km, fromRoute.type) * getDwellTimePerStop(fromRoute.type);
         duration1 = Math.max(3, Math.round(travel1 + dwell1 + getAverageWaitTime(fromRoute.type)));
@@ -311,40 +312,54 @@ export async function findRoute(
       if (actual2 !== null) {
         duration2 = Math.max(3, actual2);
       } else {
-        const dist2Km = haversineDistance(transferStop.lat, transferStop.lon, toStop.lat, toStop.lon) / 1000;
+        const dist2Km = haversineDistance(transferStopTo.lat, transferStopTo.lon, toStop.lat, toStop.lon) / 1000;
         const travel2 = dist2Km * getTransitMinPerKm(toRoute.type);
         const dwell2 = estimateIntermediateStops(dist2Km, toRoute.type) * getDwellTimePerStop(toRoute.type);
         duration2 = Math.max(3, Math.round(travel2 + dwell2));
       }
 
-      const transferTime = TRANSFER_PENALTY_MIN;
+      // Walking time between transfer stops (if physically > 30m apart)
+      const transferWalkTime = tp.walkDistance > 30 ? Math.ceil(tp.walkDistance / 83.33) : 0;
+      const transferTime = Math.max(TRANSFER_PENALTY_MIN, transferWalkTime + 2);
       const totalDuration = duration1 + transferTime + duration2;
 
-      // Headsign lookups deferred to enrichWithHeadsigns() for performance
+      // Build segments: transit → [walk if needed] → transit
+      const segments: RouteSegment[] = [
+        {
+          type: 'transit',
+          from: fromStop,
+          to: transferStopFrom,
+          route: fromRoute,
+          departureTime: departureTime,
+          arrivalTime: new Date(departureTime.getTime() + duration1 * 60000),
+          duration: duration1,
+        },
+      ];
+
+      if (tp.walkDistance > 30) {
+        segments.push({
+          type: 'walk',
+          from: transferStopFrom,
+          to: transferStopTo,
+          duration: transferWalkTime,
+          distance: tp.walkDistance,
+        });
+      }
+
+      segments.push({
+        type: 'transit',
+        from: transferStopTo,
+        to: toStop,
+        route: toRoute,
+        departureTime: new Date(departureTime.getTime() + (duration1 + transferTime) * 60000),
+        arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+        duration: duration2,
+      });
 
       const journey: JourneyResult = {
-        segments: [
-          {
-            type: 'transit',
-            from: fromStop,
-            to: transferStop,
-            route: fromRoute,
-            departureTime: departureTime,
-            arrivalTime: new Date(departureTime.getTime() + duration1 * 60000),
-            duration: duration1,
-          },
-          {
-            type: 'transit',
-            from: transferStop,
-            to: toStop,
-            route: toRoute,
-            departureTime: new Date(departureTime.getTime() + (duration1 + transferTime) * 60000),
-            arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
-            duration: duration2,
-          },
-        ],
+        segments,
         totalDuration: totalDuration,
-        totalWalkDistance: 0,
+        totalWalkDistance: tp.walkDistance > 30 ? tp.walkDistance : 0,
         numberOfTransfers: 1,
         departureTime: departureTime,
         arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
@@ -667,10 +682,10 @@ export async function findRouteFromLocations(
 
     for (const { fromStop, toStop, routes } of routeResults) {
       for (const route of routes) {
-        // Deduplicate: same transit lines in same order = same route
+        // Deduplicate: same transit lines (by user-visible name) in same order
         const routeKey = route.segments
           .filter(s => s.type === 'transit')
-          .map(s => s.route?.id || 'walk')
+          .map(s => s.route?.shortName || s.route?.id || 'walk')
           .join('→');
         if (seenRouteKeys.has(routeKey)) continue;
         seenRouteKeys.add(routeKey);
@@ -868,7 +883,7 @@ export async function findRouteFromAddresses(
           // Create a unique key based on the transit lines used
           const routeKey = route.segments
             .filter(seg => seg.type === 'transit' && seg.route)
-            .map(seg => seg.route!.id)
+            .map(seg => seg.route!.shortName || seg.route!.id)
             .join('-');
 
           // Skip if we've already seen this combination of lines
@@ -1027,7 +1042,7 @@ export async function findRouteFromCoordinates(
       for (const route of routes) {
         const routeKey = route.segments
           .filter(seg => seg.type === 'transit' && seg.route)
-          .map(seg => seg.route!.id)
+          .map(seg => seg.route!.shortName || seg.route!.id)
           .join('-');
 
         if (routeKey && seenRouteKeys.has(routeKey)) continue;
@@ -1089,6 +1104,13 @@ export async function findMultipleRoutes(
 ): Promise<JourneyResult[]> {
   try {
     logger.log('[Routing] Finding multiple routes with preferences:', preferences.optimizeFor);
+
+    // 0. Check if transit services are running at this time
+    const activeServices = db.getActiveServiceIds(departureTime);
+    if (activeServices !== null && activeServices.size === 0) {
+      logger.warn('[Routing] No active transit services at this time');
+      throw new Error('NO_SERVICE_AT_TIME');
+    }
 
     // 1. Get base routes using findRouteFromLocations
     const baseRoutes = await findRouteFromLocations(from, to, departureTime);
