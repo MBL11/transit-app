@@ -520,24 +520,6 @@ export function MapScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* Reimport button (floating) */}
-      <View style={[styles.reimportContainer, { top: insets.top + 52 }]}>
-        <TouchableOpacity
-          style={styles.reimportButton}
-          onPress={handleImportData}
-          disabled={importing}
-        >
-          {importing ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.reimportButtonText}>🔄</Text>
-          )}
-        </TouchableOpacity>
-        <View style={styles.reimportTooltip}>
-          <Text style={styles.reimportTooltipText}>Reload data</Text>
-        </View>
-      </View>
-
       {/* Alerts Badge */}
       {severeAlerts.length > 0 && (
         <TouchableOpacity

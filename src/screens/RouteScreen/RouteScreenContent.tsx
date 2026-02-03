@@ -352,12 +352,24 @@ export function RouteScreenContent({
           </View>
         )}
 
-        {!state.calculating && state.journeys.length > 0 && (
+        {!state.calculating && state.journeys.length > 0 && (() => {
+          const hour = state.departureTime.getHours();
+          const isNightHours = hour >= 1 && hour < 5;
+          const hasNoTransitService = state.journeys.some(j => j.tags?.includes('no-transit-service'));
+
+          return (
           <>
-            {state.journeys.some(j => j.tags?.includes('no-transit-service')) && (
+            {hasNoTransitService && (
               <View style={styles.noTransitBanner}>
                 <Text style={styles.noTransitBannerText}>
                   {t('route.noServiceAtTime', { defaultValue: 'Aucun transport en commun ne circule a cette heure. Voici le trajet a pied.' })}
+                </Text>
+              </View>
+            )}
+            {isNightHours && !hasNoTransitService && (
+              <View style={styles.nightServiceBanner}>
+                <Text style={styles.nightServiceBannerText}>
+                  🌙 {t('route.nightServiceLimited', { defaultValue: 'Service de nuit limité - Seuls les bus Baykuş (910-950) circulent.' })}
                 </Text>
               </View>
             )}
@@ -378,7 +390,8 @@ export function RouteScreenContent({
               />
             ))}
           </>
-        )}
+          );
+        })()}
         </View>
       </ScrollView>
 
@@ -807,6 +820,18 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       marginBottom: 12,
     },
     noTransitBannerText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    nightServiceBanner: {
+      backgroundColor: '#1e3a5f',
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 12,
+    },
+    nightServiceBannerText: {
       color: '#fff',
       fontSize: 14,
       fontWeight: '600',

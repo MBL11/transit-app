@@ -3,9 +3,9 @@
  * Manages GTFS data loading state
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isGTFSDataAvailable } from '../core/gtfs-downloader';
+import { isGTFSDataAvailable, downloadAndImportAllIzmir } from '../core/gtfs-downloader';
 import * as db from '../core/database';
 import { logger } from '../utils/logger';
 
@@ -50,6 +50,9 @@ export function useGTFSData() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [source, setSource] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const refreshInProgress = useRef(false);
 
   useEffect(() => {
     checkData();
@@ -117,6 +120,55 @@ export function useGTFSData() {
     return daysSinceUpdate > 7; // Update if > 7 days old
   };
 
+  /**
+   * Trigger a background refresh of GTFS data
+   * This runs silently and updates the data without blocking the user
+   */
+  const triggerBackgroundRefresh = async (): Promise<void> => {
+    // Prevent multiple simultaneous refreshes
+    if (refreshInProgress.current) {
+      logger.log('[useGTFSData] Background refresh already in progress, skipping');
+      return;
+    }
+
+    refreshInProgress.current = true;
+    setIsRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      logger.log('[useGTFSData] Starting background GTFS refresh...');
+
+      const result = await downloadAndImportAllIzmir((stage, progress, sourceName) => {
+        // Silent progress - just log it
+        logger.log(`[useGTFSData] Background refresh: ${stage} ${Math.round(progress * 100)}% ${sourceName || ''}`);
+      });
+
+      // Update metadata
+      const now = new Date().toISOString();
+      await AsyncStorage.setItem(GTFS_LOADED_KEY, 'true');
+      await AsyncStorage.setItem(GTFS_LAST_UPDATE_KEY, now);
+      await AsyncStorage.setItem(GTFS_SOURCE_KEY, 'İzmir');
+
+      setLastUpdate(new Date(now));
+      setSource('İzmir');
+      setIsLoaded(true);
+
+      logger.log('[useGTFSData] ✅ Background refresh complete:', {
+        stops: result.stops,
+        routes: result.routes,
+        trips: result.trips,
+        stopTimes: result.stopTimes,
+      });
+    } catch (error) {
+      logger.error('[useGTFSData] Background refresh failed:', error);
+      setRefreshError(error instanceof Error ? error.message : 'Unknown error');
+      // Don't throw - we want the app to continue working with old data
+    } finally {
+      refreshInProgress.current = false;
+      setIsRefreshing(false);
+    }
+  };
+
   return {
     isLoaded,
     lastUpdate,
@@ -125,5 +177,9 @@ export function useGTFSData() {
     markAsLoaded,
     needsUpdate,
     refresh: checkData,
+    // Background refresh
+    isRefreshing,
+    refreshError,
+    triggerBackgroundRefresh,
   };
 }

@@ -1,6 +1,6 @@
 import './global.css';
 import { i18nInitPromise } from './src/i18n';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LogBox } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -25,7 +25,8 @@ type AppState = 'loading' | 'onboarding' | 'check_data' | 'data_loading' | 'read
 
 function AppContent() {
   const [appState, setAppState] = useState<AppState>('loading');
-  const { isLoaded: hasGTFSData, checking: checkingGTFS, markAsLoaded } = useGTFSData();
+  const { isLoaded: hasGTFSData, checking: checkingGTFS, markAsLoaded, triggerBackgroundRefresh } = useGTFSData();
+  const hasTriggeredAutoRefresh = useRef(false);
 
   useEffect(() => {
     async function initialize() {
@@ -69,6 +70,21 @@ function AppContent() {
       }
     }
   }, [appState, checkingGTFS, hasGTFSData]);
+
+  // Auto-refresh GTFS data in background when app is ready
+  // This ensures data stays fresh without blocking the user
+  useEffect(() => {
+    if (appState === 'ready' && !hasTriggeredAutoRefresh.current) {
+      hasTriggeredAutoRefresh.current = true;
+      // Small delay to let the app UI settle, then refresh data in background
+      const timer = setTimeout(() => {
+        logger.log('[App] Triggering background GTFS refresh on app launch...');
+        triggerBackgroundRefresh();
+      }, 3000); // 3 second delay after app is ready
+
+      return () => clearTimeout(timer);
+    }
+  }, [appState, triggerBackgroundRefresh]);
 
   const handleOnboardingComplete = () => {
     trackEvent(AnalyticsEvents.ONBOARDING_COMPLETED);
