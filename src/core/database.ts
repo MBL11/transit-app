@@ -565,6 +565,14 @@ export function getActiveServiceIds(date: Date): Set<string> | null {
     }
 
     logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size}`);
+
+    // If calendar data exists but no services match (likely expired dates),
+    // return null to skip filtering rather than blocking all routes
+    if (activeServiceIds.size === 0) {
+      logger.warn(`[Database] Calendar data exists but no active services for ${dateStr} - dates may be expired, skipping calendar filter`);
+      return null;
+    }
+
     return activeServiceIds;
   } catch (error) {
     logger.warn('[Database] Failed to get active service IDs, skipping calendar filter:', error);
