@@ -105,38 +105,50 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
         </View>
       </View>
 
-      {/* Transit Lines with Stops - showing departure and arrival stations */}
+      {/* Journey Steps - Transit lines or walking */}
       <View style={styles.journeySteps}>
-        {transitSegments.map((segment, index) => {
-          const fromStop = segment.from?.name || '';
-          const toStop = segment.to?.name || '';
-          const isLast = index === transitSegments.length - 1 && !hasMoreModes;
-
-          return (
-            <View key={index} style={styles.stepRow}>
-              {/* Line badge */}
-              <LineBadge
-                lineNumber={segment.route?.shortName || '?'}
-                type={getTransportType(segment)}
-                color={segment.route?.color || undefined}
-                textColor={segment.route?.textColor || undefined}
-                size="small"
-              />
-              {/* Departure stop → Arrival stop */}
-              <Text style={styles.directionText} numberOfLines={1}>
-                {fromStop} → {toStop}
-              </Text>
-              {/* Arrow to next segment */}
-              {!isLast && (
-                <Text style={styles.transferArrow}>›</Text>
-              )}
+        {transitSegments.length === 0 ? (
+          /* Walking-only journey */
+          <View style={styles.stepRow}>
+            <View style={styles.walkBadge}>
+              <Text style={styles.walkBadgeText}>🚶</Text>
             </View>
-          );
-        })}
-        {hasMoreModes && (
-          <Text style={styles.moreModesText}>
-            +{route.segments.filter((l) => l.type === 'transit').length - 3}
-          </Text>
+            <Text style={styles.directionText} numberOfLines={1}>
+              {route.segments[0]?.from?.name || ''} → {route.segments[route.segments.length - 1]?.to?.name || ''}
+            </Text>
+          </View>
+        ) : (
+          /* Transit segments */
+          <>
+            {transitSegments.map((segment, index) => {
+              const fromStop = segment.from?.name || '';
+              const toStop = segment.to?.name || '';
+              const isLast = index === transitSegments.length - 1 && !hasMoreModes;
+
+              return (
+                <View key={index} style={styles.stepRow}>
+                  <LineBadge
+                    lineNumber={segment.route?.shortName || '?'}
+                    type={getTransportType(segment)}
+                    color={segment.route?.color || undefined}
+                    textColor={segment.route?.textColor || undefined}
+                    size="small"
+                  />
+                  <Text style={styles.directionText} numberOfLines={1}>
+                    {fromStop} → {toStop}
+                  </Text>
+                  {!isLast && (
+                    <Text style={styles.transferArrow}>›</Text>
+                  )}
+                </View>
+              );
+            })}
+            {hasMoreModes && (
+              <Text style={styles.moreModesText}>
+                +{route.segments.filter((l) => l.type === 'transit').length - 3}
+              </Text>
+            )}
+          </>
         )}
       </View>
 
@@ -236,6 +248,17 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+    },
+    walkBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 6,
+      backgroundColor: '#6b7280',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    walkBadgeText: {
+      fontSize: 16,
     },
     directionText: {
       flex: 1,

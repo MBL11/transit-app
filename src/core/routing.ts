@@ -1107,9 +1107,47 @@ export async function findMultipleRoutes(
 
     // 0. Check if transit services are running at this time
     const activeServices = db.getActiveServiceIds(departureTime);
-    if (activeServices !== null && activeServices.size === 0) {
-      logger.warn('[Routing] No active transit services at this time');
-      throw new Error('NO_SERVICE_AT_TIME');
+    const noTransitService = activeServices !== null && activeServices.size === 0;
+
+    if (noTransitService) {
+      logger.warn('[Routing] No active transit services at this time, returning walking-only route');
+
+      // Build a walking-only journey between the two locations
+      const distance = haversineDistance(from.lat, from.lon, to.lat, to.lon);
+      const walkTime = Math.round(walkingTime(distance));
+
+      const fromVirtualStop: Stop = {
+        id: 'virtual_from',
+        name: from.shortAddress || from.displayName,
+        lat: from.lat,
+        lon: from.lon,
+        locationType: 0,
+      };
+      const toVirtualStop: Stop = {
+        id: 'virtual_to',
+        name: to.shortAddress || to.displayName,
+        lat: to.lat,
+        lon: to.lon,
+        locationType: 0,
+      };
+
+      const walkingJourney: JourneyResult = {
+        segments: [{
+          type: 'walk',
+          from: fromVirtualStop,
+          to: toVirtualStop,
+          duration: walkTime,
+          distance: Math.round(distance),
+        }],
+        totalDuration: walkTime,
+        totalWalkDistance: Math.round(distance),
+        numberOfTransfers: 0,
+        departureTime: departureTime,
+        arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
+        tags: ['no-transit-service'],
+      };
+
+      return [walkingJourney];
     }
 
     // 1. Get base routes using findRouteFromLocations

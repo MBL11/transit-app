@@ -354,8 +354,17 @@ export function RouteScreenContent({
 
         {!state.calculating && state.journeys.length > 0 && (
           <>
+            {state.journeys.some(j => j.tags?.includes('no-transit-service')) && (
+              <View style={styles.noTransitBanner}>
+                <Text style={styles.noTransitBannerText}>
+                  {t('route.noServiceAtTime', { defaultValue: 'Aucun transport en commun ne circule a cette heure. Voici le trajet a pied.' })}
+                </Text>
+              </View>
+            )}
             <Text style={styles.resultsTitle}>
-              {t('routing.availableRoutes', { count: state.journeys.length })}
+              {state.journeys.some(j => j.tags?.includes('no-transit-service'))
+                ? t('route.walkingSuggestion', { defaultValue: 'Trajet a pied' })
+                : t('routing.availableRoutes', { count: state.journeys.length })}
             </Text>
             {state.journeys.map((journey, index) => (
               <RouteOptionCard
@@ -790,6 +799,18 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       marginTop: 6,
       fontSize: 13,
       color: colors.textMuted,
+    },
+    noTransitBanner: {
+      backgroundColor: '#f97316',
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 12,
+    },
+    noTransitBannerText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
     },
     noResultsContainer: {
       paddingVertical: 40,

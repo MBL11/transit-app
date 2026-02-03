@@ -141,6 +141,8 @@
     "walk": "Marcher",
     "walkDuration": "{{duration}} min à pied",
     "walkDistance": "{{distance}} m",
+    "noServiceAtTime": "Aucun transport en commun ne circule a cette heure. Voici le trajet a pied.",
+    "walkingSuggestion": "Trajet a pied",
     "take": "Prendre",
     "getOff": "Descendre à",
     "saveJourney": "Sauvegarder cet itinéraire",
@@ -189,7 +191,8 @@
       "fastest": "⚡ Plus rapide",
       "least-transfers": "🔄 Moins de changements",
       "least-walking": "🚶 Moins de marche",
-      "eco-friendly": "🌱 Écologique"
+      "eco-friendly": "🌱 Écologique",
+      "no-transit-service": "🌙 Hors service"
     },
     "transfers": "changement(s)",
     "availableRoutes": "{{count}} itinéraire disponible",

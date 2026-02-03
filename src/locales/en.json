@@ -141,6 +141,8 @@
     "walk": "Walk",
     "walkDuration": "{{duration}} min walk",
     "walkDistance": "{{distance}} m",
+    "noServiceAtTime": "No public transport is running at this time. Here is the walking route.",
+    "walkingSuggestion": "Walking route",
     "take": "Take",
     "getOff": "Get off at",
     "saveJourney": "Save this journey",
@@ -189,7 +191,8 @@
       "fastest": "⚡ Fastest",
       "least-transfers": "🔄 Fewest Transfers",
       "least-walking": "🚶 Least Walking",
-      "eco-friendly": "🌱 Eco-friendly"
+      "eco-friendly": "🌱 Eco-friendly",
+      "no-transit-service": "🌙 No service"
     },
     "transfers": "transfer(s)",
     "availableRoutes": "{{count}} route available",

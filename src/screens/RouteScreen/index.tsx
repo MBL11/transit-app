@@ -231,8 +231,6 @@ export function RouteScreen() {
       let userMessage = t('route.unableToCalculate');
       if (msg === 'ROUTE_TIMEOUT') {
         userMessage = t('route.searchTimeout', { defaultValue: 'La recherche a pris trop de temps. Essayez avec des arrêts plus proches.' });
-      } else if (msg === 'NO_SERVICE_AT_TIME') {
-        userMessage = t('route.noServiceAtTime', { defaultValue: 'Aucun transport en commun ne circule à cette heure. Les transports reprennent vers 06h00.' });
       } else if (msg.startsWith('NO_STOPS_NEAR:')) {
         const location = msg.split(':')[1];
         userMessage = t('route.noStopsNear', { location });

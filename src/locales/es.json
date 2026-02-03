@@ -139,6 +139,8 @@
     "walk": "Caminar",
     "walkDuration": "{{duration}} min a pie",
     "walkDistance": "{{distance}} m",
+    "noServiceAtTime": "No hay transporte publico a esta hora. Aqui esta la ruta a pie.",
+    "walkingSuggestion": "Ruta a pie",
     "take": "Tomar",
     "getOff": "Bajar en",
     "saveJourney": "Guardar esta ruta",
@@ -189,7 +191,8 @@
       "fastest": "⚡ Más rápido",
       "least-transfers": "🔄 Menos transbordos",
       "least-walking": "🚶 Menos caminata",
-      "eco-friendly": "🌱 Ecológico"
+      "eco-friendly": "🌱 Ecológico",
+      "no-transit-service": "🌙 Sin servicio"
     },
     "transfers": "transbordo(s)",
     "availableRoutes": "{{count}} ruta disponible",

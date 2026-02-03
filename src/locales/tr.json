@@ -139,6 +139,8 @@
     "walk": "Yürü",
     "walkDuration": "{{duration}} dk yürüyüş",
     "walkDistance": "{{distance}} m",
+    "noServiceAtTime": "Bu saatte toplu tasima hizmeti bulunmuyor. Yurume rotasi asagida.",
+    "walkingSuggestion": "Yurume rotasi",
     "take": "Bin",
     "getOff": "İn",
     "saveJourney": "Bu rotayı kaydet",
@@ -189,7 +191,8 @@
       "fastest": "⚡ En hızlı",
       "least-transfers": "🔄 En az aktarma",
       "least-walking": "🚶 En az yürüme",
-      "eco-friendly": "🌱 Çevre dostu"
+      "eco-friendly": "🌱 Çevre dostu",
+      "no-transit-service": "🌙 Hizmet disi"
     },
     "transfers": "aktarma",
     "availableRoutes": "{{count}} rota mevcut",
