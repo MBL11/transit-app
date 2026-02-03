@@ -221,14 +221,15 @@ export async function findRoute(
     logger.log(`[Routing] Direct route found: ${directRoutes.map(r => r.shortName).join(', ')} (${fromStop.name} → ${toStop.name})`);
   }
 
-  // Check if we're in night hours (1 AM - 5 AM) - only buses run at night in İzmir
+  // Check if we're in night hours (1 AM - 5 AM) - only Baykuş night buses run in İzmir
   const isNightHours = requestedTimeMinutes >= 60 && requestedTimeMinutes < 300; // 1:00 - 5:00
+  // İzmir night bus lines (Baykuş)
+  const NIGHT_BUS_LINES = ['910', '920', '930', '940', '950'];
 
   for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
-    // During night hours, skip non-bus routes (trams, metro, ferries don't run 1-5 AM)
-    // Route types: 0=tram, 1=metro, 2=rail, 3=bus, 4=ferry
-    if (isNightHours && route.type !== 3) {
-      logger.log(`[Routing] Skipping ${route.shortName} (type ${route.type}): non-bus routes don't run at night`);
+    // During night hours, only allow Baykuş night bus lines
+    if (isNightHours && !NIGHT_BUS_LINES.includes(route.shortName || '')) {
+      logger.log(`[Routing] Skipping ${route.shortName}: not a night bus (only ${NIGHT_BUS_LINES.join(', ')} run at night)`);
       continue;
     }
 
@@ -319,9 +320,11 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
-      // During night hours, skip non-bus routes
-      if (isNightHours && (fromRoute.type !== 3 || toRoute.type !== 3)) {
-        logger.log(`[Routing] Skipping transfer ${fromRoute.shortName}→${toRoute.shortName}: non-bus routes don't run at night`);
+      // During night hours, only allow Baykuş night bus lines
+      const fromIsNightBus = NIGHT_BUS_LINES.includes(fromRoute.shortName || '');
+      const toIsNightBus = NIGHT_BUS_LINES.includes(toRoute.shortName || '');
+      if (isNightHours && (!fromIsNightBus || !toIsNightBus)) {
+        logger.log(`[Routing] Skipping transfer ${fromRoute.shortName}→${toRoute.shortName}: not night buses`);
         continue;
       }
 
