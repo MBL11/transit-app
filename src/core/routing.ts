@@ -144,6 +144,114 @@ async function getCachedRoutes(stopId: string, cache?: RoutingCache): Promise<Ro
 }
 
 /**
+ * Normalize stop name for comparison (remove prefixes like metro_1, tram_1, etc.)
+ */
+function normalizeStopName(name: string): string {
+  return name.toLowerCase().trim()
+    .replace(/\s+/g, ' ')  // Normalize whitespace
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove diacritics
+}
+
+/**
+ * Sanitize journey by removing absurd segments:
+ * - Transit segments where from.name === to.name (same stop, e.g., "Mavişehir → Mavişehir")
+ * - Consecutive segments that go back to already visited stops
+ * Returns null if journey becomes invalid after sanitization
+ */
+function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
+  const sanitizedSegments: RouteSegment[] = [];
+  const visitedStopNames = new Set<string>();
+
+  for (let i = 0; i < journey.segments.length; i++) {
+    const segment = journey.segments[i];
+
+    // For transit segments: check if from/to have same name (absurd)
+    if (segment.type === 'transit' && segment.from && segment.to) {
+      const fromName = normalizeStopName(segment.from.name);
+      const toName = normalizeStopName(segment.to.name);
+
+      if (fromName === toName) {
+        // Same stop to same stop - skip this segment entirely
+        logger.log(`[Routing] Removing absurd segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
+        continue;
+      }
+    }
+
+    // Track visited stops
+    if (segment.from) {
+      visitedStopNames.add(normalizeStopName(segment.from.name));
+    }
+
+    // For walk segments: skip if walking to a stop we're essentially already at
+    if (segment.type === 'walk' && segment.from && segment.to) {
+      const fromName = normalizeStopName(segment.from.name);
+      const toName = normalizeStopName(segment.to.name);
+
+      // Skip walk if from and to have same name
+      if (fromName === toName) {
+        logger.log(`[Routing] Removing redundant walk: ${segment.from.name} → ${segment.to.name}`);
+        continue;
+      }
+
+      // Skip very short walks (under 50m) between same-name stops
+      if (segment.distance && segment.distance < 50 && fromName === toName) {
+        logger.log(`[Routing] Removing trivial walk: ${segment.distance}m between same stops`);
+        continue;
+      }
+    }
+
+    sanitizedSegments.push(segment);
+  }
+
+  // If no segments left, journey is invalid
+  if (sanitizedSegments.length === 0) {
+    return null;
+  }
+
+  // Recalculate totals
+  let totalDuration = 0;
+  let totalWalkDistance = 0;
+  let numberOfTransfers = 0;
+
+  for (let i = 0; i < sanitizedSegments.length; i++) {
+    const seg = sanitizedSegments[i];
+    totalDuration += seg.duration || 0;
+
+    if (seg.type === 'walk' && seg.distance) {
+      totalWalkDistance += seg.distance;
+    }
+
+    // Count transfers (transit segment after another transit segment)
+    if (seg.type === 'transit' && i > 0) {
+      const prevSeg = sanitizedSegments[i - 1];
+      if (prevSeg.type === 'transit' || prevSeg.type === 'walk') {
+        // Check if this is a real transfer (not same route continuing)
+        const prevTransit = sanitizedSegments.slice(0, i).reverse().find(s => s.type === 'transit');
+        if (prevTransit && prevTransit.route?.id !== seg.route?.id) {
+          numberOfTransfers++;
+        }
+      }
+    }
+  }
+
+  // Get departure and arrival times from first and last segments
+  const firstSeg = sanitizedSegments[0];
+  const lastSeg = sanitizedSegments[sanitizedSegments.length - 1];
+  const departureTime = firstSeg.departureTime || journey.departureTime;
+  const arrivalTime = lastSeg.arrivalTime || new Date(departureTime.getTime() + totalDuration * 60000);
+
+  return {
+    ...journey,
+    segments: sanitizedSegments,
+    totalDuration,
+    totalWalkDistance,
+    numberOfTransfers,
+    departureTime,
+    arrivalTime,
+  };
+}
+
+/**
  * Post-process journeys to add headsign info (skipped during search for speed)
  */
 async function enrichWithHeadsigns(journeys: JourneyResult[]): Promise<void> {
@@ -582,8 +690,13 @@ export async function findRoute(
     }
   }
 
+  // Sanitize journeys to remove absurd segments (e.g., same stop to same stop)
+  const sanitizedJourneys = journeys
+    .map(sanitizeJourney)
+    .filter((j): j is JourneyResult => j !== null);
+
   // Filter out journeys with absurd durations (coordinate errors can cause 40+ hour estimates)
-  const validJourneys = journeys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
+  const validJourneys = sanitizedJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
 
   // Si toujours pas de trajet, retourne un trajet à pied comme fallback (only if reasonable)
   if (validJourneys.length === 0) {
@@ -781,8 +894,12 @@ export async function findRouteFromLocations(
       }
     }
 
-    // Filter out absurd durations
-    const validJourneys = allJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
+    // Sanitize journeys to remove absurd segments, then filter by duration
+    const sanitizedJourneys = allJourneys
+      .map(sanitizeJourney)
+      .filter((j): j is JourneyResult => j !== null);
+
+    const validJourneys = sanitizedJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
 
     if (validJourneys.length === 0) {
       throw new Error('NO_ROUTE_FOUND');
@@ -1222,13 +1339,24 @@ export async function findMultipleRoutes(
     }
 
     // 1. Get base routes using findRouteFromLocations
-    const baseRoutes = await findRouteFromLocations(from, to, departureTime);
+    const rawRoutes = await findRouteFromLocations(from, to, departureTime);
+
+    if (rawRoutes.length === 0) {
+      return [];
+    }
+
+    logger.log(`[Routing] Found ${rawRoutes.length} raw routes`);
+
+    // 1b. Sanitize routes to remove absurd segments (e.g., "Mavişehir → Mavişehir")
+    const baseRoutes = rawRoutes
+      .map(sanitizeJourney)
+      .filter((j): j is JourneyResult => j !== null);
+
+    logger.log(`[Routing] After sanitization: ${baseRoutes.length} valid routes`);
 
     if (baseRoutes.length === 0) {
       return [];
     }
-
-    logger.log(`[Routing] Found ${baseRoutes.length} base routes`);
 
     // 2. Separate walking-only routes from transit routes
     const walkingOnlyRoutes = baseRoutes.filter((journey) =>
