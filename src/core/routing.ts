@@ -605,8 +605,11 @@ export async function findRouteFromLocations(
     logger.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
     logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
-    // 3. Build combinations and run with shared cache + timeout
-    const ROUTE_CALC_TIMEOUT_MS = 5000; // 5s timeout (reduced from 8s)
+    // 3. Build combinations and run sequentially with shared cache + time budget
+    // Sync DB calls block the event loop, so Promise.all provides no parallelism.
+    // Sequential execution with early exit is faster in practice.
+    const TIME_BUDGET_MS = 10000; // 10s total time budget
+    const startTime = Date.now();
     const routingCache = createRoutingCache();
     const combinations: { fromStop: NearbyStop; toStop: NearbyStop }[] = [];
     for (const fromStop of fromStops) {
@@ -617,21 +620,31 @@ export async function findRouteFromLocations(
 
     logger.log(`[Routing] Trying ${combinations.length} combinations with shared cache...`);
 
-    const routeResults = await Promise.all(
-      combinations.map(({ fromStop, toStop }) =>
-        Promise.race([
-          findRoute(fromStop.id, toStop.id, departureTime, routingCache)
-            .then(routes => ({ fromStop, toStop, routes }))
-            .catch(() => ({ fromStop, toStop, routes: [] as JourneyResult[] })),
-          new Promise<{ fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }>(resolve =>
-            setTimeout(() => {
-              logger.warn(`[Routing] Timeout: ${fromStop.name} → ${toStop.name}`);
-              resolve({ fromStop, toStop, routes: [] });
-            }, ROUTE_CALC_TIMEOUT_MS)
-          ),
-        ])
-      )
-    );
+    const routeResults: { fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }[] = [];
+    let totalRoutesFound = 0;
+
+    for (const { fromStop, toStop } of combinations) {
+      // Check time budget
+      if (Date.now() - startTime > TIME_BUDGET_MS) {
+        logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
+        break;
+      }
+      // Early exit: if we already have enough diverse routes, stop searching
+      if (totalRoutesFound >= 5) {
+        logger.log(`[Routing] Found ${totalRoutesFound} routes, stopping early`);
+        break;
+      }
+
+      try {
+        const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
+        routeResults.push({ fromStop, toStop, routes });
+        totalRoutesFound += routes.length;
+      } catch {
+        routeResults.push({ fromStop, toStop, routes: [] });
+      }
+    }
+
+    logger.log(`[Routing] Completed ${routeResults.length}/${combinations.length} combinations in ${Date.now() - startTime}ms`);
 
     // 4. Collect journeys with walking segments, deduplicating by route signature
     const allJourneys: JourneyResult[] = [];
@@ -810,8 +823,7 @@ export async function findRouteFromAddresses(
       logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
 
       // 4. Try to find routes between nearby stops
-      // OPTIMIZED: Run all combinations in parallel using Promise.all
-      // Use top 3 stations from each side (3×3=9 combinations) for fast performance
+      // Sequential with early exit and time budget (sync DB calls block event loop)
       const combinations: { fromStop: NearbyStop; toStop: NearbyStop }[] = [];
       for (const fromStop of fromStops) {
         for (const toStop of toStops) {
@@ -821,19 +833,31 @@ export async function findRouteFromAddresses(
 
       logger.log(`[Routing] Calculating ${combinations.length} route combinations with shared cache`);
 
-      // Execute all route calculations with shared cache for deduplication
+      const TIME_BUDGET_MS = 10000;
+      const searchStartTime = Date.now();
       const routingCache = createRoutingCache();
-      const routeResults = await Promise.all(
-        combinations.map(async ({ fromStop, toStop }) => {
-          try {
-            const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
-            return { fromStop, toStop, routes };
-          } catch (error) {
-            logger.warn(`[Routing] Failed to find route between ${fromStop.name} and ${toStop.name}`);
-            return { fromStop, toStop, routes: [] };
-          }
-        })
-      );
+      const routeResults: { fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }[] = [];
+      let addressRoutesFound = 0;
+
+      for (const { fromStop, toStop } of combinations) {
+        if (Date.now() - searchStartTime > TIME_BUDGET_MS) {
+          logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
+          break;
+        }
+        if (addressRoutesFound >= 5) {
+          logger.log(`[Routing] Found ${addressRoutesFound} routes, stopping early`);
+          break;
+        }
+        try {
+          const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
+          routeResults.push({ fromStop, toStop, routes });
+          addressRoutesFound += routes.length;
+        } catch (error) {
+          routeResults.push({ fromStop, toStop, routes: [] });
+        }
+      }
+
+      logger.log(`[Routing] Completed ${routeResults.length}/${combinations.length} combinations in ${Date.now() - searchStartTime}ms`);
 
       // Process results and deduplicate
       const transitJourneys: JourneyResult[] = [];
@@ -974,17 +998,26 @@ export async function findRouteFromCoordinates(
       }
     }
 
+    const TIME_BUDGET_MS = 10000;
+    const coordSearchStart = Date.now();
     const routingCache = createRoutingCache();
-    const routeResults = await Promise.all(
-      combinations.map(async ({ fromStop, toStop }) => {
-        try {
-          const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
-          return { fromStop, toStop, routes };
-        } catch (error) {
-          return { fromStop, toStop, routes: [] };
-        }
-      })
-    );
+    const routeResults: { fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }[] = [];
+    let coordRoutesFound = 0;
+
+    for (const { fromStop, toStop } of combinations) {
+      if (Date.now() - coordSearchStart > TIME_BUDGET_MS) {
+        logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
+        break;
+      }
+      if (coordRoutesFound >= 5) break;
+      try {
+        const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
+        routeResults.push({ fromStop, toStop, routes });
+        coordRoutesFound += routes.length;
+      } catch (error) {
+        routeResults.push({ fromStop, toStop, routes: [] });
+      }
+    }
 
     // 4. Process results with deduplication
     const allJourneys: JourneyResult[] = [];

@@ -1169,9 +1169,9 @@ export interface TheoreticalDeparture {
 }
 
 /**
- * Find transfer stops between two sets of routes in a single query.
- * Returns stops that are served by at least one route from each set.
- * This replaces the O(n) loop of getRoutesByStopId calls with a single SQL query.
+ * Find transfer stops between two sets of routes.
+ * Uses two fast indexed queries + in-memory matching instead of one massive 5-way JOIN.
+ * Matches by: same stop name (multi-modal stations) OR proximity within ~330m (bus near rail).
  *
  * @param fromRouteIds - Route IDs from the departure side
  * @param toRouteIds - Route IDs from the arrival side
@@ -1195,49 +1195,119 @@ export function findTransferStops(
   if (fromRouteIds.length === 0 || toRouteIds.length === 0) return [];
 
   try {
+    // Query 1: Get unique (stop, route) pairs for fromRoutes
     const fromPlaceholders = fromRouteIds.map(() => '?').join(', ');
-    const toPlaceholders = toRouteIds.map(() => '?').join(', ');
-
-    // Find stops served by both a "from" route and a "to" route
-    // Matches by: same name (multi-modal stations) OR proximity within ~330m (bus near rail)
-    const rows = db.getAllSync<{
+    const fromStops = db.getAllSync<{
       stop_id: string;
       stop_name: string;
       lat: number;
       lon: number;
-      from_route_id: string;
-      to_route_id: string;
+      route_id: string;
     }>(
-      `SELECT
-         s1.id AS stop_id,
-         s1.name AS stop_name,
-         s1.lat,
-         s1.lon,
-         t1_routes.route_id AS from_route_id,
-         t2_routes.route_id AS to_route_id
-       FROM stops s1
-       JOIN stop_times st1 ON s1.id = st1.stop_id
-       JOIN trips t1_routes ON st1.trip_id = t1_routes.id AND t1_routes.route_id IN (${fromPlaceholders})
-       JOIN stops s2 ON (
-         (s2.name = s1.name AND ABS(s2.lat - s1.lat) < 0.005 AND ABS(s2.lon - s1.lon) < 0.005)
-         OR (ABS(s2.lat - s1.lat) < 0.003 AND ABS(s2.lon - s1.lon) < 0.003)
-       )
-       JOIN stop_times st2 ON s2.id = st2.stop_id
-       JOIN trips t2_routes ON st2.trip_id = t2_routes.id AND t2_routes.route_id IN (${toPlaceholders})
-       WHERE t1_routes.route_id != t2_routes.route_id
-       GROUP BY s1.name, t1_routes.route_id, t2_routes.route_id
-       LIMIT ?`,
-      [...fromRouteIds, ...toRouteIds, limit]
+      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id
+       FROM trips t
+       JOIN stop_times st ON t.id = st.trip_id
+       JOIN stops s ON st.stop_id = s.id
+       WHERE t.route_id IN (${fromPlaceholders})
+       GROUP BY s.id, t.route_id`,
+      fromRouteIds
     );
 
-    return rows.map(r => ({
-      stopId: r.stop_id,
-      stopName: r.stop_name,
-      lat: r.lat,
-      lon: r.lon,
-      fromRouteId: r.from_route_id,
-      toRouteId: r.to_route_id,
-    }));
+    // Query 2: Get unique (stop, route) pairs for toRoutes
+    const toPlaceholders = toRouteIds.map(() => '?').join(', ');
+    const toStops = db.getAllSync<{
+      stop_id: string;
+      stop_name: string;
+      lat: number;
+      lon: number;
+      route_id: string;
+    }>(
+      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id
+       FROM trips t
+       JOIN stop_times st ON t.id = st.trip_id
+       JOIN stops s ON st.stop_id = s.id
+       WHERE t.route_id IN (${toPlaceholders})
+       GROUP BY s.id, t.route_id`,
+      toRouteIds
+    );
+
+    // Build lookup indexes for toStops
+    const toByName = new Map<string, typeof toStops>();
+    const toByGrid = new Map<string, typeof toStops>();
+
+    for (const ts of toStops) {
+      const name = ts.stop_name.toLowerCase().trim();
+      if (!toByName.has(name)) toByName.set(name, []);
+      toByName.get(name)!.push(ts);
+
+      const gridKey = `${Math.round(ts.lat / 0.003)}_${Math.round(ts.lon / 0.003)}`;
+      if (!toByGrid.has(gridKey)) toByGrid.set(gridKey, []);
+      toByGrid.get(gridKey)!.push(ts);
+    }
+
+    // Match: find stops served by both a fromRoute and a toRoute
+    const results: Array<{
+      stopId: string;
+      stopName: string;
+      lat: number;
+      lon: number;
+      fromRouteId: string;
+      toRouteId: string;
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const fs of fromStops) {
+      if (results.length >= limit) break;
+
+      // 1. Name match (same station name)
+      const nameKey = fs.stop_name.toLowerCase().trim();
+      const nameMatches = toByName.get(nameKey) || [];
+      for (const ts of nameMatches) {
+        if (ts.route_id === fs.route_id) continue;
+        const dedupKey = `${fs.route_id}-${ts.route_id}-${nameKey}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+        results.push({
+          stopId: fs.stop_id,
+          stopName: fs.stop_name,
+          lat: fs.lat,
+          lon: fs.lon,
+          fromRouteId: fs.route_id,
+          toRouteId: ts.route_id,
+        });
+        if (results.length >= limit) break;
+      }
+      if (results.length >= limit) break;
+
+      // 2. Proximity match (within ~330m via grid cells)
+      const baseLat = Math.round(fs.lat / 0.003);
+      const baseLon = Math.round(fs.lon / 0.003);
+      for (let di = -1; di <= 1 && results.length < limit; di++) {
+        for (let dj = -1; dj <= 1 && results.length < limit; dj++) {
+          const nearKey = `${baseLat + di}_${baseLon + dj}`;
+          const nearStops = toByGrid.get(nearKey);
+          if (!nearStops) continue;
+          for (const ts of nearStops) {
+            if (ts.route_id === fs.route_id) continue;
+            if (Math.abs(ts.lat - fs.lat) >= 0.003 || Math.abs(ts.lon - fs.lon) >= 0.003) continue;
+            const dedupKey = `${fs.route_id}-${ts.route_id}-${fs.stop_id}`;
+            if (seen.has(dedupKey)) continue;
+            seen.add(dedupKey);
+            results.push({
+              stopId: fs.stop_id,
+              stopName: fs.stop_name,
+              lat: fs.lat,
+              lon: fs.lon,
+              fromRouteId: fs.route_id,
+              toRouteId: ts.route_id,
+            });
+            if (results.length >= limit) break;
+          }
+        }
+      }
+    }
+
+    return results;
   } catch (error) {
     logger.warn('[Database] Failed to find transfer stops:', error);
     return [];

@@ -27,7 +27,7 @@ export async function initAnalytics(): Promise<void> {
 
   try {
     await Amplitude.init(AMPLITUDE_API_KEY, undefined, {
-      logLevel: __DEV__ ? Amplitude.Types.LogLevel.Verbose : Amplitude.Types.LogLevel.None,
+      logLevel: Amplitude.Types.LogLevel.None,
       serverZone: 'EU',
       defaultTracking: {
         sessions: true,
@@ -49,17 +49,11 @@ export async function initAnalytics(): Promise<void> {
  */
 export function trackEvent(eventName: string, properties?: Record<string, any>): void {
   if (!isInitialized) {
-    if (__DEV__) {
-      logger.log(`[Analytics] (disabled) ${eventName}`, properties);
-    }
     return;
   }
 
   try {
     Amplitude.track(eventName, properties);
-    if (__DEV__) {
-      logger.log(`[Analytics] Tracked: ${eventName}`, properties);
-    }
   } catch (error) {
     logger.error('[Analytics] Failed to track event:', error);
   }
