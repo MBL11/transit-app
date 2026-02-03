@@ -156,11 +156,16 @@ function normalizeStopName(name: string): string {
  * Sanitize journey by removing absurd segments:
  * - Transit segments where from.name === to.name (same stop, e.g., "Mavişehir → Mavişehir")
  * - Consecutive segments that go back to already visited stops
+ * - Truncate journey when destination is already reached mid-journey
  * Returns null if journey becomes invalid after sanitization
  */
 function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
   const sanitizedSegments: RouteSegment[] = [];
   const visitedStopNames = new Set<string>();
+
+  // Get the final destination name from the last segment
+  const lastSeg = journey.segments[journey.segments.length - 1];
+  const finalDestName = lastSeg?.to ? normalizeStopName(lastSeg.to.name) : null;
 
   for (let i = 0; i < journey.segments.length; i++) {
     const segment = journey.segments[i];
@@ -174,6 +179,14 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
         // Same stop to same stop - skip this segment entirely
         logger.log(`[Routing] Removing absurd segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
         continue;
+      }
+
+      // Check if this transit segment reaches the destination (by name)
+      // If so, add it and truncate the journey here (no need for more segments)
+      if (finalDestName && toName === finalDestName && i < journey.segments.length - 1) {
+        logger.log(`[Routing] Destination "${segment.to.name}" reached at segment ${i}, truncating remaining ${journey.segments.length - i - 1} segments`);
+        sanitizedSegments.push(segment);
+        break; // Stop processing, we've arrived!
       }
     }
 
@@ -197,6 +210,15 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
       if (segment.distance && segment.distance < 50 && fromName === toName) {
         logger.log(`[Routing] Removing trivial walk: ${segment.distance}m between same stops`);
         continue;
+      }
+
+      // If previous transit segment already arrived at destination, skip this trailing walk
+      if (finalDestName && sanitizedSegments.length > 0) {
+        const prevSeg = sanitizedSegments[sanitizedSegments.length - 1];
+        if (prevSeg.type === 'transit' && prevSeg.to && normalizeStopName(prevSeg.to.name) === finalDestName) {
+          logger.log(`[Routing] Skipping trailing walk after reaching destination: ${segment.from.name} → ${segment.to.name}`);
+          break;
+        }
       }
     }
 
