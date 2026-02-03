@@ -37,7 +37,8 @@
       "expo-sqlite",
       "expo-localization",
       "expo-location",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "react-native-reanimated"
     ],
     "extra": {
       "eas": {
