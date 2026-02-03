@@ -1460,6 +1460,77 @@ function parseTimeToMinutes(time: string): number {
 }
 
 /**
+ * Check if a route has any trips departing from a stop around a given time.
+ * Returns the next departure time in minutes since midnight, or null if no service.
+ * Also filters by active service IDs if provided.
+ *
+ * @param routeId - The route ID to check
+ * @param stopId - The stop ID to check departures from
+ * @param timeMinutes - Target time in minutes since midnight
+ * @param activeServiceIds - Set of active service IDs (or null to skip filter)
+ * @param windowMinutes - Time window to search (default 120 = 2 hours after target)
+ * @returns Next departure time in minutes, or null if no service
+ */
+export function getNextDepartureForRoute(
+  routeId: string,
+  stopId: string,
+  timeMinutes: number,
+  activeServiceIds: Set<string> | null,
+  windowMinutes: number = 120
+): number | null {
+  const db = openDatabase();
+
+  try {
+    const minTime = timeMinutes;
+    const maxTime = timeMinutes + windowMinutes;
+
+    // Format times as HH:MM:SS for comparison
+    const minTimeStr = `${Math.floor(minTime / 60).toString().padStart(2, '0')}:${(minTime % 60).toString().padStart(2, '0')}:00`;
+    const maxTimeStr = `${Math.floor(maxTime / 60).toString().padStart(2, '0')}:${(maxTime % 60).toString().padStart(2, '0')}:00`;
+
+    let row: { departure_time: string } | null;
+
+    if (activeServiceIds !== null && activeServiceIds.size > 0) {
+      const serviceList = Array.from(activeServiceIds);
+      const placeholders = serviceList.map(() => '?').join(', ');
+
+      row = db.getFirstSync<{ departure_time: string }>(
+        `SELECT st.departure_time
+         FROM stop_times st
+         JOIN trips t ON st.trip_id = t.id
+         WHERE t.route_id = ?
+           AND st.stop_id = ?
+           AND st.departure_time >= ?
+           AND st.departure_time <= ?
+           AND t.service_id IN (${placeholders})
+         ORDER BY st.departure_time
+         LIMIT 1`,
+        [routeId, stopId, minTimeStr, maxTimeStr, ...serviceList]
+      );
+    } else {
+      row = db.getFirstSync<{ departure_time: string }>(
+        `SELECT st.departure_time
+         FROM stop_times st
+         JOIN trips t ON st.trip_id = t.id
+         WHERE t.route_id = ?
+           AND st.stop_id = ?
+           AND st.departure_time >= ?
+           AND st.departure_time <= ?
+         ORDER BY st.departure_time
+         LIMIT 1`,
+        [routeId, stopId, minTimeStr, maxTimeStr]
+      );
+    }
+
+    if (!row) return null;
+    return parseTimeToMinutes(row.departure_time);
+  } catch (error) {
+    logger.warn('[Database] Failed to get next departure for route:', error);
+    return null;
+  }
+}
+
+/**
  * Get next theoretical departures for a stop
  * Returns upcoming departures sorted by time
  * Filters by active service IDs when calendar data is available

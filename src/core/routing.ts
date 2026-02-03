@@ -201,6 +201,10 @@ export async function findRoute(
   // 3. Algorithme : trouve les lignes directes d'abord
   const journeys: JourneyResult[] = [];
 
+  // Get active service IDs for this date and time in minutes
+  const activeServiceIds = db.getActiveServiceIds(departureTime);
+  const requestedTimeMinutes = departureTime.getHours() * 60 + departureTime.getMinutes();
+
   // Récupère les routes qui passent par les deux arrêts (using cache)
   // Cap at 10 routes per stop to prevent huge transfer queries
   const MAX_ROUTES_PER_STOP = 10;
@@ -217,15 +221,33 @@ export async function findRoute(
     logger.log(`[Routing] Direct route found: ${directRoutes.map(r => r.shortName).join(', ')} (${fromStop.name} → ${toStop.name})`);
   }
 
-  for (const route of directRoutes.slice(0, 3)) { // Max 3 itinéraires directs
+  for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
+    // Check if this route has a departure around the requested time
+    const nextDepartureMin = db.getNextDepartureForRoute(
+      route.id,
+      fromStopId,
+      requestedTimeMinutes,
+      activeServiceIds,
+      120 // Search within 2 hours
+    );
+
+    if (nextDepartureMin === null) {
+      // No departures for this route at this time
+      logger.log(`[Routing] Skipping ${route.shortName}: no service at ${Math.floor(requestedTimeMinutes / 60)}:${(requestedTimeMinutes % 60).toString().padStart(2, '0')}`);
+      continue;
+    }
+
+    // Calculate actual departure time from minutes since midnight
+    const actualDepartureTime = new Date(departureTime);
+    actualDepartureTime.setHours(Math.floor(nextDepartureMin / 60), Math.round(nextDepartureMin % 60), 0, 0);
+
     // Try to get actual travel time from GTFS stop_times first
     const actualTime = db.getActualTravelTime(route.id, fromStopId, toStopId);
 
     let estimatedDuration: number;
     if (actualTime !== null) {
-      // Real GTFS schedule data available — add wait time only
-      const waitTime = getAverageWaitTime(route.type);
-      estimatedDuration = Math.max(3, actualTime + waitTime);
+      // Real GTFS schedule data available
+      estimatedDuration = Math.max(3, actualTime);
     } else {
       // Fallback: estimate based on distance and transport mode
       const distanceKm = directDistance / 1000;
@@ -233,8 +255,7 @@ export async function findRoute(
       const travelTime = distanceKm * minPerKm;
       const intermediateStops = estimateIntermediateStops(distanceKm, route.type);
       const dwellTime = intermediateStops * getDwellTimePerStop(route.type);
-      const waitTime = getAverageWaitTime(route.type);
-      estimatedDuration = Math.max(3, Math.round(travelTime + dwellTime + waitTime));
+      estimatedDuration = Math.max(3, Math.round(travelTime + dwellTime));
     }
 
     // Headsign lookup deferred to enrichWithHeadsigns() for performance
@@ -245,18 +266,21 @@ export async function findRoute(
         from: fromStop,
         to: toStop,
         route: route,
-        departureTime: departureTime,
-        arrivalTime: new Date(departureTime.getTime() + estimatedDuration * 60000),
+        departureTime: actualDepartureTime,
+        arrivalTime: new Date(actualDepartureTime.getTime() + estimatedDuration * 60000),
         duration: estimatedDuration,
       }],
       totalDuration: estimatedDuration,
       totalWalkDistance: 0,
       numberOfTransfers: 0,
-      departureTime: departureTime,
-      arrivalTime: new Date(departureTime.getTime() + estimatedDuration * 60000),
+      departureTime: actualDepartureTime,
+      arrivalTime: new Date(actualDepartureTime.getTime() + estimatedDuration * 60000),
     };
 
     journeys.push(journey);
+
+    // Stop after finding 3 valid routes
+    if (journeys.length >= 3) break;
   }
 
   // 4. Si pas de trajet direct, cherche avec une correspondance
@@ -285,6 +309,15 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
+      // Check if first leg has service at requested time
+      const firstLegDep = db.getNextDepartureForRoute(
+        fromRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 120
+      );
+      if (firstLegDep === null) {
+        logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${fromRoute.shortName} has no service`);
+        continue;
+      }
+
       // From-route alights here
       const transferStopFrom: Stop = {
         id: tp.stopId, name: tp.stopName, lat: tp.lat, lon: tp.lon, locationType: 0,
@@ -294,18 +327,32 @@ export async function findRoute(
         id: tp.toStopId, name: tp.stopName, lat: tp.toStopLat, lon: tp.toStopLon, locationType: 0,
       };
 
+      // Calculate actual departure time for first leg
+      const actualDep1 = new Date(departureTime);
+      actualDep1.setHours(Math.floor(firstLegDep / 60), Math.round(firstLegDep % 60), 0, 0);
+
       // Calculate durations using correct stop IDs for each route
       const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStopFrom.id);
       const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toStopId);
 
       let duration1: number;
       if (actual1 !== null) {
-        duration1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
+        duration1 = Math.max(3, actual1);
       } else {
         const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStopFrom.lat, transferStopFrom.lon) / 1000;
         const travel1 = dist1Km * getTransitMinPerKm(fromRoute.type);
         const dwell1 = estimateIntermediateStops(dist1Km, fromRoute.type) * getDwellTimePerStop(fromRoute.type);
-        duration1 = Math.max(3, Math.round(travel1 + dwell1 + getAverageWaitTime(fromRoute.type)));
+        duration1 = Math.max(3, Math.round(travel1 + dwell1));
+      }
+
+      // Check if second leg has service after arriving at transfer
+      const arrivalAtTransferMin = firstLegDep + duration1 + 3; // +3 min to walk/wait
+      const secondLegDep = db.getNextDepartureForRoute(
+        toRoute.id, transferStopTo.id, arrivalAtTransferMin, activeServiceIds, 60
+      );
+      if (secondLegDep === null) {
+        logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${toRoute.shortName} has no service after transfer`);
+        continue;
       }
 
       let duration2: number;
@@ -321,7 +368,12 @@ export async function findRoute(
       // Walking time between transfer stops (if physically > 30m apart)
       const transferWalkTime = tp.walkDistance > 30 ? Math.ceil(tp.walkDistance / 83.33) : 0;
       const transferTime = Math.max(TRANSFER_PENALTY_MIN, transferWalkTime + 2);
-      const totalDuration = duration1 + transferTime + duration2;
+
+      // Calculate actual departure time for second leg
+      const actualDep2 = new Date(departureTime);
+      actualDep2.setHours(Math.floor(secondLegDep / 60), Math.round(secondLegDep % 60), 0, 0);
+
+      const totalDuration = Math.round((actualDep2.getTime() - actualDep1.getTime()) / 60000) + duration2;
 
       // Build segments: transit → [walk if needed] → transit
       const segments: RouteSegment[] = [
@@ -330,8 +382,8 @@ export async function findRoute(
           from: fromStop,
           to: transferStopFrom,
           route: fromRoute,
-          departureTime: departureTime,
-          arrivalTime: new Date(departureTime.getTime() + duration1 * 60000),
+          departureTime: actualDep1,
+          arrivalTime: new Date(actualDep1.getTime() + duration1 * 60000),
           duration: duration1,
         },
       ];
@@ -351,8 +403,8 @@ export async function findRoute(
         from: transferStopTo,
         to: toStop,
         route: toRoute,
-        departureTime: new Date(departureTime.getTime() + (duration1 + transferTime) * 60000),
-        arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+        departureTime: actualDep2,
+        arrivalTime: new Date(actualDep2.getTime() + duration2 * 60000),
         duration: duration2,
       });
 
@@ -361,8 +413,8 @@ export async function findRoute(
         totalDuration: totalDuration,
         totalWalkDistance: tp.walkDistance > 30 ? tp.walkDistance : 0,
         numberOfTransfers: 1,
-        departureTime: departureTime,
-        arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+        departureTime: actualDep1,
+        arrivalTime: new Date(actualDep2.getTime() + duration2 * 60000),
       };
 
       transferJourneys.push(journey);
