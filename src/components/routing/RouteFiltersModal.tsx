@@ -72,10 +72,11 @@ export function RouteFiltersModal({
     icon: string;
     labelKey: string;
   }> = [
-    { key: 'metro', icon: 'Ⓜ️', labelKey: 'routing.filters.metro' },
-    { key: 'bus', icon: '🚌', labelKey: 'routing.filters.bus' },
+    { key: 'metro', icon: '🚇', labelKey: 'routing.filters.metro' },
+    { key: 'izban', icon: '🚆', labelKey: 'routing.filters.izban' },
     { key: 'tram', icon: '🚊', labelKey: 'routing.filters.tram' },
-    { key: 'train', icon: '🚆', labelKey: 'routing.filters.train' },
+    { key: 'bus', icon: '🚌', labelKey: 'routing.filters.bus' },
+    { key: 'ferry', icon: '⛴️', labelKey: 'routing.filters.ferry' },
   ];
 
   const optimizationOptions: Array<{

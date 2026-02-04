@@ -4,12 +4,13 @@
  */
 
 export interface RoutingPreferences {
-  // Allowed transport modes
+  // Allowed transport modes (İzmir)
   allowedModes: {
-    metro: boolean;
-    bus: boolean;
-    tram: boolean;
-    train: boolean; // RER, Transilien
+    metro: boolean;    // M1, M2
+    izban: boolean;    // İZBAN commuter rail
+    tram: boolean;     // T1, T2
+    bus: boolean;      // ESHOT buses
+    ferry: boolean;    // İzdeniz ferries (vapur)
     walking: boolean;
   };
 
@@ -29,9 +30,10 @@ export interface RoutingPreferences {
 export const DEFAULT_PREFERENCES: RoutingPreferences = {
   allowedModes: {
     metro: true,
-    bus: true,
+    izban: true,
     tram: true,
-    train: true,
+    bus: true,
+    ferry: true,
     walking: true,
   },
   optimizeFor: 'fastest',
@@ -67,17 +69,23 @@ export function isRouteTypeAllowed(
   routeType: number,
   preferences: RoutingPreferences
 ): boolean {
-  // GTFS route types:
-  // 0 = Tram, 1 = Metro, 2 = Rail/RER, 3 = Bus
+  // GTFS route types (İzmir):
+  // 0 = Tram (T1, T2)
+  // 1 = Metro (M1, M2)
+  // 2 = Rail/İZBAN
+  // 3 = Bus (ESHOT)
+  // 4 = Ferry (İzdeniz/Vapur)
   switch (routeType) {
     case 0:
       return preferences.allowedModes.tram;
     case 1:
       return preferences.allowedModes.metro;
     case 2:
-      return preferences.allowedModes.train;
+      return preferences.allowedModes.izban;
     case 3:
       return preferences.allowedModes.bus;
+    case 4:
+      return preferences.allowedModes.ferry;
     default:
       return true;
   }
