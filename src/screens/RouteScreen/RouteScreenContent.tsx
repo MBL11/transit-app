@@ -413,7 +413,10 @@ export function RouteScreenContent({
         transparent={true}
         onRequestClose={() => dispatch({ type: 'SHOW_FROM_SEARCH', payload: false })}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>📍 {t('time.departure')}</Text>
@@ -433,13 +436,14 @@ export function RouteScreenContent({
                 onChangeText={(text) => dispatch({ type: 'SET_FROM_SEARCH_QUERY', payload: text })}
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoFocus={false}
+                autoFocus={true}
               />
             </View>
             <FlatList
               data={filteredFromStops}
               keyExtractor={(item) => item.id}
               keyboardShouldPersistTaps="handled"
+              style={styles.stopList}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.stopItem, state.fromStop?.id === item.id && styles.stopItemSelected]}
@@ -458,7 +462,7 @@ export function RouteScreenContent({
               }
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* To Stop Search Modal */}
@@ -468,7 +472,10 @@ export function RouteScreenContent({
         transparent={true}
         onRequestClose={() => dispatch({ type: 'SHOW_TO_SEARCH', payload: false })}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>🎯 {t('time.arrival')}</Text>
@@ -488,13 +495,14 @@ export function RouteScreenContent({
                 onChangeText={(text) => dispatch({ type: 'SET_TO_SEARCH_QUERY', payload: text })}
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoFocus={false}
+                autoFocus={true}
               />
             </View>
             <FlatList
               data={filteredToStops}
               keyExtractor={(item) => item.id}
               keyboardShouldPersistTaps="handled"
+              style={styles.stopList}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.stopItem, state.toStop?.id === item.id && styles.stopItemSelected]}
@@ -513,7 +521,7 @@ export function RouteScreenContent({
               }
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* From Address Search Modal */}
@@ -922,6 +930,10 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       padding: 12,
       fontSize: 16,
       color: colors.text,
+    },
+    stopList: {
+      flex: 1,
+      maxHeight: '100%',
     },
     stopItem: {
       flexDirection: 'row',
