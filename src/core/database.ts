@@ -903,7 +903,7 @@ export async function getStopsInBounds(
 
 /**
  * Find all stops at the same station (for multimodal routing)
- * Uses both name matching AND geographic proximity
+ * Uses name matching AND geographic proximity for ferry/transit hubs
  *
  * @param stopName - The stop name to search for
  * @param stopLat - Optional latitude for proximity search
@@ -916,56 +916,64 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
   try {
     const normalizedName = normalizeStopName(stopName);
     const baseName = extractBaseStationName(normalizedName);
+    const matchingStops: any[] = [];
+    const seenIds = new Set<string>();
 
-    // Use SQL to narrow down candidates first (much faster than loading all stops)
-    // Search for stops whose name contains the base name
-    const searchPattern = `%${baseName.split(' ')[0]}%`; // Use first word of base name
-
-    const rows = db.getAllSync<any>(
-      `SELECT * FROM stops
-       WHERE location_type = 0
-       AND (LOWER(name) LIKE ? OR LOWER(name) LIKE ?)`,
-      [searchPattern, `%${normalizedName.split(' ')[0]}%`]
+    // 1. Find stops with exact name match (case-insensitive)
+    const exactRows = db.getAllSync<any>(
+      `SELECT * FROM stops WHERE location_type = 0 AND LOWER(name) = ?`,
+      [stopName.toLowerCase().trim()]
     );
+    for (const row of exactRows) {
+      if (!seenIds.has(row.id)) {
+        seenIds.add(row.id);
+        matchingStops.push(row);
+      }
+    }
 
-    // Filter by name match
-    const matchingStops = rows.filter((row: any) => {
-      const rowNormalized = normalizeStopName(row.name);
-      const rowBaseName = extractBaseStationName(rowNormalized);
+    // 2. Find stops starting with the same base name (e.g., "Konak" finds "Konak İskele")
+    const baseRows = db.getAllSync<any>(
+      `SELECT * FROM stops WHERE location_type = 0 AND (
+        LOWER(name) LIKE ? OR LOWER(name) LIKE ?
+      )`,
+      [`${stopName.toLowerCase().trim()} %`, `${baseName} %`]
+    );
+    for (const row of baseRows) {
+      if (!seenIds.has(row.id)) {
+        seenIds.add(row.id);
+        matchingStops.push(row);
+      }
+    }
 
-      // Exact normalized match
-      if (rowNormalized === normalizedName) return true;
-
-      // Same base name
-      if (baseName === rowBaseName) return true;
-
-      // Base name is contained
-      if (rowNormalized.startsWith(baseName + ' ')) return true;
-      if (normalizedName.startsWith(rowBaseName + ' ')) return true;
-
-      return false;
-    });
-
-    // If we have coordinates, also find nearby stops (within 300m) with ferry/transit keywords
-    // This catches ferry stops that might have different names
+    // 3. If coordinates provided, find nearby ferry/transit stops (within 500m)
     if (stopLat && stopLon) {
-      const latDelta = 300 / 111000; // ~300m
-      const lonDelta = 300 / (111000 * Math.cos((stopLat * Math.PI) / 180));
+      const latDelta = 500 / 111000; // ~500m
+      const lonDelta = 500 / (111000 * Math.cos((stopLat * Math.PI) / 180));
 
       const nearbyRows = db.getAllSync<any>(
         `SELECT * FROM stops
          WHERE location_type = 0
          AND lat BETWEEN ? AND ?
-         AND lon BETWEEN ? AND ?
-         AND (UPPER(name) LIKE '%ISKELE%' OR UPPER(name) LIKE '%VAPUR%'
-              OR UPPER(name) LIKE '%GAR%' OR UPPER(name) LIKE '%ISTASYON%')`,
+         AND lon BETWEEN ? AND ?`,
         [stopLat - latDelta, stopLat + latDelta, stopLon - lonDelta, stopLon + lonDelta]
       );
 
-      // Add nearby ferry/transit stops that weren't already matched
-      const existingIds = new Set(matchingStops.map((s: any) => s.id));
+      // Add nearby stops with transit keywords or same base name
       for (const row of nearbyRows) {
-        if (!existingIds.has(row.id)) {
+        if (seenIds.has(row.id)) continue;
+
+        const rowName = row.name.toUpperCase();
+        const rowNormalized = normalizeStopName(row.name);
+        const rowBaseName = extractBaseStationName(rowNormalized);
+
+        // Add if: ferry/transit keywords OR same base name
+        const hasFerryKeyword = rowName.includes('ISKELE') || rowName.includes('İSKELE') ||
+                                rowName.includes('VAPUR') || rowName.includes('FERİBOT');
+        const hasTransitKeyword = rowName.includes('GAR') || rowName.includes('ISTASYON') ||
+                                  rowName.includes('İSTASYON');
+
+        if (hasFerryKeyword || hasTransitKeyword || baseName === rowBaseName) {
+          seenIds.add(row.id);
           matchingStops.push(row);
         }
       }
