@@ -22,8 +22,11 @@ export function useAdapter() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    logger.log(`[useAdapter] useEffect - adapterInstance: ${!!adapterInstance}`);
+
     // Already initialized, skip
     if (adapterInstance) {
+      logger.log('[useAdapter] Already initialized, setting adapter');
       setAdapter(adapterInstance);
       setLoading(false);
       return;
@@ -43,6 +46,7 @@ export function useAdapter() {
         }
 
         await initPromise;
+        logger.log('[useAdapter] Init complete, setting adapter');
         setAdapter(adapterInstance);
         setLoading(false);
       } catch (err) {
@@ -126,12 +130,18 @@ export function useStops() {
   const [error, setError] = useState<Error | null>(null);
 
   const loadStops = useCallback(async () => {
-    if (!adapter) return;
+    logger.log(`[useStops] loadStops called - adapter: ${!!adapter}, adapterLoading: ${adapterLoading}`);
+    if (!adapter) {
+      logger.log('[useStops] No adapter, returning early');
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
+      logger.log('[useStops] Calling adapter.loadStops()...');
       const data = await adapter.loadStops();
+      logger.log(`[useStops] Got ${data.length} stops from adapter`);
       setStops(data);
     } catch (err) {
       logger.error('[useStops] Failed to load stops:', err);
@@ -139,13 +149,16 @@ export function useStops() {
     } finally {
       setLoading(false);
     }
-  }, [adapter]);
+  }, [adapter, adapterLoading]);
 
   useEffect(() => {
+    logger.log(`[useStops] useEffect - adapter: ${!!adapter}, adapterLoading: ${adapterLoading}`);
     if (adapter && !adapterLoading) {
       loadStops();
     }
   }, [adapter, adapterLoading, loadStops]);
+
+  logger.log(`[useStops] Returning - stops: ${stops.length}, loading: ${loading || adapterLoading}`);
 
   return {
     stops,
