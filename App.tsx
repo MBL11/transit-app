@@ -17,6 +17,7 @@ import { initAnalytics, trackEvent, AnalyticsEvents } from './src/services/analy
 import { initCrashReporting, captureException } from './src/services/crash-reporting';
 import { logger } from './src/utils/logger';
 import { useGTFSData } from './src/hooks/useGTFSData';
+import { useAdapter } from './src/hooks/useAdapter';
 
 // Initialize crash reporting as early as possible
 initCrashReporting();
@@ -26,6 +27,7 @@ type AppState = 'loading' | 'onboarding' | 'check_data' | 'data_loading' | 'read
 function AppContent() {
   const [appState, setAppState] = useState<AppState>('loading');
   const { isLoaded: hasGTFSData, checking: checkingGTFS, markAsLoaded, triggerBackgroundRefresh } = useGTFSData();
+  const { adapter, loading: adapterLoading } = useAdapter();
   const hasTriggeredAutoRefresh = useRef(false);
 
   useEffect(() => {
@@ -61,15 +63,22 @@ function AppContent() {
   }, []);
 
   // Check GTFS data after onboarding/initial check
+  // Wait for both GTFS data AND adapter to be ready
   useEffect(() => {
     if (appState === 'check_data' && !checkingGTFS) {
       if (hasGTFSData) {
-        setAppState('ready');
+        // Data exists, but wait for adapter to be ready before showing app
+        if (!adapterLoading && adapter) {
+          logger.log('[App] GTFS data loaded and adapter ready, showing app');
+          setAppState('ready');
+        } else {
+          logger.log('[App] Waiting for adapter to initialize...');
+        }
       } else {
         setAppState('data_loading');
       }
     }
-  }, [appState, checkingGTFS, hasGTFSData]);
+  }, [appState, checkingGTFS, hasGTFSData, adapterLoading, adapter]);
 
   // Auto-refresh GTFS data in background when app is ready
   // This ensures data stays fresh without blocking the user
