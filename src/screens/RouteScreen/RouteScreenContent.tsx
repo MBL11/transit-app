@@ -43,22 +43,28 @@ export function RouteScreenContent({
 
   // Helper functions
   const filterStops = (query: string): Stop[] => {
-    console.log(`[filterStops] state.stops.length: ${state.stops.length}, query: "${query}"`);
     const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const filtered = !lowerQuery ? state.stops : state.stops.filter(stop =>
+
+    // Filter by query
+    let filtered = !lowerQuery ? state.stops : state.stops.filter(stop =>
       stop.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(lowerQuery)
     );
-    // Deduplicate by name: same physical stop exists with different prefixes (metro_1, tram_1, etc.)
-    const seen = new Map<string, Stop>();
+
+    // Sort by name for better UX
+    filtered = filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Deduplicate by ID (not name) - keep unique stop IDs only
+    const seen = new Set<string>();
+    const unique: Stop[] = [];
     for (const stop of filtered) {
-      const key = stop.name.toLowerCase().trim();
-      if (!seen.has(key)) {
-        seen.set(key, stop);
+      if (!seen.has(stop.id)) {
+        seen.add(stop.id);
+        unique.push(stop);
       }
     }
-    const result = Array.from(seen.values());
-    console.log(`[filterStops] Returning ${result.length} stops`);
-    return result.slice(0, 100); // Limit to 100 for performance
+
+    // Limit to 200 for performance
+    return unique.slice(0, 200);
   };
 
   const hasFromLocation = state.fromMode === 'stop' ? state.fromStop !== null : state.fromAddress !== null;
