@@ -994,13 +994,26 @@ function extractBaseStationName(normalizedName: string): string {
 
 /**
  * Normalize stop name for comparison
- * Handles Turkish suffixes like İskele/İskelesi (same station)
+ * Handles Turkish characters and suffixes like İskele/İskelesi (same station)
  */
 export function normalizeStopName(name: string): string {
   let normalized = name
     // Remove accents
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // Turkish special characters that don't decompose with NFD
+    .replace(/ı/g, 'i')  // dotless i → i
+    .replace(/İ/g, 'i')  // dotted I → i
+    .replace(/ş/g, 's')  // s-cedilla
+    .replace(/Ş/g, 's')
+    .replace(/ğ/g, 'g')  // soft g
+    .replace(/Ğ/g, 'g')
+    .replace(/ü/g, 'u')  // u-umlaut
+    .replace(/Ü/g, 'u')
+    .replace(/ö/g, 'o')  // o-umlaut
+    .replace(/Ö/g, 'o')
+    .replace(/ç/g, 'c')  // c-cedilla
+    .replace(/Ç/g, 'c')
     .toLowerCase()
     .trim();
 
@@ -1010,7 +1023,6 @@ export function normalizeStopName(name: string): string {
     .replace(/iskelesi$/i, 'iskele')
     .replace(/istasyonu$/i, 'istasyon')
     .replace(/duragi$/i, 'durak')
-    .replace(/garı$/i, 'gar')
     .replace(/gari$/i, 'gar');
 
   return normalized;
@@ -1054,12 +1066,12 @@ export async function searchStops(query: string): Promise<Stop[]> {
       return normalizedName.includes(normalizedQuery);
     });
 
-    // Deduplicate by name: same physical stop exists with different prefixes (metro_1, tram_1, etc.)
-    // Also handles Turkish suffixes: İskele/İskelesi are the same station
-    // Keep the first occurrence for each unique normalized name
+    // Deduplicate by exact name (case-insensitive)
+    // This prevents showing the same stop multiple times (metro_konak, tram_konak both named "Konak")
+    // Keep the first occurrence for each unique name
     const seen = new Map<string, any>();
     for (const row of filteredRows) {
-      const key = normalizeStopName(row.name);
+      const key = row.name.toLowerCase().trim();
       if (!seen.has(key)) {
         seen.set(key, row);
       }
