@@ -43,6 +43,7 @@ export function RouteScreenContent({
 
   // Helper functions
   const filterStops = (query: string): Stop[] => {
+    console.log(`[filterStops] state.stops.length: ${state.stops.length}, query: "${query}"`);
     const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const filtered = !lowerQuery ? state.stops : state.stops.filter(stop =>
       stop.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(lowerQuery)
@@ -55,7 +56,9 @@ export function RouteScreenContent({
         seen.set(key, stop);
       }
     }
-    return Array.from(seen.values());
+    const result = Array.from(seen.values());
+    console.log(`[filterStops] Returning ${result.length} stops`);
+    return result.slice(0, 100); // Limit to 100 for performance
   };
 
   const hasFromLocation = state.fromMode === 'stop' ? state.fromStop !== null : state.fromAddress !== null;
@@ -443,7 +446,12 @@ export function RouteScreenContent({
               data={filteredFromStops}
               keyExtractor={(item) => item.id}
               keyboardShouldPersistTaps="handled"
-              style={styles.stopList}
+              style={[styles.stopList, { minHeight: 200 }]}
+              ListHeaderComponent={() => (
+                <Text style={{ padding: 10, color: colors.textMuted }}>
+                  {filteredFromStops.length} arrêts trouvés
+                </Text>
+              )}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.stopItem, state.fromStop?.id === item.id && styles.stopItemSelected]}
@@ -502,7 +510,12 @@ export function RouteScreenContent({
               data={filteredToStops}
               keyExtractor={(item) => item.id}
               keyboardShouldPersistTaps="handled"
-              style={styles.stopList}
+              style={[styles.stopList, { minHeight: 200 }]}
+              ListHeaderComponent={() => (
+                <Text style={{ padding: 10, color: colors.textMuted }}>
+                  {filteredToStops.length} arrêts trouvés
+                </Text>
+              )}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.stopItem, state.toStop?.id === item.id && styles.stopItemSelected]}
