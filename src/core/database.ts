@@ -597,11 +597,9 @@ export async function getAllStops(): Promise<Stop[]> {
   const db = openDatabase();
 
   try {
-    logger.log('[Database] getAllStops called - querying database...');
     const rows = db.getAllSync<any>('SELECT * FROM stops');
-    logger.log(`[Database] getAllStops - found ${rows.length} rows`);
 
-    const stops = rows.map((row) => ({
+    return rows.map((row) => ({
       id: row.id,
       name: row.name,
       lat: row.lat,
@@ -609,9 +607,6 @@ export async function getAllStops(): Promise<Stop[]> {
       locationType: row.location_type,
       parentStation: row.parent_station,
     }));
-
-    logger.log(`[Database] getAllStops - returning ${stops.length} stops`);
-    return stops;
   } catch (error) {
     logger.error('[Database] ❌ Failed to get all stops:', error);
     throw error;

@@ -20,12 +20,12 @@ import { useNetwork } from '../../contexts/NetworkContext';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useInterstitialAd } from '../../hooks/useInterstitialAd';
 import { useGTFSData } from '../../hooks/useGTFSData';
+import { useStops } from '../../hooks/useAdapter';
 import { findMultipleRoutes } from '../../core/routing';
 import type { Stop } from '../../core/types/models';
 import type { JourneyResult } from '../../core/types/routing';
 import type { RouteStackParamList } from '../../navigation/RouteStackNavigator';
 import { serializeJourney } from '../../core/types/routing-serialization';
-import * as db from '../../core/database';
 import type { GeocodingResult } from '../../core/geocoding';
 import type { RoutingPreferences } from '../../types/routing-preferences';
 import { routeReducer, initialState } from './routeReducer';
@@ -45,26 +45,30 @@ export function RouteScreen() {
   const route = useRoute<any>();
   const { showAdIfNeeded } = useInterstitialAd();
 
+  // Use the useStops hook which properly waits for adapter initialization
+  const { stops: loadedStops, loading: stopsLoading, refresh: refreshStops } = useStops();
+
   // Use reducer instead of multiple useState
   const [state, dispatch] = useReducer(routeReducer, initialState);
 
-  // Load stops when screen comes into focus (reloads after data import)
+  // Update stops in state when hook loads them
+  useEffect(() => {
+    if (!stopsLoading && loadedStops.length > 0) {
+      dispatch({ type: 'SET_STOPS', payload: loadedStops });
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [loadedStops, stopsLoading]);
+
+  // Refresh stops when screen comes into focus (reloads after data import)
   useFocusEffect(
     useCallback(() => {
-      logger.log('[RouteScreen] useFocusEffect triggered - calling loadStops');
-      loadStops();
-    }, [])
+      refreshStops();
+    }, [refreshStops])
   );
 
   // Load preferences once on mount
   useEffect(() => {
     loadPreferences();
-  }, []);
-
-  // Fallback: Also load stops on mount (in case useFocusEffect doesn't trigger)
-  useEffect(() => {
-    logger.log('[RouteScreen] Initial mount useEffect - loading stops as fallback');
-    loadStops();
   }, []);
 
   // Handle pre-filled stops from navigation params (e.g., from Favorites)
@@ -93,24 +97,6 @@ export function RouteScreen() {
       dispatch({ type: 'SELECT_TO_STOP', payload: toStop });
     }
   }, [route.params]);
-
-  const loadStops = async () => {
-    try {
-      logger.log('[RouteScreen] loadStops called, starting to load stops...');
-      dispatch({ type: 'SET_LOADING', payload: true });
-      const allStops = await db.getAllStops();
-      logger.log(`[RouteScreen] getAllStops returned ${allStops.length} stops`);
-      if (allStops.length > 0) {
-        logger.log(`[RouteScreen] First stop: ${allStops[0].name} (${allStops[0].id})`);
-      }
-      dispatch({ type: 'SET_STOPS', payload: allStops });
-    } catch (err) {
-      logger.error('[RouteScreen] Error loading stops:', err);
-      Alert.alert(t('common.error'), t('route.unableToCalculate'));
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  };
 
   const loadPreferences = async () => {
     try {
@@ -277,13 +263,13 @@ export function RouteScreen() {
       <OfflineBanner visible={isOffline} />
 
       <RouteScreenContent
-        state={state}
+        state={{ ...state, loading: state.loading || stopsLoading }}
         dispatch={dispatch}
         onCalculateRoute={handleCalculateRoute}
         onJourneyPress={handleJourneyPress}
         onSavePreferences={savePreferences}
         formatTime={formatTime}
-        isDataRefreshing={isRefreshing}
+        isDataRefreshing={isRefreshing || stopsLoading}
       />
 
       <BannerAdComponent />
