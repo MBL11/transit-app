@@ -413,128 +413,114 @@ export function RouteScreenContent({
       <Modal
         visible={state.showFromSearch}
         animationType="slide"
-        transparent={true}
         onRequestClose={() => dispatch({ type: 'SHOW_FROM_SEARCH', payload: false })}
       >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📍 {t('time.departure')}</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => dispatch({ type: 'SHOW_FROM_SEARCH', payload: false })}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.searchInputContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder={t('search.placeholder')}
-                placeholderTextColor={colors.textMuted}
-                value={state.fromSearchQuery}
-                onChangeText={(text) => dispatch({ type: 'SET_FROM_SEARCH_QUERY', payload: text })}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus={true}
-              />
-            </View>
-            <FlatList
-              data={filteredFromStops}
-              keyExtractor={(item) => item.id}
-              keyboardShouldPersistTaps="handled"
-              style={[styles.stopList, { minHeight: 200 }]}
-              ListHeaderComponent={() => (
-                <Text style={{ padding: 10, color: colors.textMuted }}>
-                  {filteredFromStops.length} arrêts trouvés
-                </Text>
-              )}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.stopItem, state.fromStop?.id === item.id && styles.stopItemSelected]}
-                  onPress={() => dispatch({ type: 'SELECT_FROM_STOP', payload: item })}
-                >
-                  <Text style={[styles.stopItemText, state.fromStop?.id === item.id && styles.stopItemTextSelected]}>
-                    {item.name}
-                  </Text>
-                  {state.fromStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={styles.emptySearchContainer}>
-                  <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
-                </View>
-              }
-            />
+        <View style={styles.fullScreenModal}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>📍 {t('time.departure')}</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => dispatch({ type: 'SHOW_FROM_SEARCH', payload: false })}
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+          <View style={styles.searchInputContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('search.placeholder')}
+              placeholderTextColor={colors.textMuted}
+              value={state.fromSearchQuery}
+              onChangeText={(text) => dispatch({ type: 'SET_FROM_SEARCH_QUERY', payload: text })}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus={true}
+            />
+            <Text style={{ paddingHorizontal: 12, paddingTop: 8, color: colors.textMuted, fontSize: 12 }}>
+              {filteredFromStops.length} arrêts trouvés
+            </Text>
+          </View>
+          <FlatList
+            data={filteredFromStops}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            style={styles.stopListFullScreen}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.stopItem, state.fromStop?.id === item.id && styles.stopItemSelected]}
+                onPress={() => dispatch({ type: 'SELECT_FROM_STOP', payload: item })}
+              >
+                <Text style={[styles.stopItemText, state.fromStop?.id === item.id && styles.stopItemTextSelected]}>
+                  {item.name}
+                </Text>
+                {state.fromStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <View style={styles.emptySearchContainer}>
+                <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
+              </View>
+            }
+          />
+        </View>
       </Modal>
 
       {/* To Stop Search Modal */}
       <Modal
         visible={state.showToSearch}
         animationType="slide"
-        transparent={true}
         onRequestClose={() => dispatch({ type: 'SHOW_TO_SEARCH', payload: false })}
       >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>🎯 {t('time.arrival')}</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => dispatch({ type: 'SHOW_TO_SEARCH', payload: false })}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.searchInputContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder={t('search.placeholder')}
-                placeholderTextColor={colors.textMuted}
-                value={state.toSearchQuery}
-                onChangeText={(text) => dispatch({ type: 'SET_TO_SEARCH_QUERY', payload: text })}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus={true}
-              />
-            </View>
-            <FlatList
-              data={filteredToStops}
-              keyExtractor={(item) => item.id}
-              keyboardShouldPersistTaps="handled"
-              style={[styles.stopList, { minHeight: 200 }]}
-              ListHeaderComponent={() => (
-                <Text style={{ padding: 10, color: colors.textMuted }}>
-                  {filteredToStops.length} arrêts trouvés
-                </Text>
-              )}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.stopItem, state.toStop?.id === item.id && styles.stopItemSelected]}
-                  onPress={() => dispatch({ type: 'SELECT_TO_STOP', payload: item })}
-                >
-                  <Text style={[styles.stopItemText, state.toStop?.id === item.id && styles.stopItemTextSelected]}>
-                    {item.name}
-                  </Text>
-                  {state.toStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={styles.emptySearchContainer}>
-                  <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
-                </View>
-              }
-            />
+        <View style={styles.fullScreenModal}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>🎯 {t('time.arrival')}</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => dispatch({ type: 'SHOW_TO_SEARCH', payload: false })}
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+          <View style={styles.searchInputContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('search.placeholder')}
+              placeholderTextColor={colors.textMuted}
+              value={state.toSearchQuery}
+              onChangeText={(text) => dispatch({ type: 'SET_TO_SEARCH_QUERY', payload: text })}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus={true}
+            />
+            <Text style={{ paddingHorizontal: 12, paddingTop: 8, color: colors.textMuted, fontSize: 12 }}>
+              {filteredToStops.length} arrêts trouvés
+            </Text>
+          </View>
+          <FlatList
+            data={filteredToStops}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            style={styles.stopListFullScreen}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.stopItem, state.toStop?.id === item.id && styles.stopItemSelected]}
+                onPress={() => dispatch({ type: 'SELECT_TO_STOP', payload: item })}
+              >
+                <Text style={[styles.stopItemText, state.toStop?.id === item.id && styles.stopItemTextSelected]}>
+                  {item.name}
+                </Text>
+                {state.toStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <View style={styles.emptySearchContainer}>
+                <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
+              </View>
+            }
+          />
+        </View>
       </Modal>
 
       {/* From Address Search Modal */}
@@ -904,6 +890,14 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderTopRightRadius: 20,
       maxHeight: '80%',
       paddingBottom: 20,
+    },
+    fullScreenModal: {
+      flex: 1,
+      backgroundColor: colors.background,
+      paddingTop: 60,
+    },
+    stopListFullScreen: {
+      flex: 1,
     },
     modalHeader: {
       flexDirection: 'row',
