@@ -902,52 +902,76 @@ export async function getStopsInBounds(
 }
 
 /**
- * Find all stops with the same name (for multimodal stations)
- * Returns all stops that match the given name (case-insensitive)
- * This is used to find all entry points for a station (metro, İZBAN, bus, tram, ferry)
- *
- * Matching logic:
- * - "Konak" matches "Konak", "Konak İskele", "Konak Metro" (base name match)
- * - "Konak İskele" matches "Konak İskele", "Konak İskelesi" (suffix normalization)
+ * Find all stops at the same station (for multimodal routing)
+ * Uses both name matching AND geographic proximity
  *
  * @param stopName - The stop name to search for
- * @returns Array of all stops with matching name
+ * @param stopLat - Optional latitude for proximity search
+ * @param stopLon - Optional longitude for proximity search
+ * @returns Array of all stops at this station
  */
-export function getAllStopsWithSameName(stopName: string): Stop[] {
+export function getAllStopsWithSameName(stopName: string, stopLat?: number, stopLon?: number): Stop[] {
   const db = openDatabase();
 
   try {
-    // Normalize the name for comparison
     const normalizedName = normalizeStopName(stopName);
-
-    // Extract the base station name (first word or words before suffixes like İskele, Metro, etc.)
     const baseName = extractBaseStationName(normalizedName);
 
-    // Find all stops with same normalized name
+    // Use SQL to narrow down candidates first (much faster than loading all stops)
+    // Search for stops whose name contains the base name
+    const searchPattern = `%${baseName.split(' ')[0]}%`; // Use first word of base name
+
     const rows = db.getAllSync<any>(
-      `SELECT * FROM stops WHERE location_type = 0`
+      `SELECT * FROM stops
+       WHERE location_type = 0
+       AND (LOWER(name) LIKE ? OR LOWER(name) LIKE ?)`,
+      [searchPattern, `%${normalizedName.split(' ')[0]}%`]
     );
 
-    // Filter by normalized name match
-    // Match if: exact match OR same base station name
+    // Filter by name match
     const matchingStops = rows.filter((row: any) => {
       const rowNormalized = normalizeStopName(row.name);
       const rowBaseName = extractBaseStationName(rowNormalized);
 
-      // Exact match
+      // Exact normalized match
       if (rowNormalized === normalizedName) return true;
 
-      // Base name match: "Konak" matches "Konak İskele", "Konak Metro"
+      // Same base name
       if (baseName === rowBaseName) return true;
 
-      // Partial match: "Konak" is the base of "Konak İskele"
+      // Base name is contained
       if (rowNormalized.startsWith(baseName + ' ')) return true;
       if (normalizedName.startsWith(rowBaseName + ' ')) return true;
 
       return false;
     });
 
-    logger.log(`[Database] Found ${matchingStops.length} stops matching "${stopName}" (base: "${baseName}")`);
+    // If we have coordinates, also find nearby stops (within 300m) with ferry/transit keywords
+    // This catches ferry stops that might have different names
+    if (stopLat && stopLon) {
+      const latDelta = 300 / 111000; // ~300m
+      const lonDelta = 300 / (111000 * Math.cos((stopLat * Math.PI) / 180));
+
+      const nearbyRows = db.getAllSync<any>(
+        `SELECT * FROM stops
+         WHERE location_type = 0
+         AND lat BETWEEN ? AND ?
+         AND lon BETWEEN ? AND ?
+         AND (UPPER(name) LIKE '%ISKELE%' OR UPPER(name) LIKE '%VAPUR%'
+              OR UPPER(name) LIKE '%GAR%' OR UPPER(name) LIKE '%ISTASYON%')`,
+        [stopLat - latDelta, stopLat + latDelta, stopLon - lonDelta, stopLon + lonDelta]
+      );
+
+      // Add nearby ferry/transit stops that weren't already matched
+      const existingIds = new Set(matchingStops.map((s: any) => s.id));
+      for (const row of nearbyRows) {
+        if (!existingIds.has(row.id)) {
+          matchingStops.push(row);
+        }
+      }
+    }
+
+    logger.log(`[Database] Found ${matchingStops.length} stops matching "${stopName}"`);
 
     return matchingStops.map((row: any) => ({
       id: row.id,

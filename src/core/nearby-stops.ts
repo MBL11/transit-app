@@ -220,18 +220,20 @@ export function expandToAllSameNameStops(stops: NearbyStop[]): NearbyStop[] {
   const seenIds = new Set<string>();
 
   for (const stop of stops) {
-    // Get all stops with the same name (metro, İZBAN, bus, tram, ferry versions)
-    const sameNameStops = getAllStopsWithSameName(stop.name);
+    // Get all stops with the same name AND nearby ferry/transit stops
+    // Pass coordinates for geographic proximity search
+    const sameNameStops = getAllStopsWithSameName(stop.name, stop.lat, stop.lon);
 
     for (const sameStop of sameNameStops) {
       if (seenIds.has(sameStop.id)) continue;
       seenIds.add(sameStop.id);
 
-      // Calculate distance from original search point
-      // Use the original stop's distance since they're at the same station
+      // Calculate actual distance for the expanded stop
+      const distance = calculateDistance(stop.lat, stop.lon, sameStop.lat, sameStop.lon);
+
       expandedStops.push({
         ...sameStop,
-        distance: stop.distance, // Same walking distance to reach the station
+        distance: Math.max(stop.distance, distance), // Use larger of original or calculated distance
       });
     }
   }
