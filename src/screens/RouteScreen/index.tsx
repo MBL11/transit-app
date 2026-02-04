@@ -51,17 +51,15 @@ export function RouteScreen() {
   // Use reducer instead of multiple useState
   const [state, dispatch] = useReducer(routeReducer, initialState);
 
-  // Update stops in state when hook loads them
+  // Debug logging
   useEffect(() => {
-    if (!stopsLoading && loadedStops.length > 0) {
-      dispatch({ type: 'SET_STOPS', payload: loadedStops });
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [loadedStops, stopsLoading]);
+    logger.log(`[RouteScreen] stopsLoading: ${stopsLoading}, loadedStops: ${loadedStops.length}`);
+  }, [stopsLoading, loadedStops.length]);
 
   // Refresh stops when screen comes into focus (reloads after data import)
   useFocusEffect(
     useCallback(() => {
+      logger.log('[RouteScreen] useFocusEffect - refreshing stops');
       refreshStops();
     }, [refreshStops])
   );
@@ -263,13 +261,17 @@ export function RouteScreen() {
       <OfflineBanner visible={isOffline} />
 
       <RouteScreenContent
-        state={{ ...state, loading: state.loading || stopsLoading }}
+        state={{
+          ...state,
+          stops: loadedStops,  // Use stops directly from hook, not reducer
+          loading: stopsLoading  // Use loading directly from hook
+        }}
         dispatch={dispatch}
         onCalculateRoute={handleCalculateRoute}
         onJourneyPress={handleJourneyPress}
         onSavePreferences={savePreferences}
         formatTime={formatTime}
-        isDataRefreshing={isRefreshing || stopsLoading}
+        isDataRefreshing={isRefreshing}
       />
 
       <BannerAdComponent />
