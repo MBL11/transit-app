@@ -903,8 +903,13 @@ export async function getStopsInBounds(
 
 /**
  * Find all stops with the same name (for multimodal stations)
- * Returns all stops that match the given name exactly (case-insensitive)
+ * Returns all stops that match the given name (case-insensitive)
  * This is used to find all entry points for a station (metro, İZBAN, bus, tram, ferry)
+ *
+ * Matching logic:
+ * - "Konak" matches "Konak", "Konak İskele", "Konak Metro" (base name match)
+ * - "Konak İskele" matches "Konak İskele", "Konak İskelesi" (suffix normalization)
+ *
  * @param stopName - The stop name to search for
  * @returns Array of all stops with matching name
  */
@@ -913,28 +918,36 @@ export function getAllStopsWithSameName(stopName: string): Stop[] {
 
   try {
     // Normalize the name for comparison
-    const normalizedName = stopName
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim();
+    const normalizedName = normalizeStopName(stopName);
 
-    // Find all stops with same normalized name (within ~500m to handle slight coordinate differences)
+    // Extract the base station name (first word or words before suffixes like İskele, Metro, etc.)
+    const baseName = extractBaseStationName(normalizedName);
+
+    // Find all stops with same normalized name
     const rows = db.getAllSync<any>(
       `SELECT * FROM stops WHERE location_type = 0`
     );
 
     // Filter by normalized name match
+    // Match if: exact match OR same base station name
     const matchingStops = rows.filter((row: any) => {
-      const rowNormalized = row.name
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-      return rowNormalized === normalizedName;
+      const rowNormalized = normalizeStopName(row.name);
+      const rowBaseName = extractBaseStationName(rowNormalized);
+
+      // Exact match
+      if (rowNormalized === normalizedName) return true;
+
+      // Base name match: "Konak" matches "Konak İskele", "Konak Metro"
+      if (baseName === rowBaseName) return true;
+
+      // Partial match: "Konak" is the base of "Konak İskele"
+      if (rowNormalized.startsWith(baseName + ' ')) return true;
+      if (normalizedName.startsWith(rowBaseName + ' ')) return true;
+
+      return false;
     });
 
-    logger.log(`[Database] Found ${matchingStops.length} stops with name "${stopName}"`);
+    logger.log(`[Database] Found ${matchingStops.length} stops matching "${stopName}" (base: "${baseName}")`);
 
     return matchingStops.map((row: any) => ({
       id: row.id,
@@ -948,6 +961,59 @@ export function getAllStopsWithSameName(stopName: string): Stop[] {
     logger.warn('[Database] Failed to get stops with same name:', error);
     return [];
   }
+}
+
+/**
+ * Extract the base station name from a full stop name
+ * "Konak İskele" → "konak"
+ * "Halkapınar Metro" → "halkapinar"
+ * "Karşıyaka" → "karsiyaka"
+ */
+function extractBaseStationName(normalizedName: string): string {
+  // Common suffixes that indicate mode/type, not part of the base name
+  const MODE_SUFFIXES = [
+    'iskele', 'iskelesi', 'metro', 'istasyon', 'istasyonu',
+    'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+    'tramvay', 'otobus', 'vapur', 'feribot'
+  ];
+
+  const words = normalizedName.split(/\s+/);
+
+  // Remove trailing mode suffixes
+  while (words.length > 1) {
+    const lastWord = words[words.length - 1];
+    if (MODE_SUFFIXES.includes(lastWord)) {
+      words.pop();
+    } else {
+      break;
+    }
+  }
+
+  return words.join(' ');
+}
+
+/**
+ * Normalize stop name for comparison
+ * Handles Turkish suffixes like İskele/İskelesi (same station)
+ */
+export function normalizeStopName(name: string): string {
+  let normalized = name
+    // Remove accents
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  // Turkish suffix normalization: İskelesi → İskele (possessive suffix)
+  // "İskelesi" means "the ferry terminal" - same as "İskele"
+  normalized = normalized
+    .replace(/iskelesi$/i, 'iskele')
+    .replace(/istasyonu$/i, 'istasyon')
+    .replace(/duragi$/i, 'durak')
+    .replace(/garı$/i, 'gar')
+    .replace(/gari$/i, 'gar');
+
+  return normalized;
 }
 
 /**
@@ -989,10 +1055,11 @@ export async function searchStops(query: string): Promise<Stop[]> {
     });
 
     // Deduplicate by name: same physical stop exists with different prefixes (metro_1, tram_1, etc.)
+    // Also handles Turkish suffixes: İskele/İskelesi are the same station
     // Keep the first occurrence for each unique normalized name
     const seen = new Map<string, any>();
     for (const row of filteredRows) {
-      const key = row.name.toLowerCase().trim();
+      const key = normalizeStopName(row.name);
       if (!seen.has(key)) {
         seen.set(key, row);
       }
