@@ -2,7 +2,7 @@
  * Find nearby transit stops within a given radius
  */
 
-import { openDatabase } from './database';
+import { openDatabase, getAllStopsWithSameName } from './database';
 import type { Stop } from './types/models';
 import { calculateDistance } from './geocoding';
 import { logger } from '../utils/logger';
@@ -205,4 +205,38 @@ export function formatDistance(distanceMeters: number): string {
   } else {
     return `${(distanceMeters / 1000).toFixed(1)}km`;
   }
+}
+
+/**
+ * Expand a list of nearby stops to include ALL stops with the same name
+ * This handles multimodal stations where the same station has different stop IDs
+ * for different transport modes (metro_halkapinar, rail_halkapinar, bus_halkapinar)
+ *
+ * @param stops - Array of nearby stops (deduplicated by name)
+ * @returns Array of all stops at those stations (including all transport modes)
+ */
+export function expandToAllSameNameStops(stops: NearbyStop[]): NearbyStop[] {
+  const expandedStops: NearbyStop[] = [];
+  const seenIds = new Set<string>();
+
+  for (const stop of stops) {
+    // Get all stops with the same name (metro, İZBAN, bus, tram, ferry versions)
+    const sameNameStops = getAllStopsWithSameName(stop.name);
+
+    for (const sameStop of sameNameStops) {
+      if (seenIds.has(sameStop.id)) continue;
+      seenIds.add(sameStop.id);
+
+      // Calculate distance from original search point
+      // Use the original stop's distance since they're at the same station
+      expandedStops.push({
+        ...sameStop,
+        distance: stop.distance, // Same walking distance to reach the station
+      });
+    }
+  }
+
+  logger.log(`[NearbyStops] Expanded ${stops.length} stations to ${expandedStops.length} stops (multimodal)`);
+
+  return expandedStops;
 }

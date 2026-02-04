@@ -3,7 +3,7 @@ import * as db from './database';
 import { Stop, Route } from './types/models';
 import { JourneyResult, RouteSegment } from './types/routing';
 import { geocodeAddress, GeocodingResult } from './geocoding';
-import { findBestNearbyStops, NearbyStop, getWalkingTime } from './nearby-stops';
+import { findBestNearbyStops, NearbyStop, getWalkingTime, expandToAllSameNameStops } from './nearby-stops';
 import { logger } from '../utils/logger';
 import { captureException } from '../services/crash-reporting';
 import {
@@ -775,23 +775,29 @@ export async function findRouteFromLocations(
       }];
     }
 
-    // 2. Find nearby stops for both locations (3 per side → max 9 combinations)
+    // 2. Find nearby stops for both locations (3 unique stations per side)
     logger.log('[Routing] Finding nearby stops...');
-    const [fromStops, toStops] = await Promise.all([
+    const [fromStopsBase, toStopsBase] = await Promise.all([
       findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500),
       findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500),
     ]);
 
-    if (fromStops.length === 0) {
+    if (fromStopsBase.length === 0) {
       throw new Error(`NO_STOPS_NEAR:${fromLocation.shortAddress || fromLocation.displayName}`);
     }
-    if (toStops.length === 0) {
+    if (toStopsBase.length === 0) {
       throw new Error(`NO_STOPS_NEAR:${toLocation.shortAddress || toLocation.displayName}`);
     }
 
-    logger.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
-    logger.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
-    logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
+    // Expand to include ALL stops at each station (metro, İZBAN, bus, tram, ferry)
+    // This enables multimodal routing through same-name stations
+    const fromStops = expandToAllSameNameStops(fromStopsBase);
+    const toStops = expandToAllSameNameStops(toStopsBase);
+
+    logger.log(`[Routing] Found ${fromStopsBase.length} from stations → ${fromStops.length} stops (expanded)`);
+    logger.log(`[Routing] Found ${toStopsBase.length} to stations → ${toStops.length} stops (expanded)`);
+    logger.log(`[Routing] Closest from stop: ${fromStopsBase[0].name} (${Math.round(fromStopsBase[0].distance)}m)`);
+    logger.log(`[Routing] Closest to stop: ${toStopsBase[0].name} (${Math.round(toStopsBase[0].distance)}m)`);
 
     // 3. Build combinations and run sequentially with shared cache + time budget
     // Sync DB calls block the event loop, so Promise.all provides no parallelism.
@@ -999,20 +1005,25 @@ export async function findRouteFromAddresses(
       logger.log('[Routing] Distance > 800m, searching for transit routes...');
 
       // 3. Find nearby stops for both locations
-      // Use top 3 stops per side (3×3=9 combinations) — good coverage with fast performance
-      const [fromStops, toStops] = await Promise.all([
+      // Use top 3 stations per side, then expand to all transport modes
+      const [fromStopsBase, toStopsBase] = await Promise.all([
         findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500),
         findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500),
       ]);
 
-      if (fromStops.length === 0 || toStops.length === 0) {
+      if (fromStopsBase.length === 0 || toStopsBase.length === 0) {
         logger.log('[Routing] No nearby stops found, returning walking-only journey');
         return [walkingJourney];
       }
 
-      logger.log(`[Routing] Found ${fromStops.length} from stops, ${toStops.length} to stops`);
-      logger.log(`[Routing] Closest from stop: ${fromStops[0].name} (${Math.round(fromStops[0].distance)}m)`);
-      logger.log(`[Routing] Closest to stop: ${toStops[0].name} (${Math.round(toStops[0].distance)}m)`);
+      // Expand to include ALL stops at each station (metro, İZBAN, bus, tram, ferry)
+      const fromStops = expandToAllSameNameStops(fromStopsBase);
+      const toStops = expandToAllSameNameStops(toStopsBase);
+
+      logger.log(`[Routing] Found ${fromStopsBase.length} from stations → ${fromStops.length} stops`);
+      logger.log(`[Routing] Found ${toStopsBase.length} to stations → ${toStops.length} stops`);
+      logger.log(`[Routing] Closest from stop: ${fromStopsBase[0].name} (${Math.round(fromStopsBase[0].distance)}m)`);
+      logger.log(`[Routing] Closest to stop: ${toStopsBase[0].name} (${Math.round(toStopsBase[0].distance)}m)`);
 
       // 4. Try to find routes between nearby stops
       // Sequential with early exit and time budget (sync DB calls block event loop)
@@ -1154,19 +1165,23 @@ export async function findRouteFromCoordinates(
     const toLocation = toResults[0];
 
     // 2. Find nearby stops from starting coordinates (parallel)
-    const [fromStops, toStops] = await Promise.all([
+    const [fromStopsBase, toStopsBase] = await Promise.all([
       findBestNearbyStops(fromLat, fromLon, 3, 2500),
       findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500),
     ]);
 
-    if (fromStops.length === 0) {
+    if (fromStopsBase.length === 0) {
       throw new Error('NO_STOPS_NEAR_POSITION');
     }
-    if (toStops.length === 0) {
+    if (toStopsBase.length === 0) {
       throw new Error('No transit stops found near destination');
     }
 
-    // 3. Build combinations (3×3=9 max) and run in parallel
+    // Expand to include ALL stops at each station (metro, İZBAN, bus, tram, ferry)
+    const fromStops = expandToAllSameNameStops(fromStopsBase);
+    const toStops = expandToAllSameNameStops(toStopsBase);
+
+    // 3. Build combinations and run in parallel
     const fromVirtualStop: Stop = {
       id: 'virtual_from',
       name: 'Current Location',

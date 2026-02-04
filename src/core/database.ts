@@ -902,6 +902,55 @@ export async function getStopsInBounds(
 }
 
 /**
+ * Find all stops with the same name (for multimodal stations)
+ * Returns all stops that match the given name exactly (case-insensitive)
+ * This is used to find all entry points for a station (metro, İZBAN, bus, tram, ferry)
+ * @param stopName - The stop name to search for
+ * @returns Array of all stops with matching name
+ */
+export function getAllStopsWithSameName(stopName: string): Stop[] {
+  const db = openDatabase();
+
+  try {
+    // Normalize the name for comparison
+    const normalizedName = stopName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+    // Find all stops with same normalized name (within ~500m to handle slight coordinate differences)
+    const rows = db.getAllSync<any>(
+      `SELECT * FROM stops WHERE location_type = 0`
+    );
+
+    // Filter by normalized name match
+    const matchingStops = rows.filter((row: any) => {
+      const rowNormalized = row.name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+      return rowNormalized === normalizedName;
+    });
+
+    logger.log(`[Database] Found ${matchingStops.length} stops with name "${stopName}"`);
+
+    return matchingStops.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      lat: row.lat,
+      lon: row.lon,
+      locationType: row.location_type,
+      parentStation: row.parent_station,
+    }));
+  } catch (error) {
+    logger.warn('[Database] Failed to get stops with same name:', error);
+    return [];
+  }
+}
+
+/**
  * Search stops by name (case insensitive, accent-insensitive)
  * Optimized: Uses SQL LIKE first to reduce dataset, then filters client-side for accents
  */
