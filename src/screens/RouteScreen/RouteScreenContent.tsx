@@ -41,6 +41,11 @@ export function RouteScreenContent({
   const colors = useThemeColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
+  // Debug: Log state on each render to see if stops are loaded
+  React.useEffect(() => {
+    console.log(`[RouteScreenContent] Render - stops: ${state.stops.length}, loading: ${state.loading}`);
+  }, [state.stops.length, state.loading]);
+
   // Helper functions
   const filterStops = (query: string): Stop[] => {
     const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');

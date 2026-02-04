@@ -51,6 +51,7 @@ export function RouteScreen() {
   // Load stops when screen comes into focus (reloads after data import)
   useFocusEffect(
     useCallback(() => {
+      logger.log('[RouteScreen] useFocusEffect triggered - calling loadStops');
       loadStops();
     }, [])
   );
@@ -58,6 +59,12 @@ export function RouteScreen() {
   // Load preferences once on mount
   useEffect(() => {
     loadPreferences();
+  }, []);
+
+  // Fallback: Also load stops on mount (in case useFocusEffect doesn't trigger)
+  useEffect(() => {
+    logger.log('[RouteScreen] Initial mount useEffect - loading stops as fallback');
+    loadStops();
   }, []);
 
   // Handle pre-filled stops from navigation params (e.g., from Favorites)
@@ -89,8 +96,13 @@ export function RouteScreen() {
 
   const loadStops = async () => {
     try {
+      logger.log('[RouteScreen] loadStops called, starting to load stops...');
       dispatch({ type: 'SET_LOADING', payload: true });
       const allStops = await db.getAllStops();
+      logger.log(`[RouteScreen] getAllStops returned ${allStops.length} stops`);
+      if (allStops.length > 0) {
+        logger.log(`[RouteScreen] First stop: ${allStops[0].name} (${allStops[0].id})`);
+      }
       dispatch({ type: 'SET_STOPS', payload: allStops });
     } catch (err) {
       logger.error('[RouteScreen] Error loading stops:', err);
