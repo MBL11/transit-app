@@ -138,6 +138,8 @@ export function RouteScreen() {
       let toLocation: GeocodingResult;
 
       if (state.fromMode === 'stop') {
+        // Log selected stop details for debugging
+        logger.log(`[RouteScreen] From stop: ${state.fromStop!.name} (ID: ${state.fromStop!.id}, lat: ${state.fromStop!.lat}, lon: ${state.fromStop!.lon})`);
         fromLocation = {
           lat: state.fromStop!.lat,
           lon: state.fromStop!.lon,
@@ -151,6 +153,8 @@ export function RouteScreen() {
       }
 
       if (state.toMode === 'stop') {
+        // Log selected stop details for debugging
+        logger.log(`[RouteScreen] To stop: ${state.toStop!.name} (ID: ${state.toStop!.id}, lat: ${state.toStop!.lat}, lon: ${state.toStop!.lon})`);
         toLocation = {
           lat: state.toStop!.lat,
           lon: state.toStop!.lon,

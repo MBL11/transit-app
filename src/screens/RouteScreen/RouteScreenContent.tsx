@@ -50,21 +50,20 @@ export function RouteScreenContent({
       stop.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(lowerQuery)
     );
 
-    // Sort by name for better UX
-    filtered = filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-    // Deduplicate by ID (not name) - keep unique stop IDs only
-    const seen = new Set<string>();
-    const unique: Stop[] = [];
+    // Deduplicate by name (not ID) - keep one stop per unique name
+    const seen = new Map<string, Stop>();
     for (const stop of filtered) {
-      if (!seen.has(stop.id)) {
-        seen.add(stop.id);
-        unique.push(stop);
+      const key = stop.name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.set(key, stop);
       }
     }
 
-    // Limit to 200 for performance
-    return unique.slice(0, 200);
+    // Sort by name for better UX
+    const unique = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+    // Limit to 100 for performance
+    return unique.slice(0, 100);
   };
 
   const hasFromLocation = state.fromMode === 'stop' ? state.fromStop !== null : state.fromAddress !== null;
