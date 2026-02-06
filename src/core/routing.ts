@@ -839,6 +839,21 @@ export async function findRouteFromLocations(
       }
     }
 
+    // Sort combinations to prioritize high-speed transit modes (İZBAN, Metro, Ferry)
+    // This ensures İZBAN/ferry routes are tried before the early exit triggers
+    const getStopPriority = (stopId: string): number => {
+      if (stopId.startsWith('rail_')) return 0;   // İZBAN - highest priority
+      if (stopId.startsWith('ferry_')) return 1;  // Ferry
+      if (stopId.startsWith('metro_')) return 2;  // Metro
+      if (stopId.startsWith('tram_')) return 3;   // Tram
+      return 4;                                    // Bus and others
+    };
+    combinations.sort((a, b) => {
+      const aPriority = Math.min(getStopPriority(a.fromStop.id), getStopPriority(a.toStop.id));
+      const bPriority = Math.min(getStopPriority(b.fromStop.id), getStopPriority(b.toStop.id));
+      return aPriority - bPriority;
+    });
+
     logger.log(`[Routing] Trying ${combinations.length} combinations with shared cache...`);
 
     const routeResults: { fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }[] = [];
@@ -1061,6 +1076,20 @@ export async function findRouteFromAddresses(
         }
       }
 
+      // Sort combinations to prioritize high-speed transit modes (İZBAN, Metro, Ferry)
+      const getStopPriority = (stopId: string): number => {
+        if (stopId.startsWith('rail_')) return 0;   // İZBAN
+        if (stopId.startsWith('ferry_')) return 1;  // Ferry
+        if (stopId.startsWith('metro_')) return 2;  // Metro
+        if (stopId.startsWith('tram_')) return 3;   // Tram
+        return 4;
+      };
+      combinations.sort((a, b) => {
+        const aPriority = Math.min(getStopPriority(a.fromStop.id), getStopPriority(a.toStop.id));
+        const bPriority = Math.min(getStopPriority(b.fromStop.id), getStopPriority(b.toStop.id));
+        return aPriority - bPriority;
+      });
+
       logger.log(`[Routing] Calculating ${combinations.length} route combinations with shared cache`);
 
       const TIME_BUDGET_MS = 10000;
@@ -1231,6 +1260,20 @@ export async function findRouteFromCoordinates(
         combinations.push({ fromStop, toStop });
       }
     }
+
+    // Sort combinations to prioritize high-speed transit modes (İZBAN, Metro, Ferry)
+    const getStopPriority = (stopId: string): number => {
+      if (stopId.startsWith('rail_')) return 0;   // İZBAN
+      if (stopId.startsWith('ferry_')) return 1;  // Ferry
+      if (stopId.startsWith('metro_')) return 2;  // Metro
+      if (stopId.startsWith('tram_')) return 3;   // Tram
+      return 4;
+    };
+    combinations.sort((a, b) => {
+      const aPriority = Math.min(getStopPriority(a.fromStop.id), getStopPriority(a.toStop.id));
+      const bPriority = Math.min(getStopPriority(b.fromStop.id), getStopPriority(b.toStop.id));
+      return aPriority - bPriority;
+    });
 
     const TIME_BUDGET_MS = 10000;
     const coordSearchStart = Date.now();
