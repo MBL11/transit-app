@@ -522,6 +522,42 @@ export async function findRoute(
         });
       }
 
+      // Check if transfer stop is essentially the destination (same stop or very close)
+      // This handles cases like: Ferry → Konak İskelesi → [walk] → Konak metro (destination)
+      // where we shouldn't add a redundant metro segment
+      const transferToDestDistance = haversineDistance(
+        transferStopTo.lat, transferStopTo.lon,
+        toStop.lat, toStop.lon
+      );
+      const isTransferStopDestination = transferStopTo.id === toStopId || transferToDestDistance < 100;
+
+      if (isTransferStopDestination) {
+        // Transfer stop IS the destination - add walking to final destination if needed
+        if (transferToDestDistance > 30) {
+          const walkToDestTime = Math.ceil(transferToDestDistance / 83.33);
+          segments.push({
+            type: 'walk',
+            from: transferStopTo,
+            to: toStop,
+            duration: walkToDestTime,
+            distance: Math.round(transferToDestDistance),
+          });
+        }
+        // Don't add the second transit segment - we're already at destination!
+        const finalDuration = duration1 + transferTime + (transferToDestDistance > 30 ? Math.ceil(transferToDestDistance / 83.33) : 0);
+        const journey: JourneyResult = {
+          segments,
+          totalDuration: finalDuration,
+          totalWalkDistance: (tp.walkDistance > 30 ? tp.walkDistance : 0) + (transferToDestDistance > 30 ? Math.round(transferToDestDistance) : 0),
+          numberOfTransfers: 0, // It's effectively a direct route with walking
+          departureTime: actualDep1,
+          arrivalTime: new Date(actualDep1.getTime() + finalDuration * 60000),
+        };
+        transferJourneys.push(journey);
+        if (transferJourneys.length >= 5) break;
+        continue; // Skip the regular transfer journey building
+      }
+
       segments.push({
         type: 'transit',
         from: transferStopTo,
