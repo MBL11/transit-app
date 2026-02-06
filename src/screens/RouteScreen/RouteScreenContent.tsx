@@ -26,6 +26,8 @@ interface RouteScreenContentProps {
   onSavePreferences: (prefs: RoutingPreferences) => Promise<void>;
   formatTime: (date: Date) => string;
   isDataRefreshing?: boolean;
+  recentStops?: Stop[];
+  onStopSelect?: (stop: Stop) => void;
 }
 
 export function RouteScreenContent({
@@ -36,6 +38,8 @@ export function RouteScreenContent({
   onSavePreferences,
   formatTime,
   isDataRefreshing = false,
+  recentStops = [],
+  onStopSelect,
 }: RouteScreenContentProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -44,6 +48,26 @@ export function RouteScreenContent({
   // Helper functions
   const filterStops = (query: string): Stop[] => {
     const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // If no query, show recent stops first
+    if (!lowerQuery && recentStops.length > 0) {
+      // Start with recent stops
+      const recentIds = new Set(recentStops.map(s => s.id));
+      const recentNames = new Set(recentStops.map(s => s.name.toLowerCase().trim()));
+
+      // Get remaining stops (not in recent), deduplicated by name
+      const seen = new Map<string, Stop>();
+      for (const stop of state.stops) {
+        const key = stop.name.toLowerCase().trim();
+        if (!recentNames.has(key) && !seen.has(key)) {
+          seen.set(key, stop);
+        }
+      }
+      const otherStops = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+      // Combine: recent first, then other stops
+      return [...recentStops, ...otherStops].slice(0, 100);
+    }
 
     // Filter by query
     let filtered = !lowerQuery ? state.stops : state.stops.filter(stop =>
@@ -59,8 +83,15 @@ export function RouteScreenContent({
       }
     }
 
-    // Sort by name for better UX
-    const unique = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+    // Sort by name for better UX, but put recent stops first if they match
+    const recentIds = new Set(recentStops.map(s => s.id));
+    const unique = Array.from(seen.values()).sort((a, b) => {
+      const aRecent = recentIds.has(a.id);
+      const bRecent = recentIds.has(b.id);
+      if (aRecent && !bRecent) return -1;
+      if (!aRecent && bRecent) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
     // Limit to 100 for performance
     return unique.slice(0, 100);
@@ -451,17 +482,26 @@ export function RouteScreenContent({
             keyboardShouldPersistTaps="handled"
             style={styles.stopListFullScreen}
             contentContainerStyle={{ paddingBottom: 100 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.stopItem, state.fromStop?.id === item.id && styles.stopItemSelected]}
-                onPress={() => dispatch({ type: 'SELECT_FROM_STOP', payload: item })}
-              >
-                <Text style={[styles.stopItemText, state.fromStop?.id === item.id && styles.stopItemTextSelected]}>
-                  {item.name}
-                </Text>
-                {state.fromStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const isRecent = recentStops.some(s => s.id === item.id);
+              return (
+                <TouchableOpacity
+                  style={[styles.stopItem, state.fromStop?.id === item.id && styles.stopItemSelected]}
+                  onPress={() => {
+                    dispatch({ type: 'SELECT_FROM_STOP', payload: item });
+                    onStopSelect?.(item);
+                  }}
+                >
+                  <View style={styles.stopItemContent}>
+                    {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
+                    <Text style={[styles.stopItemText, state.fromStop?.id === item.id && styles.stopItemTextSelected]}>
+                      {item.name}
+                    </Text>
+                  </View>
+                  {state.fromStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              );
+            }}
             ListEmptyComponent={
               <View style={styles.emptySearchContainer}>
                 <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
@@ -508,17 +548,26 @@ export function RouteScreenContent({
             keyboardShouldPersistTaps="handled"
             style={styles.stopListFullScreen}
             contentContainerStyle={{ paddingBottom: 100 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.stopItem, state.toStop?.id === item.id && styles.stopItemSelected]}
-                onPress={() => dispatch({ type: 'SELECT_TO_STOP', payload: item })}
-              >
-                <Text style={[styles.stopItemText, state.toStop?.id === item.id && styles.stopItemTextSelected]}>
-                  {item.name}
-                </Text>
-                {state.toStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const isRecent = recentStops.some(s => s.id === item.id);
+              return (
+                <TouchableOpacity
+                  style={[styles.stopItem, state.toStop?.id === item.id && styles.stopItemSelected]}
+                  onPress={() => {
+                    dispatch({ type: 'SELECT_TO_STOP', payload: item });
+                    onStopSelect?.(item);
+                  }}
+                >
+                  <View style={styles.stopItemContent}>
+                    {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
+                    <Text style={[styles.stopItemText, state.toStop?.id === item.id && styles.stopItemTextSelected]}>
+                      {item.name}
+                    </Text>
+                  </View>
+                  {state.toStop?.id === item.id && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              );
+            }}
             ListEmptyComponent={
               <View style={styles.emptySearchContainer}>
                 <Text style={styles.emptySearchText}>{t('common.noResults')}</Text>
@@ -957,6 +1006,15 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     },
     stopItemSelected: {
       backgroundColor: colors.activeBackground,
+    },
+    stopItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    recentIcon: {
+      fontSize: 14,
+      marginRight: 8,
     },
     stopItemText: {
       fontSize: 16,

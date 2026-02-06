@@ -21,6 +21,7 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import { useInterstitialAd } from '../../hooks/useInterstitialAd';
 import { useGTFSData } from '../../hooks/useGTFSData';
 import { useStops } from '../../hooks/useAdapter';
+import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { findMultipleRoutes } from '../../core/routing';
 import type { Stop } from '../../core/types/models';
 import type { JourneyResult } from '../../core/types/routing';
@@ -47,6 +48,9 @@ export function RouteScreen() {
 
   // Use the useStops hook which properly waits for adapter initialization
   const { stops: loadedStops, loading: stopsLoading, refresh: refreshStops } = useStops();
+
+  // Recent searches
+  const { recentStops, addRecentStop } = useRecentSearches();
 
   // Use reducer instead of multiple useState
   const [state, dispatch] = useReducer(routeReducer, initialState);
@@ -132,6 +136,7 @@ export function RouteScreen() {
     try {
       dispatch({ type: 'SET_CALCULATING', payload: true });
       dispatch({ type: 'SET_HAS_SEARCHED', payload: false });
+      dispatch({ type: 'SET_JOURNEYS', payload: [] }); // Clear previous results
 
       // Prepare from and to locations as GeocodingResult
       let fromLocation: GeocodingResult;
@@ -276,6 +281,8 @@ export function RouteScreen() {
         onSavePreferences={savePreferences}
         formatTime={formatTime}
         isDataRefreshing={isRefreshing}
+        recentStops={recentStops}
+        onStopSelect={addRecentStop}
       />
 
       <BannerAdComponent />
