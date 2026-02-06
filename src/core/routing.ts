@@ -359,16 +359,19 @@ export async function findRoute(
     // This also verifies that fromStop comes BEFORE toStop in the route sequence
     const actualTime = db.getActualTravelTime(route.id, fromStopId, toStopId);
 
-    // If actualTime is null, it means either:
-    // 1. No GTFS data for this stop pair, or
-    // 2. The stops are in wrong order (toStop comes before fromStop on this route)
-    // In both cases, skip this route - don't use unreliable distance estimates
-    if (actualTime === null) {
-      logger.log(`[Routing] Skipping ${route.shortName}: no valid GTFS times for ${fromStop.name} → ${toStop.name} (wrong direction or no data)`);
-      continue;
-    }
+    let estimatedDuration: number;
 
-    const estimatedDuration = Math.max(3, actualTime);
+    if (actualTime !== null) {
+      // Use actual GTFS data
+      estimatedDuration = Math.max(3, actualTime);
+    } else {
+      // Fallback: Use distance-based estimate for routes with incomplete GTFS data
+      // (This is common for ferry, İZBAN, and newly opened metro extensions)
+      const distanceKm = haversineDistance(fromStop.lat, fromStop.lon, toStop.lat, toStop.lon) / 1000;
+      const minPerKm = getTransitMinPerKm(route.type);
+      estimatedDuration = Math.max(3, Math.round(distanceKm * minPerKm));
+      logger.log(`[Routing] Using distance estimate for ${route.shortName}: ${distanceKm.toFixed(1)}km × ${minPerKm} min/km = ${estimatedDuration}min (no GTFS data)`);
+    }
 
     // Headsign lookup deferred to enrichWithHeadsigns() for performance
 
@@ -452,16 +455,19 @@ export async function findRoute(
       actualDep1.setHours(Math.floor(firstLegDep / 60), Math.round(firstLegDep % 60), 0, 0);
 
       // Calculate durations using correct stop IDs for each route
-      // Must have valid GTFS times for both legs (ensures correct direction and real data)
+      // Try GTFS times first, fall back to distance estimates
       const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStopFrom.id);
       const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toStopId);
 
-      // Skip if first leg has no valid GTFS data (wrong direction or missing)
-      if (actual1 === null) {
-        logger.log(`[Routing] Skipping transfer: ${fromRoute.shortName} has no valid data for ${fromStop.name} → ${transferStopFrom.name}`);
-        continue;
+      let duration1: number;
+      if (actual1 !== null) {
+        duration1 = Math.max(3, actual1);
+      } else {
+        // Fallback: distance-based estimate for first leg
+        const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStopFrom.lat, transferStopFrom.lon) / 1000;
+        duration1 = Math.max(3, Math.round(dist1Km * getTransitMinPerKm(fromRoute.type)));
+        logger.log(`[Routing] Using distance estimate for leg1 ${fromRoute.shortName}: ${dist1Km.toFixed(1)}km = ${duration1}min`);
       }
-      const duration1 = Math.max(3, actual1);
 
       // Check if second leg has service after arriving at transfer (60 min for night buses)
       const arrivalAtTransferMin = firstLegDep + duration1 + 3; // +3 min to walk/wait
@@ -473,12 +479,15 @@ export async function findRoute(
         continue;
       }
 
-      // Skip if second leg has no valid GTFS data (wrong direction or missing)
-      if (actual2 === null) {
-        logger.log(`[Routing] Skipping transfer: ${toRoute.shortName} has no valid data for ${transferStopTo.name} → ${toStop.name}`);
-        continue;
+      let duration2: number;
+      if (actual2 !== null) {
+        duration2 = Math.max(3, actual2);
+      } else {
+        // Fallback: distance-based estimate for second leg
+        const dist2Km = haversineDistance(transferStopTo.lat, transferStopTo.lon, toStop.lat, toStop.lon) / 1000;
+        duration2 = Math.max(3, Math.round(dist2Km * getTransitMinPerKm(toRoute.type)));
+        logger.log(`[Routing] Using distance estimate for leg2 ${toRoute.shortName}: ${dist2Km.toFixed(1)}km = ${duration2}min`);
       }
-      const duration2 = Math.max(3, actual2);
 
       // Walking time between transfer stops (if physically > 30m apart)
       const transferWalkTime = tp.walkDistance > 30 ? Math.ceil(tp.walkDistance / 83.33) : 0;
@@ -614,20 +623,38 @@ export async function findRoute(
         locationType: 0,
       };
 
-      // Calculate 3-segment durations - require valid GTFS times for all legs
+      // Calculate 3-segment durations - try GTFS times, fall back to distance estimates
       const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStop1.id);
       const actual2 = db.getActualTravelTime(midRoute.id, transferStop1.id, transferStop2.id);
       const actual3 = db.getActualTravelTime(toRoute.id, transferStop2.id, toStopId);
 
-      // Skip if any leg has no valid GTFS data (wrong direction or missing)
-      if (actual1 === null || actual2 === null || actual3 === null) {
-        logger.log(`[Routing] Skipping 2-transfer: missing GTFS data for one or more legs`);
-        continue;
+      // Calculate durations with distance-based fallback for routes with incomplete GTFS data
+      let dur1: number;
+      if (actual1 !== null) {
+        dur1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
+      } else {
+        const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStop1.lat, transferStop1.lon) / 1000;
+        dur1 = Math.max(3, Math.round(dist1Km * getTransitMinPerKm(fromRoute.type)) + getAverageWaitTime(fromRoute.type));
+        logger.log(`[Routing] 2-transfer leg1 ${fromRoute.shortName}: distance estimate ${dist1Km.toFixed(1)}km = ${dur1}min`);
       }
 
-      const dur1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
-      const dur2 = Math.max(3, actual2);
-      const dur3 = Math.max(3, actual3);
+      let dur2: number;
+      if (actual2 !== null) {
+        dur2 = Math.max(3, actual2);
+      } else {
+        const dist2Km = haversineDistance(transferStop1.lat, transferStop1.lon, transferStop2.lat, transferStop2.lon) / 1000;
+        dur2 = Math.max(3, Math.round(dist2Km * getTransitMinPerKm(midRoute.type)));
+        logger.log(`[Routing] 2-transfer leg2 ${midRoute.shortName}: distance estimate ${dist2Km.toFixed(1)}km = ${dur2}min`);
+      }
+
+      let dur3: number;
+      if (actual3 !== null) {
+        dur3 = Math.max(3, actual3);
+      } else {
+        const dist3Km = haversineDistance(transferStop2.lat, transferStop2.lon, toStop.lat, toStop.lon) / 1000;
+        dur3 = Math.max(3, Math.round(dist3Km * getTransitMinPerKm(toRoute.type)));
+        logger.log(`[Routing] 2-transfer leg3 ${toRoute.shortName}: distance estimate ${dist3Km.toFixed(1)}km = ${dur3}min`);
+      }
       const totalDuration = dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN + dur3;
 
       // Headsign lookups deferred to enrichWithHeadsigns() for performance
