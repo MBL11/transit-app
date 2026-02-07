@@ -28,7 +28,7 @@ import type { JourneyResult } from '../../core/types/routing';
 import type { RouteStackParamList } from '../../navigation/RouteStackNavigator';
 import { serializeJourney } from '../../core/types/routing-serialization';
 import type { GeocodingResult } from '../../core/geocoding';
-import type { RoutingPreferences } from '../../types/routing-preferences';
+import { DEFAULT_PREFERENCES, type RoutingPreferences } from '../../types/routing-preferences';
 import { routeReducer, initialState } from './routeReducer';
 import { RouteScreenContent } from './RouteScreenContent';
 import { logger } from '../../utils/logger';
@@ -105,8 +105,17 @@ export function RouteScreen() {
       const saved = await AsyncStorage.getItem('@routing_preferences');
       if (saved) {
         const parsedPrefs = JSON.parse(saved);
-        dispatch({ type: 'SET_PREFERENCES', payload: parsedPrefs });
-        logger.log('[RouteScreen] Loaded saved preferences:', parsedPrefs.optimizeFor);
+        // Merge with defaults to ensure all modes are defined (handles old saved preferences)
+        const mergedPrefs: RoutingPreferences = {
+          ...DEFAULT_PREFERENCES,
+          ...parsedPrefs,
+          allowedModes: {
+            ...DEFAULT_PREFERENCES.allowedModes,
+            ...parsedPrefs.allowedModes,
+          },
+        };
+        dispatch({ type: 'SET_PREFERENCES', payload: mergedPrefs });
+        logger.log('[RouteScreen] Loaded saved preferences:', mergedPrefs.optimizeFor, 'ferry:', mergedPrefs.allowedModes.ferry);
       }
     } catch (err) {
       logger.error('[RouteScreen] Error loading preferences:', err);
