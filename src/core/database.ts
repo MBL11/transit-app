@@ -447,7 +447,19 @@ export async function insertCalendar(calendar: Calendar[]): Promise<void> {
       'INSERT OR REPLACE INTO calendar (service_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
 
+    // Auto-extend expired calendars to 2030 (İZBAN/Metro GTFS often have outdated end_dates)
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+    const futureEndDate = '20301231'; // Extend to end of 2030
+
     for (const cal of calendar) {
+      // If end_date is in the past, extend it
+      let endDate = cal.endDate;
+      if (endDate && endDate < todayStr) {
+        logger.log(`[Database] Extending expired calendar ${cal.serviceId}: ${endDate} → ${futureEndDate}`);
+        endDate = futureEndDate;
+      }
+
       statement.executeSync([
         cal.serviceId,
         cal.monday ? 1 : 0,
@@ -458,7 +470,7 @@ export async function insertCalendar(calendar: Calendar[]): Promise<void> {
         cal.saturday ? 1 : 0,
         cal.sunday ? 1 : 0,
         cal.startDate,
-        cal.endDate,
+        endDate,
       ]);
     }
 
