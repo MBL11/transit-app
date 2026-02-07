@@ -1506,14 +1506,16 @@ export async function findMultipleRoutes(
   try {
     logger.log('[Routing] Finding multiple routes with preferences:', preferences.optimizeFor);
 
+    // Check if it's night hours (midnight to 5 AM) - limited service in İzmir
+    const hour = departureTime.getHours();
+    const isNightHours = hour >= 0 && hour < 5;
+
     // 0. Check if transit services are running at this time
     const activeServices = db.getActiveServiceIds(departureTime);
     const noTransitService = activeServices !== null && activeServices.size === 0;
 
-    if (noTransitService) {
-      logger.warn('[Routing] No active transit services at this time, returning walking-only route');
-
-      // Build a walking-only journey between the two locations
+    // Helper to build walking-only journey
+    const buildWalkingJourney = (tag: string): JourneyResult => {
       const distance = haversineDistance(from.lat, from.lon, to.lat, to.lon);
       const walkTime = Math.round(walkingTime(distance));
 
@@ -1532,7 +1534,7 @@ export async function findMultipleRoutes(
         locationType: 0,
       };
 
-      const walkingJourney: JourneyResult = {
+      return {
         segments: [{
           type: 'walk',
           from: fromVirtualStop,
@@ -1545,14 +1547,27 @@ export async function findMultipleRoutes(
         numberOfTransfers: 0,
         departureTime: departureTime,
         arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
-        tags: ['no-transit-service'],
+        tags: [tag],
       };
+    };
 
-      return [walkingJourney];
+    if (noTransitService) {
+      logger.warn('[Routing] No active transit services at this time, returning walking-only route');
+      return [buildWalkingJourney('no-transit-service')];
     }
 
     // 1. Get base routes using findRouteFromLocations
-    const rawRoutes = await findRouteFromLocations(from, to, departureTime);
+    let rawRoutes: JourneyResult[];
+    try {
+      rawRoutes = await findRouteFromLocations(from, to, departureTime);
+    } catch (error: any) {
+      // If no route found, check if it's due to night hours
+      if (error?.message === 'NO_ROUTE_FOUND' && isNightHours) {
+        logger.warn('[Routing] No routes found during night hours (00:00-05:00), returning walking-only');
+        return [buildWalkingJourney('night-hours')];
+      }
+      throw error;
+    }
 
     if (rawRoutes.length === 0) {
       return [];

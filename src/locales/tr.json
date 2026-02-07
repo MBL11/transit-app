@@ -193,7 +193,8 @@
       "least-transfers": "🔄 En az aktarma",
       "least-walking": "🚶 En az yürüme",
       "eco-friendly": "🌱 Çevre dostu",
-      "no-transit-service": "🌙 Hizmet disi"
+      "no-transit-service": "🌙 Hizmet dışı",
+      "night-hours": "🌙 Gece hizmeti sınırlı (00:00-05:00)"
     },
     "transfers": "aktarma",
     "availableRoutes": "{{count}} rota mevcut",

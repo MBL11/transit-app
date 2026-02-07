@@ -193,7 +193,8 @@
       "least-transfers": "🔄 Moins de changements",
       "least-walking": "🚶 Moins de marche",
       "eco-friendly": "🌱 Écologique",
-      "no-transit-service": "🌙 Hors service"
+      "no-transit-service": "🌙 Hors service",
+      "night-hours": "🌙 Service de nuit limité (00h-05h)"
     },
     "transfers": "changement(s)",
     "availableRoutes": "{{count}} itinéraire disponible",

@@ -455,29 +455,22 @@ export function RouteScreenContent({
         )}
 
         {!state.calculating && state.journeys.length > 0 && (() => {
-          const hour = state.departureTime.getHours();
-          const isNightHours = hour >= 1 && hour < 5;
           const hasNoTransitService = state.journeys.some(j => j.tags?.includes('no-transit-service'));
+          const hasNightHours = state.journeys.some(j => j.tags?.includes('night-hours'));
+          const showNightMessage = hasNoTransitService || hasNightHours;
 
           return (
           <>
-            {hasNoTransitService && (
+            {showNightMessage && (
               <View style={styles.noTransitBanner}>
                 <Text style={styles.noTransitBannerText}>
-                  {t('route.noServiceAtTime', { defaultValue: 'Aucun transport en commun ne circule a cette heure. Voici le trajet a pied.' })}
-                </Text>
-              </View>
-            )}
-            {isNightHours && !hasNoTransitService && (
-              <View style={styles.nightServiceBanner}>
-                <Text style={styles.nightServiceBannerText}>
-                  🌙 {t('route.nightServiceLimited', { defaultValue: 'Service de nuit limité - Seuls les bus Baykuş (910-950) circulent.' })}
+                  🌙 {t('route.noServiceAtTime', { defaultValue: 'Aucun transport en commun ne circule à cette heure. Voici le trajet à pied.' })}
                 </Text>
               </View>
             )}
             <Text style={styles.resultsTitle}>
-              {state.journeys.some(j => j.tags?.includes('no-transit-service'))
-                ? t('route.walkingSuggestion', { defaultValue: 'Trajet a pied' })
+              {showNightMessage
+                ? t('route.walkingSuggestion', { defaultValue: 'Trajet à pied' })
                 : t('routing.availableRoutes', { count: state.journeys.length })}
             </Text>
             {state.journeys.map((journey, index) => (
