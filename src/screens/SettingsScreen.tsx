@@ -292,8 +292,14 @@ export function SettingsScreen({ navigation }: Props) {
             <Text style={styles.stopCountsText}>
               🚊 Tram: {stopCounts.tram} | 🚌 Bus: {stopCounts.bus} | Total: {stopCounts.total}
             </Text>
+            <Text style={styles.stopCountsText}>
+              📅 Services İZBAN actifs: {stopCounts.railServicesActive === -1 ? 'N/A' : stopCounts.railServicesActive}
+            </Text>
             {stopCounts.rail === 0 && (
-              <Text style={styles.stopCountsWarning}>⚠️ İZBAN non importé - réimportez les données!</Text>
+              <Text style={styles.stopCountsWarning}>⚠️ İZBAN non importé!</Text>
+            )}
+            {stopCounts.rail > 0 && stopCounts.railServicesActive === 0 && (
+              <Text style={styles.stopCountsWarning}>⚠️ Calendrier İZBAN expiré - réimportez!</Text>
             )}
           </View>
         )}

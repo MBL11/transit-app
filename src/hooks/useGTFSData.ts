@@ -79,6 +79,16 @@ export function useGTFSData() {
         else counts.other++;
       }
       counts.total = stops.length;
+
+      // Check İZBAN calendar status
+      const activeServices = db.getActiveServiceIds(new Date());
+      if (activeServices) {
+        const railServices = Array.from(activeServices).filter(s => s.startsWith('rail_'));
+        counts.railServicesActive = railServices.length;
+      } else {
+        counts.railServicesActive = -1; // No calendar data
+      }
+
       return counts;
     } catch {
       return null;
