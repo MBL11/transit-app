@@ -759,7 +759,7 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
       }
 
       // Additional ferry keyword fallback
-      const FERRY_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
+      const FERRY_KEYWORDS = ['İSKELE', 'ISKELE', 'İSKELİ', 'ISKELI', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
       const upperName = (stop.name || '').toUpperCase();
       if (FERRY_KEYWORDS.some((kw: string) => upperName.includes(kw))) {
         logger.log(`[Database] Ferry fallback: "${stop.name}" has ferry keyword, loading all ferry routes`);
@@ -968,6 +968,7 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
 
         // Add if: ferry/transit keywords OR same base name
         const hasFerryKeyword = rowName.includes('ISKELE') || rowName.includes('İSKELE') ||
+                                rowName.includes('ISKELI') || rowName.includes('İSKELİ') ||
                                 rowName.includes('VAPUR') || rowName.includes('FERİBOT');
         const hasTransitKeyword = rowName.includes('GAR') || rowName.includes('ISTASYON') ||
                                   rowName.includes('İSTASYON');
@@ -1004,7 +1005,8 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
 function extractBaseStationName(normalizedName: string): string {
   // Common suffixes that indicate mode/type, not part of the base name
   const MODE_SUFFIXES = [
-    'iskele', 'iskelesi', 'metro', 'istasyon', 'istasyonu',
+    'iskele', 'iskelesi', 'iskeli', // Ferry terminal variants (iskeli is sometimes used in GTFS data)
+    'metro', 'istasyon', 'istasyonu',
     'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
     'tramvay', 'otobus', 'vapur', 'feribot'
   ];
