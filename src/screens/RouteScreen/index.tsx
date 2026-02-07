@@ -171,6 +171,7 @@ export function RouteScreen() {
           shortAddress: state.fromStop!.name,
           type: 'stop',
           importance: 1,
+          stopId: state.fromStop!.id, // Include stop ID for direct routing
         };
       } else {
         fromLocation = state.fromAddress!;
@@ -186,6 +187,7 @@ export function RouteScreen() {
           shortAddress: state.toStop!.name,
           type: 'stop',
           importance: 1,
+          stopId: state.toStop!.id, // Include stop ID for direct routing
         };
       } else {
         toLocation = state.toAddress!;

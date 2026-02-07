@@ -51,6 +51,7 @@ export interface GeocodingResult {
   type: string; // 'house', 'street', 'city', etc.
   importance: number; // 0-1, relevance score
   boundingBox?: [number, number, number, number]; // [south, north, west, east]
+  stopId?: string; // If this location is a transit stop, its ID (e.g., 'rail_21')
 }
 
 /**

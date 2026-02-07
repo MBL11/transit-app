@@ -852,26 +852,68 @@ export async function findRouteFromLocations(
       }];
     }
 
-    // 2. Find nearby stops for both locations (3 unique stations per side)
+    // 2. Find nearby stops for both locations
+    // If stopId is provided (user selected a specific stop), use it directly
+    // Otherwise, search for nearby stops by coordinates
     logger.log('[Routing] Finding nearby stops...');
-    const [fromStopsBase, toStopsBase] = await Promise.all([
-      findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500),
-      findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500),
-    ]);
 
-    if (fromStopsBase.length === 0) {
+    let fromStops: NearbyStop[];
+    let toStops: NearbyStop[];
+
+    if (fromLocation.stopId) {
+      // User selected a specific stop - use it directly
+      const selectedStop = await db.getStopById(fromLocation.stopId);
+      if (selectedStop) {
+        logger.log(`[Routing] Using selected FROM stop: ${selectedStop.name} (${selectedStop.id})`);
+        const nearbyStop: NearbyStop = { ...selectedStop, distance: 0 };
+        // Expand to get all modes at this station
+        fromStops = expandToAllSameNameStops([nearbyStop]);
+      } else {
+        // Stop not found, fall back to coordinate search
+        logger.warn(`[Routing] Selected FROM stop ${fromLocation.stopId} not found, searching by coordinates`);
+        const fromStopsBase = await findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500);
+        fromStops = expandToAllSameNameStops(fromStopsBase);
+      }
+    } else {
+      // Search by coordinates
+      const fromStopsBase = await findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500);
+      if (fromStopsBase.length === 0) {
+        throw new Error(`NO_STOPS_NEAR:${fromLocation.shortAddress || fromLocation.displayName}`);
+      }
+      fromStops = expandToAllSameNameStops(fromStopsBase);
+    }
+
+    if (toLocation.stopId) {
+      // User selected a specific stop - use it directly
+      const selectedStop = await db.getStopById(toLocation.stopId);
+      if (selectedStop) {
+        logger.log(`[Routing] Using selected TO stop: ${selectedStop.name} (${selectedStop.id})`);
+        const nearbyStop: NearbyStop = { ...selectedStop, distance: 0 };
+        // Expand to get all modes at this station
+        toStops = expandToAllSameNameStops([nearbyStop]);
+      } else {
+        // Stop not found, fall back to coordinate search
+        logger.warn(`[Routing] Selected TO stop ${toLocation.stopId} not found, searching by coordinates`);
+        const toStopsBase = await findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500);
+        toStops = expandToAllSameNameStops(toStopsBase);
+      }
+    } else {
+      // Search by coordinates
+      const toStopsBase = await findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500);
+      if (toStopsBase.length === 0) {
+        throw new Error(`NO_STOPS_NEAR:${toLocation.shortAddress || toLocation.displayName}`);
+      }
+      toStops = expandToAllSameNameStops(toStopsBase);
+    }
+
+    if (fromStops.length === 0) {
       throw new Error(`NO_STOPS_NEAR:${fromLocation.shortAddress || fromLocation.displayName}`);
     }
-    if (toStopsBase.length === 0) {
+    if (toStops.length === 0) {
       throw new Error(`NO_STOPS_NEAR:${toLocation.shortAddress || toLocation.displayName}`);
     }
 
-    // Expand to include ALL stops at each station (metro, İZBAN, bus, tram, ferry)
-    // This enables multimodal routing through same-name stations
-    const fromStops = expandToAllSameNameStops(fromStopsBase);
-    const toStops = expandToAllSameNameStops(toStopsBase);
-
-    logger.log(`[Routing] Expanded: ${fromStopsBase.length}→${fromStops.length} from, ${toStopsBase.length}→${toStops.length} to stops`);
+    logger.log(`[Routing] Using ${fromStops.length} from stops, ${toStops.length} to stops`);
 
     // Check if İZBAN stops are included
     const hasFromRail = fromStops.some(s => s.id.startsWith('rail_'));
