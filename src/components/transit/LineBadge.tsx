@@ -148,13 +148,13 @@ export function LineBadge({
   // Determine display text
   let displayText = lineNumber;
 
-  // For İZBAN, show "İZBAN" instead of internal route numbers
+  // For İZBAN, show train emoji + number (e.g., "🚆 1884")
   if (type === 'izban') {
-    displayText = 'İZBAN';
+    displayText = `🚆 ${lineNumber}`;
   }
-  // For ferry, show boat emoji or "VAPUR"
+  // For ferry, show boat emoji + number
   if (type === 'ferry' && /^\d+$/.test(lineNumber)) {
-    displayText = '⛴️';
+    displayText = `⛴️ ${lineNumber}`;
   }
 
   // Adjust font size for longer text
