@@ -26,7 +26,7 @@ type AppState = 'loading' | 'onboarding' | 'check_data' | 'data_loading' | 'read
 
 function AppContent() {
   const [appState, setAppState] = useState<AppState>('loading');
-  const { isLoaded: hasGTFSData, checking: checkingGTFS, markAsLoaded, triggerBackgroundRefresh } = useGTFSData();
+  const { isLoaded: hasGTFSData, checking: checkingGTFS, markAsLoaded, triggerBackgroundRefresh, needsUpdate } = useGTFSData();
   const { adapter, loading: adapterLoading } = useAdapter();
   const hasTriggeredAutoRefresh = useRef(false);
 
@@ -80,20 +80,25 @@ function AppContent() {
     }
   }, [appState, checkingGTFS, hasGTFSData, adapterLoading, adapter]);
 
-  // Auto-refresh GTFS data in background when app is ready
-  // This ensures data stays fresh without blocking the user
+  // Auto-refresh GTFS data in background when app is ready AND data is stale
+  // Only refresh if data is > 7 days old to avoid clearing stops during normal use
   useEffect(() => {
     if (appState === 'ready' && !hasTriggeredAutoRefresh.current) {
       hasTriggeredAutoRefresh.current = true;
-      // Small delay to let the app UI settle, then refresh data in background
-      const timer = setTimeout(() => {
-        logger.log('[App] Triggering background GTFS refresh on app launch...');
-        triggerBackgroundRefresh();
-      }, 3000); // 3 second delay after app is ready
 
-      return () => clearTimeout(timer);
+      // Only refresh if data is stale (> 7 days old)
+      if (needsUpdate()) {
+        // Delay to let the app UI settle before refreshing
+        const timer = setTimeout(() => {
+          logger.log('[App] Data is stale (> 7 days), triggering background GTFS refresh...');
+          triggerBackgroundRefresh();
+        }, 3000);
+        return () => clearTimeout(timer);
+      } else {
+        logger.log('[App] Data is fresh (< 7 days), skipping background refresh');
+      }
     }
-  }, [appState, triggerBackgroundRefresh]);
+  }, [appState, triggerBackgroundRefresh, needsUpdate]);
 
   const handleOnboardingComplete = () => {
     trackEvent(AnalyticsEvents.ONBOARDING_COMPLETED);
