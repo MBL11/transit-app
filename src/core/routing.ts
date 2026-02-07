@@ -316,12 +316,18 @@ export async function findRoute(
   const fromRoutes = fromRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
   const toRoutes = toRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
 
+  // Debug: log routes found for each stop
+  logger.log(`[Routing] Routes for FROM stop "${fromStop.name}" (${fromStopId}): ${fromRoutes.map(r => `${r.shortName}(type=${r.type})`).join(', ') || 'NONE'}`);
+  logger.log(`[Routing] Routes for TO stop "${toStop.name}" (${toStopId}): ${toRoutes.map(r => `${r.shortName}(type=${r.type})`).join(', ') || 'NONE'}`);
+
   // Trouve les routes communes (trajet direct)
   const fromRouteIds = new Set(fromRoutes.map(r => r.id));
   const directRoutes = toRoutes.filter(r => fromRouteIds.has(r.id));
 
   if (directRoutes.length > 0) {
     logger.log(`[Routing] Direct route found: ${directRoutes.map(r => r.shortName).join(', ')} (${fromStop.name} → ${toStop.name})`);
+  } else {
+    logger.log(`[Routing] No direct route between ${fromStop.name} and ${toStop.name}`);
   }
 
   // Check if we're in night hours (1 AM - 5 AM) - only Baykuş night buses run in İzmir
