@@ -102,10 +102,20 @@ export function RouteScreen() {
 
   const loadPreferences = async () => {
     try {
+      // Clear old preferences and use defaults (v2 reset)
+      const version = await AsyncStorage.getItem('@routing_preferences_version');
+      if (version !== 'v2') {
+        // Reset to defaults - all modes enabled, optimizeFor: fastest
+        await AsyncStorage.removeItem('@routing_preferences');
+        await AsyncStorage.setItem('@routing_preferences_version', 'v2');
+        logger.log('[RouteScreen] Reset preferences to defaults (v2)');
+        return; // Use initial state defaults
+      }
+
       const saved = await AsyncStorage.getItem('@routing_preferences');
       if (saved) {
         const parsedPrefs = JSON.parse(saved);
-        // Merge with defaults to ensure all modes are defined (handles old saved preferences)
+        // Merge with defaults to ensure all modes are defined
         const mergedPrefs: RoutingPreferences = {
           ...DEFAULT_PREFERENCES,
           ...parsedPrefs,
@@ -115,7 +125,7 @@ export function RouteScreen() {
           },
         };
         dispatch({ type: 'SET_PREFERENCES', payload: mergedPrefs });
-        logger.log('[RouteScreen] Loaded saved preferences:', mergedPrefs.optimizeFor, 'ferry:', mergedPrefs.allowedModes.ferry);
+        logger.log('[RouteScreen] Loaded preferences:', mergedPrefs.optimizeFor);
       }
     } catch (err) {
       logger.error('[RouteScreen] Error loading preferences:', err);
