@@ -1090,7 +1090,14 @@ export async function findRouteFromLocations(
 
     logger.log(`[Routing] Found ${topJourneys.length} journey options`);
     return topJourneys;
-  } catch (error) {
+  } catch (error: any) {
+    // NO_ROUTE_FOUND is expected behavior (e.g., night hours, no service)
+    // Don't log as error or send to Sentry - let caller handle gracefully
+    if (error?.message === 'NO_ROUTE_FOUND') {
+      logger.warn('[Routing] No route found between locations');
+      throw error;
+    }
+    // Only log and report unexpected errors
     logger.error('[Routing] Error finding route from locations:', error);
     captureException(error, { tags: { module: 'routing', action: 'find_route_from_locations' } });
     throw error;
@@ -1333,7 +1340,12 @@ export async function findRouteFromAddresses(
 
     return allJourneys;
 
-  } catch (error) {
+  } catch (error: any) {
+    // NO_ROUTE_FOUND is expected behavior - don't log as error or send to Sentry
+    if (error?.message === 'NO_ROUTE_FOUND') {
+      logger.warn('[Routing] No route found between addresses');
+      throw error;
+    }
     logger.error('[Routing] Error finding route from addresses:', error);
     captureException(error, { tags: { module: 'routing', action: 'find_route_from_addresses' } });
     throw error;
@@ -1485,7 +1497,12 @@ export async function findRouteFromCoordinates(
     logger.log(`[Routing] Found ${validJourneys.length} journeys, returning top 3`);
     return topJourneys;
 
-  } catch (error) {
+  } catch (error: any) {
+    // NO_ROUTE_FOUND is expected behavior - don't log as error or send to Sentry
+    if (error?.message === 'NO_ROUTE_FOUND') {
+      logger.warn('[Routing] No route found from coordinates');
+      throw error;
+    }
     logger.error('[Routing] Error finding route from coordinates:', error);
     captureException(error, { tags: { module: 'routing', action: 'find_route_from_coordinates' } });
     throw error;
@@ -1671,7 +1688,12 @@ export async function findMultipleRoutes(
     logger.log(`[Routing] Returning ${routesWithTags.length} optimized routes`);
 
     return routesWithTags;
-  } catch (error) {
+  } catch (error: any) {
+    // NO_ROUTE_FOUND is expected behavior - don't log as error or send to Sentry
+    if (error?.message === 'NO_ROUTE_FOUND') {
+      logger.warn('[Routing] No route found');
+      throw error;
+    }
     logger.error('[Routing] Error finding multiple routes:', error);
     captureException(error, { tags: { module: 'routing', action: 'find_multiple_routes' } });
     throw error;
@@ -1716,7 +1738,12 @@ export async function findMultipleRoutesFromAddresses(
       preferences,
       maxRoutes
     );
-  } catch (error) {
+  } catch (error: any) {
+    // NO_ROUTE_FOUND is expected behavior - don't log as error or send to Sentry
+    if (error?.message === 'NO_ROUTE_FOUND') {
+      logger.warn('[Routing] No route found from addresses');
+      throw error;
+    }
     logger.error('[Routing] Error finding multiple routes from addresses:', error);
     captureException(error, { tags: { module: 'routing', action: 'find_multiple_routes_from_addresses' } });
     throw error;
