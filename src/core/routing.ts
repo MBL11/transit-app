@@ -308,6 +308,14 @@ export async function findRoute(
   const activeServiceIds = db.getActiveServiceIds(departureTime);
   const requestedTimeMinutes = departureTime.getHours() * 60 + departureTime.getMinutes();
 
+  // Debug: Check if İZBAN services are active
+  if (activeServiceIds) {
+    const railServices = Array.from(activeServiceIds).filter(s => s.startsWith('rail_'));
+    if (railServices.length === 0) {
+      logger.log('[Routing] ⚠️ No rail_ services active! Reimport data to fix.');
+    }
+  }
+
   // Récupère les routes qui passent par les deux arrêts (using cache)
   // Cap at 10 routes per stop to prevent huge transfer queries
   const MAX_ROUTES_PER_STOP = 10;
