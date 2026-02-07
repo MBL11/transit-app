@@ -86,6 +86,15 @@ export function RouteScreenContent({
     return 4;                                    // Bus
   };
 
+  // Get transport mode icon from stop ID prefix
+  const getTransportIcon = (stopId: string): string => {
+    if (stopId.startsWith('rail_')) return '🚆';   // İZBAN
+    if (stopId.startsWith('ferry_')) return '⛴️';  // Ferry
+    if (stopId.startsWith('metro_')) return 'Ⓜ️';  // Metro
+    if (stopId.startsWith('tram_')) return '🚊';   // Tram
+    return '🚌';                                    // Bus
+  };
+
   // Normalize text for search (Turkish char normalization + lowercase + Unicode decomposition)
   const normalizeForSearch = (text: string): string => {
     return text.toLowerCase()
@@ -565,6 +574,7 @@ export function RouteScreenContent({
                   }}
                 >
                   <View style={styles.stopItemContent}>
+                    <Text style={styles.transportIcon}>{getTransportIcon(item.id)}</Text>
                     {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
                     <Text style={[styles.stopItemText, state.fromStop?.id === item.id && styles.stopItemTextSelected]}>
                       {item.name}
@@ -631,6 +641,7 @@ export function RouteScreenContent({
                   }}
                 >
                   <View style={styles.stopItemContent}>
+                    <Text style={styles.transportIcon}>{getTransportIcon(item.id)}</Text>
                     {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
                     <Text style={[styles.stopItemText, state.toStop?.id === item.id && styles.stopItemTextSelected]}>
                       {item.name}
@@ -1084,9 +1095,15 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       alignItems: 'center',
       flex: 1,
     },
+    transportIcon: {
+      fontSize: 16,
+      marginRight: 8,
+      width: 24,
+      textAlign: 'center' as const,
+    },
     recentIcon: {
       fontSize: 14,
-      marginRight: 8,
+      marginRight: 4,
     },
     stopItemText: {
       fontSize: 16,
