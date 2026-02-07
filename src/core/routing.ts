@@ -407,6 +407,7 @@ export async function findRoute(
     };
 
     journeys.push(journey);
+    logger.log(`[Routing] ✓ Added direct journey via ${route.shortName} (${estimatedDuration}min), total=${journeys.length}`);
 
     // Stop after finding 3 valid routes
     if (journeys.length >= 3) break;
@@ -787,6 +788,7 @@ export async function findRoute(
     }
   }
 
+  logger.log(`[Routing] findRoute returning ${validJourneys.length} journeys for ${fromStopId}→${toStopId}`);
   return validJourneys;
 }
 
@@ -1015,14 +1017,22 @@ export async function findRouteFromLocations(
       locationType: 0,
     };
 
+    logger.log(`[Routing] Processing ${routeResults.length} route results, totalRoutesFound=${totalRoutesFound}`);
+
     for (const { fromStop, toStop, routes } of routeResults) {
+      if (routes.length > 0) {
+        logger.log(`[Routing] Result ${fromStop.id}→${toStop.id}: ${routes.length} routes found`);
+      }
       for (const route of routes) {
         // Deduplicate: same transit lines (by user-visible name) in same order
         const routeKey = route.segments
           .filter(s => s.type === 'transit')
           .map(s => s.route?.shortName || s.route?.id || 'walk')
           .join('→');
-        if (seenRouteKeys.has(routeKey)) continue;
+        if (seenRouteKeys.has(routeKey)) {
+          logger.log(`[Routing] Skipping duplicate route: ${routeKey}`);
+          continue;
+        }
         seenRouteKeys.add(routeKey);
 
         const walkToStop = getWalkingTime(fromStop.distance);
@@ -1041,18 +1051,33 @@ export async function findRouteFromLocations(
           arrivalTime: route.arrivalTime,
         };
 
+        logger.log(`[Routing] Added journey: ${routeKey}, duration=${newJourney.totalDuration}min`);
         allJourneys.push(newJourney);
       }
     }
+
+    logger.log(`[Routing] Total journeys before sanitization: ${allJourneys.length}`);
 
     // Sanitize journeys to remove absurd segments, then filter by duration
     const sanitizedJourneys = allJourneys
       .map(sanitizeJourney)
       .filter((j): j is JourneyResult => j !== null);
 
+    logger.log(`[Routing] After sanitization: ${sanitizedJourneys.length} journeys`);
+
     const validJourneys = sanitizedJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
 
+    logger.log(`[Routing] After duration filter (max ${MAX_JOURNEY_DURATION_MIN}min): ${validJourneys.length} journeys`);
+
     if (validJourneys.length === 0) {
+      // Log why no valid journeys
+      if (allJourneys.length > 0) {
+        logger.warn(`[Routing] All ${allJourneys.length} journeys were filtered out!`);
+        allJourneys.slice(0, 3).forEach((j, i) => {
+          const routeNames = j.segments.filter(s => s.type === 'transit').map(s => s.route?.shortName).join('→');
+          logger.warn(`[Routing] Journey ${i}: ${routeNames}, duration=${j.totalDuration}min`);
+        });
+      }
       throw new Error('NO_ROUTE_FOUND');
     }
 
