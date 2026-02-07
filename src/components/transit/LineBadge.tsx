@@ -100,6 +100,10 @@ function getLineColors(lineNumber: string, type: TransportType, customColor?: st
         colors = RER_COLORS[normalizedLine];
       }
       break;
+    case 'izban':
+      // İZBAN always uses blue color
+      colors = { bg: '#005BBB', text: '#FFFFFF' };
+      break;
     case 'tram':
       // Try with T prefix first, then without
       const tramKey = lineKey.startsWith('T') ? lineKey : `T${lineKey}`;
@@ -117,6 +121,10 @@ function getLineColors(lineNumber: string, type: TransportType, customColor?: st
       } else if (TRANSILIEN_COLORS[normalizedLine]) {
         colors = TRANSILIEN_COLORS[normalizedLine];
       }
+      break;
+    case 'ferry':
+      // İzdeniz ferry uses turquoise
+      colors = { bg: '#0099CC', text: '#FFFFFF' };
       break;
     case 'bus':
     default:
@@ -140,6 +148,15 @@ export function LineBadge({
   // Determine display text
   let displayText = lineNumber;
 
+  // For İZBAN, show "İZBAN" instead of internal route numbers
+  if (type === 'izban') {
+    displayText = 'İZBAN';
+  }
+  // For ferry, show boat emoji or "VAPUR"
+  if (type === 'ferry' && /^\d+$/.test(lineNumber)) {
+    displayText = '⛴️';
+  }
+
   // Adjust font size for longer text
   const adjustedFontSize = displayText.length > 3
     ? fontSize * 0.6
@@ -152,8 +169,11 @@ export function LineBadge({
   // Determine badge shape based on type
   const isCircle = type === 'metro' || type === 'tram';
   const isSquare = type === 'rer';
+  // İZBAN and ferry need wider badges for longer text
+  const isWide = type === 'izban' || type === 'ferry';
   // bus and train are rounded rectangles
 
+  const badgeWidth = isWide ? width * 2 : width;
   const borderRadius = isCircle
     ? width / 2
     : isSquare
@@ -161,7 +181,7 @@ export function LineBadge({
       : width * 0.15;
 
   const badgeStyle = {
-    width,
+    width: badgeWidth,
     height,
     borderRadius,
     backgroundColor: colors.bg,
