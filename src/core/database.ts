@@ -932,16 +932,23 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
     }
 
     // 2. Find stops starting with the same base name (e.g., "Konak" finds "Konak İskele")
+    // Note: SQLite LIKE doesn't handle Turkish character normalization (ı≠i, ş≠s, etc.)
+    // So we fetch a broader set and filter in JavaScript
     const baseRows = db.getAllSync<any>(
       `SELECT * FROM stops WHERE location_type = 0 AND (
-        LOWER(name) LIKE ? OR LOWER(name) LIKE ?
+        LOWER(name) LIKE ? OR LOWER(name) LIKE ? OR LOWER(name) LIKE ?
       )`,
-      [`${stopName.toLowerCase().trim()} %`, `${baseName} %`]
+      [`${stopName.toLowerCase().trim()} %`, `${baseName} %`, `%${baseName.slice(0, 5)}%`] // Also partial match
     );
     for (const row of baseRows) {
       if (!seenIds.has(row.id)) {
-        seenIds.add(row.id);
-        matchingStops.push(row);
+        // Double-check with proper Turkish normalization
+        const rowNormalized = normalizeStopName(row.name);
+        const rowBaseName = extractBaseStationName(rowNormalized);
+        if (baseName === rowBaseName || rowNormalized.startsWith(baseName)) {
+          seenIds.add(row.id);
+          matchingStops.push(row);
+        }
       }
     }
 
