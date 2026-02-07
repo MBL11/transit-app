@@ -105,8 +105,11 @@ export function RouteScreenContent({
         normalizeForSearch(s.name).includes('halkapinar'));
       const busStops = state.stops.filter(s => s.id.startsWith('bus_') &&
         normalizeForSearch(s.name).includes('halkapinar'));
-      console.log('[RouteScreen] Halkapınar search - rail_ stops:', railStops.map(s => `${s.id}: ${s.name}`));
-      console.log('[RouteScreen] Halkapınar search - bus_ stops:', busStops.map(s => `${s.id}: ${s.name}`));
+      const metroStops = state.stops.filter(s => s.id.startsWith('metro_') &&
+        normalizeForSearch(s.name).includes('halkapinar'));
+      console.log('[RouteScreen] Halkapınar search - rail_ stops:', railStops.map(s => `${s.id}: "${s.name}" → base: "${getBaseName(s.name)}"`));
+      console.log('[RouteScreen] Halkapınar search - bus_ stops:', busStops.map(s => `${s.id}: "${s.name}" → base: "${getBaseName(s.name)}"`));
+      console.log('[RouteScreen] Halkapınar search - metro_ stops:', metroStops.map(s => `${s.id}: "${s.name}" → base: "${getBaseName(s.name)}"`));
     }
 
     // If no query, show recent stops first
