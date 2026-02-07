@@ -868,6 +868,14 @@ export async function findRouteFromLocations(
     logger.log(`[Routing] Closest from stop: ${fromStopsBase[0].name} (${Math.round(fromStopsBase[0].distance)}m)`);
     logger.log(`[Routing] Closest to stop: ${toStopsBase[0].name} (${Math.round(toStopsBase[0].distance)}m)`);
 
+    // Debug: Show all stop IDs being considered for routing
+    const fromRailStops = fromStops.filter(s => s.id.startsWith('rail_'));
+    const toRailStops = toStops.filter(s => s.id.startsWith('rail_'));
+    logger.log(`[Routing] FROM rail_ stops: ${fromRailStops.length > 0 ? fromRailStops.map(s => `${s.id}:${s.name}`).join(', ') : 'NONE - İZBAN not found!'}`);
+    logger.log(`[Routing] TO rail_ stops: ${toRailStops.length > 0 ? toRailStops.map(s => `${s.id}:${s.name}`).join(', ') : 'NONE - İZBAN not found!'}`);
+    logger.log(`[Routing] All FROM stops: ${fromStops.map(s => s.id).join(', ')}`);
+    logger.log(`[Routing] All TO stops: ${toStops.map(s => s.id).join(', ')}`);
+
     // 3. Build combinations and run sequentially with shared cache + time budget
     // Sync DB calls block the event loop, so Promise.all provides no parallelism.
     // Sequential execution with early exit is faster in practice.
