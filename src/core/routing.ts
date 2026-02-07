@@ -881,18 +881,30 @@ export async function findRouteFromLocations(
       }
     }
 
-    // Sort combinations to prioritize high-speed transit modes (İZBAN, Metro, Ferry)
-    // This ensures İZBAN/ferry routes are tried before the early exit triggers
+    // Sort combinations to prioritize same-mode high-speed transit (ferry→ferry, rail→rail)
+    // This ensures direct ferry/İZBAN routes are tried before mixed-mode combinations
     const getStopPriority = (stopId: string): number => {
-      if (stopId.startsWith('rail_')) return 0;   // İZBAN - highest priority
-      if (stopId.startsWith('ferry_')) return 1;  // Ferry
+      if (stopId.startsWith('ferry_')) return 0;  // Ferry - highest priority for same-mode
+      if (stopId.startsWith('rail_')) return 1;   // İZBAN
       if (stopId.startsWith('metro_')) return 2;  // Metro
       if (stopId.startsWith('tram_')) return 3;   // Tram
       return 4;                                    // Bus and others
     };
     combinations.sort((a, b) => {
-      const aPriority = Math.min(getStopPriority(a.fromStop.id), getStopPriority(a.toStop.id));
-      const bPriority = Math.min(getStopPriority(b.fromStop.id), getStopPriority(b.toStop.id));
+      const aFromPriority = getStopPriority(a.fromStop.id);
+      const aToPriority = getStopPriority(a.toStop.id);
+      const bFromPriority = getStopPriority(b.fromStop.id);
+      const bToPriority = getStopPriority(b.toStop.id);
+
+      // Prioritize same-mode combinations (ferry→ferry, rail→rail, etc.)
+      const aSameMode = aFromPriority === aToPriority;
+      const bSameMode = bFromPriority === bToPriority;
+      if (aSameMode && !bSameMode) return -1;
+      if (!aSameMode && bSameMode) return 1;
+
+      // Then sort by the better (lower) priority of the two stops
+      const aPriority = Math.min(aFromPriority, aToPriority);
+      const bPriority = Math.min(bFromPriority, bToPriority);
       return aPriority - bPriority;
     });
 
@@ -1486,13 +1498,18 @@ export async function findMultipleRoutes(
     let filteredTransitRoutes = transitRoutes.filter((journey) => {
       // Check if route meets basic preferences (transfers, walking distance)
       if (!meetsPreferences(journey, preferences)) {
+        logger.log(`[Routing] Filtered out: walk=${journey.totalWalkDistance}m > max=${preferences.maxWalkingDistance}m, transfers=${journey.numberOfTransfers}`);
         return false;
       }
 
       // Check if all transit segments use allowed modes
       const hasDisallowedMode = journey.segments.some((segment) => {
         if (segment.type === 'transit' && segment.route) {
-          return !isRouteTypeAllowed(segment.route.type, preferences);
+          const allowed = isRouteTypeAllowed(segment.route.type, preferences);
+          if (!allowed) {
+            logger.log(`[Routing] Filtered out: mode ${segment.route.shortName} (type=${segment.route.type}) not allowed`);
+          }
+          return !allowed;
         }
         return false;
       });
