@@ -45,6 +45,25 @@ export function RouteScreenContent({
   const colors = useThemeColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
+  // Extract base station name (removes suffixes like İskelesi, İskeli, Metro, etc.)
+  const getBaseName = (name: string): string => {
+    const MODE_SUFFIXES = [
+      'iskele', 'iskelesi', 'iskeli',
+      'metro', 'istasyon', 'istasyonu',
+      'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+      'tramvay', 'otobus', 'vapur', 'feribot'
+    ];
+    const normalized = name.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
+      .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c');
+    const words = normalized.trim().split(/\s+/);
+    while (words.length > 1 && MODE_SUFFIXES.includes(words[words.length - 1])) {
+      words.pop();
+    }
+    return words.join(' ');
+  };
+
   // Helper functions
   const filterStops = (query: string): Stop[] => {
     const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -52,21 +71,20 @@ export function RouteScreenContent({
     // If no query, show recent stops first
     if (!lowerQuery && recentStops.length > 0) {
       // Start with recent stops
-      const recentIds = new Set(recentStops.map(s => s.id));
-      const recentNames = new Set(recentStops.map(s => s.name.toLowerCase().trim()));
+      const recentBaseNames = new Set(recentStops.map(s => getBaseName(s.name)));
 
-      // Get remaining stops (not in recent), deduplicated by name
+      // Get remaining stops (not in recent), deduplicated by base name
       const seen = new Map<string, Stop>();
       for (const stop of state.stops) {
-        const key = stop.name.toLowerCase().trim();
-        if (!recentNames.has(key) && !seen.has(key)) {
+        const key = getBaseName(stop.name);
+        if (!recentBaseNames.has(key) && !seen.has(key)) {
           seen.set(key, stop);
         }
       }
       const otherStops = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
 
-      // Combine: recent first, then other stops
-      return [...recentStops, ...otherStops].slice(0, 100);
+      // Combine: recent first, then other stops (no limit)
+      return [...recentStops, ...otherStops];
     }
 
     // Filter by query
@@ -74,10 +92,10 @@ export function RouteScreenContent({
       stop.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(lowerQuery)
     );
 
-    // Deduplicate by name (not ID) - keep one stop per unique name
+    // Deduplicate by BASE name - "Karşıyaka İskeli" and "Karşıyaka İskelesi" become one
     const seen = new Map<string, Stop>();
     for (const stop of filtered) {
-      const key = stop.name.toLowerCase().trim();
+      const key = getBaseName(stop.name);
       if (!seen.has(key)) {
         seen.set(key, stop);
       }
@@ -93,8 +111,8 @@ export function RouteScreenContent({
       return a.name.localeCompare(b.name);
     });
 
-    // Limit to 100 for performance
-    return unique.slice(0, 100);
+    // No limit - show all unique stations
+    return unique;
   };
 
   const hasFromLocation = state.fromMode === 'stop' ? state.fromStop !== null : state.fromAddress !== null;
