@@ -45,6 +45,19 @@ export function RouteScreenContent({
   const colors = useThemeColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
+  // Debug: Log İZBAN stops on mount
+  React.useEffect(() => {
+    if (state.stops.length > 0) {
+      const railStops = state.stops.filter(s => s.id.startsWith('rail_'));
+      console.log(`[RouteScreen] Total stops: ${state.stops.length}, rail_ stops: ${railStops.length}`);
+      if (railStops.length > 0) {
+        console.log('[RouteScreen] First 10 rail_ stops:', railStops.slice(0, 10).map(s => `${s.id}: ${s.name}`));
+      } else {
+        console.log('[RouteScreen] WARNING: No rail_ stops found! İZBAN data might not be imported.');
+      }
+    }
+  }, [state.stops.length]);
+
   // Extract base station name (removes suffixes like İskelesi, İskeli, Metro, etc.)
   const getBaseName = (name: string): string => {
     const MODE_SUFFIXES = [
@@ -73,9 +86,28 @@ export function RouteScreenContent({
     return 4;                                    // Bus
   };
 
+  // Normalize text for search (Turkish char normalization + lowercase + Unicode decomposition)
+  const normalizeForSearch = (text: string): string => {
+    return text.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
+      .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
+      .replace(/İ/g, 'i').replace(/I/g, 'i'); // Turkish uppercase I handling
+  };
+
   // Helper functions
   const filterStops = (query: string): Stop[] => {
-    const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const lowerQuery = normalizeForSearch(query.trim());
+
+    // Debug: Log İZBAN stops that match query
+    if (lowerQuery.includes('halkapinar')) {
+      const railStops = state.stops.filter(s => s.id.startsWith('rail_') &&
+        normalizeForSearch(s.name).includes('halkapinar'));
+      const busStops = state.stops.filter(s => s.id.startsWith('bus_') &&
+        normalizeForSearch(s.name).includes('halkapinar'));
+      console.log('[RouteScreen] Halkapınar search - rail_ stops:', railStops.map(s => `${s.id}: ${s.name}`));
+      console.log('[RouteScreen] Halkapınar search - bus_ stops:', busStops.map(s => `${s.id}: ${s.name}`));
+    }
 
     // If no query, show recent stops first
     if (!lowerQuery && recentStops.length > 0) {
@@ -100,9 +132,9 @@ export function RouteScreenContent({
       return [...recentStops, ...otherStops];
     }
 
-    // Filter by query
+    // Filter by query (use consistent Turkish normalization)
     let filtered = !lowerQuery ? state.stops : state.stops.filter(stop =>
-      stop.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(lowerQuery)
+      normalizeForSearch(stop.name).includes(lowerQuery)
     );
 
     // Deduplicate by BASE name - "Karşıyaka İskeli" and "Karşıyaka İskelesi" become one
@@ -112,6 +144,10 @@ export function RouteScreenContent({
       const key = getBaseName(stop.name);
       const existing = seen.get(key);
       if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
+        // Debug log for Halkapınar
+        if (key.includes('halkapinar')) {
+          console.log(`[RouteScreen] Dedup: "${stop.name}" (${stop.id}) → base: "${key}", priority: ${getStopPriority(stop.id)}, replacing: ${existing?.id || 'none'}`);
+        }
         seen.set(key, stop);
       }
     }
