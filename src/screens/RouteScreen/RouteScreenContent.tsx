@@ -64,6 +64,15 @@ export function RouteScreenContent({
     return words.join(' ');
   };
 
+  // Get stop priority (lower = better). Prioritize rail/metro/ferry over bus.
+  const getStopPriority = (stopId: string): number => {
+    if (stopId.startsWith('rail_')) return 0;   // İZBAN
+    if (stopId.startsWith('ferry_')) return 1;  // Ferry
+    if (stopId.startsWith('metro_')) return 2;  // Metro
+    if (stopId.startsWith('tram_')) return 3;   // Tram
+    return 4;                                    // Bus
+  };
+
   // Helper functions
   const filterStops = (query: string): Stop[] => {
     const lowerQuery = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -74,11 +83,15 @@ export function RouteScreenContent({
       const recentBaseNames = new Set(recentStops.map(s => getBaseName(s.name)));
 
       // Get remaining stops (not in recent), deduplicated by base name
+      // Keep the stop with highest priority (rail > ferry > metro > tram > bus)
       const seen = new Map<string, Stop>();
       for (const stop of state.stops) {
         const key = getBaseName(stop.name);
-        if (!recentBaseNames.has(key) && !seen.has(key)) {
-          seen.set(key, stop);
+        if (!recentBaseNames.has(key)) {
+          const existing = seen.get(key);
+          if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
+            seen.set(key, stop);
+          }
         }
       }
       const otherStops = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -93,10 +106,12 @@ export function RouteScreenContent({
     );
 
     // Deduplicate by BASE name - "Karşıyaka İskeli" and "Karşıyaka İskelesi" become one
+    // Keep the stop with highest priority (rail > ferry > metro > tram > bus)
     const seen = new Map<string, Stop>();
     for (const stop of filtered) {
       const key = getBaseName(stop.name);
-      if (!seen.has(key)) {
+      const existing = seen.get(key);
+      if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
         seen.set(key, stop);
       }
     }
