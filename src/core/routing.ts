@@ -804,8 +804,8 @@ export async function findRouteFromLocations(
   departureTime: Date
 ): Promise<JourneyResult[]> {
   try {
-    logger.log('[Routing] From:', fromLocation.displayName || fromLocation.shortAddress);
-    logger.log('[Routing] To:', toLocation.displayName || toLocation.shortAddress);
+    logger.log('[Routing] From:', fromLocation.displayName || fromLocation.shortAddress, 'stopId:', fromLocation.stopId || 'none');
+    logger.log('[Routing] To:', toLocation.displayName || toLocation.shortAddress, 'stopId:', toLocation.stopId || 'none');
 
     // 1. Check if walking distance is reasonable (< 2km)
     const directDistance = haversineDistance(
@@ -913,13 +913,19 @@ export async function findRouteFromLocations(
       throw new Error(`NO_STOPS_NEAR:${toLocation.shortAddress || toLocation.displayName}`);
     }
 
-    logger.log(`[Routing] Using ${fromStops.length} from stops, ${toStops.length} to stops`);
+    // Log all stop IDs being used (critical for debugging)
+    const fromStopIds = fromStops.map(s => s.id).join(', ');
+    const toStopIds = toStops.map(s => s.id).join(', ');
+    logger.log(`[Routing] FROM stops (${fromStops.length}): ${fromStopIds}`);
+    logger.log(`[Routing] TO stops (${toStops.length}): ${toStopIds}`);
 
     // Check if İZBAN stops are included
     const hasFromRail = fromStops.some(s => s.id.startsWith('rail_'));
     const hasToRail = toStops.some(s => s.id.startsWith('rail_'));
     if (!hasFromRail || !hasToRail) {
-      logger.log(`[Routing] ⚠️ İZBAN: from=${hasFromRail}, to=${hasToRail}`);
+      logger.warn(`[Routing] ⚠️ İZBAN missing: from=${hasFromRail}, to=${hasToRail}`);
+    } else {
+      logger.log(`[Routing] ✓ İZBAN stops included in both from and to`);
     }
 
     // 3. Build combinations and run sequentially with shared cache + time budget
