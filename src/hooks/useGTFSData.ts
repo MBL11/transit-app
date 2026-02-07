@@ -89,6 +89,13 @@ export function useGTFSData() {
         counts.railServicesActive = -1; // No calendar data
       }
 
+      // Check if İZBAN stop_times exist (routes linked to stops)
+      const database = db.openDatabase();
+      const railStopTimesCheck = database.getFirstSync<{ count: number }>(
+        `SELECT COUNT(*) as count FROM stop_times WHERE stop_id LIKE 'rail_%'`
+      );
+      counts.railStopTimes = railStopTimesCheck?.count || 0;
+
       return counts;
     } catch {
       return null;
