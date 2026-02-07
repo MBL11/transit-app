@@ -51,7 +51,7 @@ export function SettingsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const { mode: themeMode, setThemeMode } = useTheme();
   const colors = useThemeColors();
-  const { isLoaded, lastUpdate, source, needsUpdate } = useGTFSData();
+  const { isLoaded, lastUpdate, source, needsUpdate, stopCounts } = useGTFSData();
   const { isOffline } = useNetwork();
   const { isGranted, requestPermissions } = useNotificationPermissions();
 
@@ -282,6 +282,22 @@ export function SettingsScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
 
+        {/* Stop counts diagnostic */}
+        {stopCounts && (
+          <View style={styles.stopCountsContainer}>
+            <Text style={styles.stopCountsTitle}>Arrêts par mode:</Text>
+            <Text style={styles.stopCountsText}>
+              🚆 İZBAN: {stopCounts.rail} | ⛴️ Ferry: {stopCounts.ferry} | Ⓜ️ Metro: {stopCounts.metro}
+            </Text>
+            <Text style={styles.stopCountsText}>
+              🚊 Tram: {stopCounts.tram} | 🚌 Bus: {stopCounts.bus} | Total: {stopCounts.total}
+            </Text>
+            {stopCounts.rail === 0 && (
+              <Text style={styles.stopCountsWarning}>⚠️ İZBAN non importé - réimportez les données!</Text>
+            )}
+          </View>
+        )}
+
         <TouchableOpacity
           style={styles.button}
           onPress={() => navigation.navigate('DataManagement')}
@@ -484,5 +500,29 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     notificationInfoText: {
       color: colors.isDark ? '#93C5FD' : '#1E40AF',
       fontSize: 13,
+    },
+    stopCountsContainer: {
+      backgroundColor: colors.isDark ? '#1E293B' : '#F1F5F9',
+      padding: 12,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderRadius: 8,
+    },
+    stopCountsTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    stopCountsText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+    stopCountsWarning: {
+      fontSize: 12,
+      color: '#EF4444',
+      fontWeight: '600',
+      marginTop: 4,
     },
   });

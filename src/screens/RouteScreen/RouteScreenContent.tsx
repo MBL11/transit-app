@@ -45,18 +45,6 @@ export function RouteScreenContent({
   const colors = useThemeColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
-  // Debug: Log İZBAN stops on mount
-  React.useEffect(() => {
-    if (state.stops.length > 0) {
-      const railStops = state.stops.filter(s => s.id.startsWith('rail_'));
-      console.log(`[RouteScreen] Total stops: ${state.stops.length}, rail_ stops: ${railStops.length}`);
-      if (railStops.length > 0) {
-        console.log('[RouteScreen] First 10 rail_ stops:', railStops.slice(0, 10).map(s => `${s.id}: ${s.name}`));
-      } else {
-        console.log('[RouteScreen] WARNING: No rail_ stops found! İZBAN data might not be imported.');
-      }
-    }
-  }, [state.stops.length]);
 
   // Extract base station name (removes suffixes like İskelesi, İskeli, Metro, etc.)
   const getBaseName = (name: string): string => {
@@ -108,19 +96,6 @@ export function RouteScreenContent({
   const filterStops = (query: string): Stop[] => {
     const lowerQuery = normalizeForSearch(query.trim());
 
-    // Debug: Log İZBAN stops that match query
-    if (lowerQuery.includes('halkapinar')) {
-      const railStops = state.stops.filter(s => s.id.startsWith('rail_') &&
-        normalizeForSearch(s.name).includes('halkapinar'));
-      const busStops = state.stops.filter(s => s.id.startsWith('bus_') &&
-        normalizeForSearch(s.name).includes('halkapinar'));
-      const metroStops = state.stops.filter(s => s.id.startsWith('metro_') &&
-        normalizeForSearch(s.name).includes('halkapinar'));
-      console.log('[RouteScreen] Halkapınar search - rail_ stops:', railStops.map(s => `${s.id}: "${s.name}" → base: "${getBaseName(s.name)}"`));
-      console.log('[RouteScreen] Halkapınar search - bus_ stops:', busStops.map(s => `${s.id}: "${s.name}" → base: "${getBaseName(s.name)}"`));
-      console.log('[RouteScreen] Halkapınar search - metro_ stops:', metroStops.map(s => `${s.id}: "${s.name}" → base: "${getBaseName(s.name)}"`));
-    }
-
     // If no query, show recent stops first
     if (!lowerQuery && recentStops.length > 0) {
       // Start with recent stops
@@ -156,10 +131,6 @@ export function RouteScreenContent({
       const key = getBaseName(stop.name);
       const existing = seen.get(key);
       if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
-        // Debug log for Halkapınar
-        if (key.includes('halkapinar')) {
-          console.log(`[RouteScreen] Dedup: "${stop.name}" (${stop.id}) → base: "${key}", priority: ${getStopPriority(stop.id)}, replacing: ${existing?.id || 'none'}`);
-        }
         seen.set(key, stop);
       }
     }

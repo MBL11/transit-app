@@ -52,11 +52,38 @@ export function useGTFSData() {
   const [checking, setChecking] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [stopCounts, setStopCounts] = useState<Record<string, number> | null>(null);
   const refreshInProgress = useRef(false);
 
   useEffect(() => {
     checkData();
   }, []);
+
+  const countStopsByType = async () => {
+    try {
+      const stops = await db.getAllStops();
+      const counts: Record<string, number> = {
+        rail: 0,    // İZBAN
+        ferry: 0,   // İzdeniz
+        metro: 0,   // Metro
+        tram: 0,    // Tramway
+        bus: 0,     // ESHOT
+        other: 0,
+      };
+      for (const stop of stops) {
+        if (stop.id.startsWith('rail_')) counts.rail++;
+        else if (stop.id.startsWith('ferry_')) counts.ferry++;
+        else if (stop.id.startsWith('metro_')) counts.metro++;
+        else if (stop.id.startsWith('tram_')) counts.tram++;
+        else if (stop.id.startsWith('bus_')) counts.bus++;
+        else counts.other++;
+      }
+      counts.total = stops.length;
+      return counts;
+    } catch {
+      return null;
+    }
+  };
 
   const checkData = async () => {
     setChecking(true);
@@ -90,6 +117,13 @@ export function useGTFSData() {
           }
           if (sourceStr) {
             setSource(sourceStr);
+          }
+
+          // Count stops by type for diagnostics
+          const counts = await countStopsByType();
+          setStopCounts(counts);
+          if (counts) {
+            logger.log('[useGTFSData] Stop counts:', counts);
           }
         }
       } else {
@@ -181,5 +215,7 @@ export function useGTFSData() {
     isRefreshing,
     refreshError,
     triggerBackgroundRefresh,
+    // Diagnostics
+    stopCounts,
   };
 }
