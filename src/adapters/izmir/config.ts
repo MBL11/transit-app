@@ -52,6 +52,7 @@ export const izmirGTFSUrls = {
   izban: 'https://www.izban.com.tr/gtfs/rail-izban-gtfs.zip',
 
   // ESHOT bus (main GTFS - large file)
+  // NOTE: As of 2024, this URL returns 403 Forbidden - bus data unavailable
   bus: 'https://www.eshot.gov.tr/gtfs/eshot-gtfs.zip',
 };
 
@@ -87,12 +88,13 @@ export const izmirTransportColors: Record<number, string> = {
 
 /**
  * İzmir Metro lines
+ * M1: Extended to Narlıdere in February 2024 (Kaymakamlık → Evka 3)
  */
 export const izmirMetroLines = {
   M1: {
-    name: 'Fahrettin Altay - Evka 3',
+    name: 'Kaymakamlık - Evka 3',
     color: '#D61C1F', // Red (kırmızı)
-    stations: 21,
+    stations: 24, // After Narlıdere extension (Feb 2024)
   },
   M2: {
     name: 'Bornova - Fahrettin Altay',
@@ -108,7 +110,7 @@ export const izbanLines = {
   IZBAN: {
     name: 'Aliağa - Selçuk/Torbalı',
     color: '#005BBB', // Dark Blue (mavi)
-    stations: 42,
+    stations: 41, // As of 2024
   },
 };
 
