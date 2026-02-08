@@ -1653,6 +1653,57 @@ export function getActualTravelTime(
 }
 
 /**
+ * Find actual travel time between two stops from ANY route (not just a specific one).
+ * Useful when a specific route doesn't have stop_times data but other routes do.
+ * Returns the median travel time in minutes, or null if no data found.
+ */
+export function getActualTravelTimeAnyRoute(
+  fromStopId: string,
+  toStopId: string
+): number | null {
+  const db = openDatabase();
+
+  try {
+    // Get travel times from ANY trip between these two stops
+    const rows = db.getAllSync<{ from_dep: string; to_arr: string; route_id: string }>(
+      `SELECT
+         st_from.departure_time AS from_dep,
+         st_to.arrival_time AS to_arr,
+         trips.route_id AS route_id
+       FROM trips
+       JOIN stop_times st_from ON trips.id = st_from.trip_id AND st_from.stop_id = ?
+       JOIN stop_times st_to ON trips.id = st_to.trip_id AND st_to.stop_id = ?
+       WHERE st_from.stop_sequence < st_to.stop_sequence
+       LIMIT 10`,
+      [fromStopId, toStopId]
+    );
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    // Calculate median travel time
+    const travelTimes = rows.map(r => {
+      const dep = parseTimeToMinutes(r.from_dep);
+      const arr = parseTimeToMinutes(r.to_arr);
+      return arr - dep;
+    }).filter(t => t > 0 && t < 180);
+
+    if (travelTimes.length === 0) {
+      return null;
+    }
+
+    travelTimes.sort((a, b) => a - b);
+    const median = travelTimes[Math.floor(travelTimes.length / 2)];
+    logger.log(`[Database] Found travel time from other routes for ${fromStopId} → ${toStopId}: ${Math.round(median)} min`);
+    return Math.round(median);
+  } catch (error) {
+    logger.warn('[Database] Failed to get travel time from any route:', error);
+    return null;
+  }
+}
+
+/**
  * Parse GTFS time string (HH:MM:SS) to minutes since midnight.
  * Handles times > 24:00:00 (GTFS convention for trips past midnight).
  */

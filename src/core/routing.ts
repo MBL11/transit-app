@@ -385,7 +385,13 @@ export async function findRoute(
 
     // Try to get actual travel time from GTFS stop_times first
     // This also verifies that fromStop comes BEFORE toStop in the route sequence
-    const actualTime = db.getActualTravelTime(route.id, fromStopId, toStopId);
+    let actualTime = db.getActualTravelTime(route.id, fromStopId, toStopId);
+
+    // If no data for this specific route, try to get time from ANY route between these stops
+    // This helps when some İZBAN routes (1793, 1884) don't have stop_times but others (2010) do
+    if (actualTime === null) {
+      actualTime = db.getActualTravelTimeAnyRoute(fromStopId, toStopId);
+    }
 
     let estimatedDuration: number;
 
