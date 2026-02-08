@@ -114,18 +114,18 @@ export const izbanLines = {
 
 /**
  * Tramway lines - each line has a distinct color
- * T1 Konak: Green, T2 Karşıyaka: Orange, T3 Çiğli: Purple
+ * T1 Karşıyaka: Green (Alaybey → Flamingo), T2 Konak: Orange (Fahrettin Altay → Halkapınar)
  */
 export const izmirTramwayLines = {
   T1: {
-    name: 'Konak Tramvayı',
+    name: 'Karşıyaka Tramvayı',
     color: '#00A651', // Green (yeşil)
-    stations: 12,
+    stations: 14, // Alaybey → Flamingo
   },
   T2: {
-    name: 'Karşıyaka Tramvayı',
+    name: 'Konak Tramvayı',
     color: '#F7941D', // Orange (turuncu)
-    stations: 15,
+    stations: 19, // Fahrettin Altay → Halkapınar
   },
   T3: {
     name: 'Çiğli Tramvayı',
