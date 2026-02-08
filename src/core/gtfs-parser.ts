@@ -239,8 +239,8 @@ const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = 
   'M1': { color: '#D61C1F', textColor: '#FFFFFF' },
   'M2': { color: '#D61C1F', textColor: '#FFFFFF' }, // Under construction
   // Tramway - Each line has a distinct color
-  'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Konak tram (green)
-  'T2': { color: '#F7941D', textColor: '#FFFFFF' }, // Karşıyaka tram (orange)
+  'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Karşıyaka tram (green) - Alaybey → Mavişehir
+  'T2': { color: '#F7941D', textColor: '#FFFFFF' }, // Konak tram (orange) - Fahrettin Altay → Halkapınar
   'T3': { color: '#9B59B6', textColor: '#FFFFFF' }, // Çiğli circular (purple)
   // T3 Çiğli directional variants
   'CIGLI-IC': { color: '#4ABEFF', textColor: '#000000' },  // İç Hat (inner, light blue)
@@ -283,12 +283,14 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
       }
       shortName = unique.join('-') || rawRoute.route_id || 'Vapur';
     } else if (routeType === 0) {
-      // Tram routes: generate T1, T2, etc. from route_id
+      // Tram routes: İzmir has T1 (Karşıyaka) and T2 (Konak/Fahrettin Altay → Halkapınar)
       const id = rawRoute.route_id || '';
-      // Group by direction: route_ids 1,2 → T1 (Konak), 3,4 → T2 (Karşıyaka)
       const numericId = parseInt(id, 10);
       if (!isNaN(numericId)) {
-        shortName = `T${Math.ceil(numericId / 2)}`;
+        // İzmir GTFS mapping: route_ids 1,2 = T2 (Konak line), 3,4 = T1 (Karşıyaka line)
+        // T2: Fahrettin Altay → Alsancak Gar → Halkapınar
+        // T1: Alaybey → Karşıyaka → Mavişehir
+        shortName = numericId <= 2 ? 'T2' : 'T1';
       } else {
         shortName = `T${id}`;
       }
