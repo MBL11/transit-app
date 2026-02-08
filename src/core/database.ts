@@ -1606,10 +1606,11 @@ export function getActualTravelTime(
 
   try {
     // Get travel times from all trips on this route between these two stops
-    const rows = db.getAllSync<{ from_dep: string; to_arr: string }>(
+    const rows = db.getAllSync<{ from_dep: string; to_arr: string; trip_id: string }>(
       `SELECT
          st_from.departure_time AS from_dep,
-         st_to.arrival_time AS to_arr
+         st_to.arrival_time AS to_arr,
+         trips.id AS trip_id
        FROM trips
        JOIN stop_times st_from ON trips.id = st_from.trip_id AND st_from.stop_id = ?
        JOIN stop_times st_to ON trips.id = st_to.trip_id AND st_to.stop_id = ?
@@ -1619,19 +1620,31 @@ export function getActualTravelTime(
       [fromStopId, toStopId, routeId]
     );
 
-    if (rows.length === 0) return null;
+    if (rows.length === 0) {
+      logger.log(`[Database] No travel time data for route ${routeId}: ${fromStopId} → ${toStopId}`);
+      return null;
+    }
 
     // Calculate median travel time
     const travelTimes = rows.map(r => {
       const dep = parseTimeToMinutes(r.from_dep);
       const arr = parseTimeToMinutes(r.to_arr);
-      return arr - dep;
+      const duration = arr - dep;
+      // Log the first few for debugging
+      if (rows.indexOf(r) < 3) {
+        logger.log(`[Database] Travel time sample: ${r.from_dep} → ${r.to_arr} = ${duration} min (trip ${r.trip_id})`);
+      }
+      return duration;
     }).filter(t => t > 0 && t < 180); // Sanity check: 0 < duration < 3 hours
 
-    if (travelTimes.length === 0) return null;
+    if (travelTimes.length === 0) {
+      logger.warn(`[Database] All travel times filtered out for route ${routeId}`);
+      return null;
+    }
 
     travelTimes.sort((a, b) => a - b);
     const median = travelTimes[Math.floor(travelTimes.length / 2)];
+    logger.log(`[Database] Median travel time for ${fromStopId} → ${toStopId}: ${Math.round(median)} min (from ${travelTimes.length} samples)`);
     return Math.round(median);
   } catch (error) {
     logger.warn('[Database] Failed to get actual travel time:', error);
