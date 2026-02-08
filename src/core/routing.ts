@@ -247,19 +247,33 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
 }
 
 /**
- * Post-process journeys to add headsign info (skipped during search for speed)
+ * Post-process journeys to add headsign and intermediate stops info
+ * (skipped during search for speed)
  */
 async function enrichWithHeadsigns(journeys: JourneyResult[]): Promise<void> {
   for (const journey of journeys) {
     for (const segment of journey.segments) {
-      if (segment.type === 'transit' && segment.route && !segment.trip) {
-        const tripInfo = await db.getTripInfoForRoute(
+      if (segment.type === 'transit' && segment.route) {
+        // Add headsign if not already present
+        if (!segment.trip) {
+          const tripInfo = await db.getTripInfoForRoute(
+            segment.route.id,
+            segment.to.id,
+            segment.from.id
+          );
+          if (tripInfo) {
+            segment.trip = { headsign: tripInfo.headsign } as any;
+          }
+        }
+
+        // Add intermediate stops count
+        const stopsCount = db.getIntermediateStopsCount(
           segment.route.id,
-          segment.to.id,
-          segment.from.id
+          segment.from.id,
+          segment.to.id
         );
-        if (tripInfo) {
-          segment.trip = { headsign: tripInfo.headsign } as any;
+        if (stopsCount !== null) {
+          segment.intermediateStopsCount = stopsCount;
         }
       }
     }

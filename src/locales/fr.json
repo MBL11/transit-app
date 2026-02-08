@@ -86,7 +86,10 @@
     "takeLine": "Prendre",
     "getOffAt": "Descendre à",
     "totalDuration": "Durée totale",
-    "estimatedArrival": "Heure d'arrivée estimée basée sur les horaires théoriques"
+    "estimatedArrival": "Heure d'arrivée estimée basée sur les horaires théoriques",
+    "noIntermediateStops": "aucun arrêt",
+    "intermediateStopsCount": "{{count}} arrêt",
+    "intermediateStopsCount_plural": "{{count}} arrêts"
   },
   "time": {
     "now": "Maintenant",

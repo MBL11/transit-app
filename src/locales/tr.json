@@ -86,7 +86,10 @@
     "takeLine": "Bin",
     "getOffAt": "İn",
     "totalDuration": "Toplam süre",
-    "estimatedArrival": "Planlanan tarifelere göre tahmini varış saati"
+    "estimatedArrival": "Planlanan tarifelere göre tahmini varış saati",
+    "noIntermediateStops": "durak yok",
+    "intermediateStopsCount": "{{count}} durak",
+    "intermediateStopsCount_plural": "{{count}} durak"
   },
   "time": {
     "now": "Şimdi",

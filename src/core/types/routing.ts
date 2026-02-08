@@ -10,6 +10,8 @@ export interface RouteSegment {
   arrivalTime?: Date;
   duration: number; // minutes
   distance?: number; // mètres (pour walk)
+  intermediateStopsCount?: number; // nombre d'arrêts intermédiaires (pour transit)
+  intermediateStopNames?: string[]; // noms des arrêts intermédiaires (pour transit)
 }
 
 export interface JourneyResult {

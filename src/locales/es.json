@@ -86,7 +86,10 @@
     "takeLine": "Tomar",
     "getOffAt": "Bajar en",
     "totalDuration": "Duración total",
-    "estimatedArrival": "Hora de llegada estimada basada en horarios programados"
+    "estimatedArrival": "Hora de llegada estimada basada en horarios programados",
+    "noIntermediateStops": "sin paradas",
+    "intermediateStopsCount": "{{count}} parada",
+    "intermediateStopsCount_plural": "{{count}} paradas"
   },
   "time": {
     "now": "Ahora",

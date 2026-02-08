@@ -86,7 +86,10 @@
     "takeLine": "Сесть на",
     "getOffAt": "Выйти на",
     "totalDuration": "Общая продолжительность",
-    "estimatedArrival": "Расчётное время прибытия на основе расписания"
+    "estimatedArrival": "Расчётное время прибытия на основе расписания",
+    "noIntermediateStops": "без остановок",
+    "intermediateStopsCount": "{{count}} остановка",
+    "intermediateStopsCount_plural": "{{count}} остановок"
   },
   "time": {
     "now": "Сейчас",

@@ -301,15 +301,28 @@ export function RouteDetailsScreen({ route }: Props) {
                           </Text>
                         )}
 
+                        {/* Duration and intermediate stops */}
+                        <Text style={styles.segmentDuration}>
+                          {segment.duration} min
+                          {segment.intermediateStopsCount !== undefined && (
+                            <Text style={styles.stopsCountText}>
+                              {' '}({segment.intermediateStopsCount === 0
+                                ? t('transit.noIntermediateStops', { defaultValue: 'aucun arrêt' })
+                                : t('transit.intermediateStopsCount', {
+                                    count: segment.intermediateStopsCount,
+                                    defaultValue: '{{count}} arrêt(s)'
+                                  })
+                              })
+                            </Text>
+                          )}
+                        </Text>
+
                         {/* Get off at station */}
                         <View style={styles.getOffContainer}>
                           <Text style={styles.getOffText}>
                             {t('transit.getOffAt')} {segment.to.name}
                           </Text>
                         </View>
-
-                        {/* Duration */}
-                        <Text style={styles.segmentDuration}>{segment.duration} min</Text>
                       </View>
                     )}
                   </View>
@@ -552,6 +565,11 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     segmentDuration: {
       fontSize: 13,
       color: colors.textMuted,
+    },
+    stopsCountText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontStyle: 'italic',
     },
     footer: {
       marginTop: 20,

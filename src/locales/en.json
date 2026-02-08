@@ -86,7 +86,10 @@
     "takeLine": "Take",
     "getOffAt": "Get off at",
     "totalDuration": "Total duration",
-    "estimatedArrival": "Estimated arrival time based on scheduled timetables"
+    "estimatedArrival": "Estimated arrival time based on scheduled timetables",
+    "noIntermediateStops": "no stops",
+    "intermediateStopsCount": "{{count}} stop",
+    "intermediateStopsCount_plural": "{{count}} stops"
   },
   "time": {
     "now": "Now",

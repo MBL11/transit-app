@@ -1649,6 +1649,77 @@ function parseTimeToMinutes(time: string): number {
 }
 
 /**
+ * Get the number of intermediate stops between two stops on a route.
+ * Returns the count of stops (excluding from and to), or null if not found.
+ */
+export function getIntermediateStopsCount(
+  routeId: string,
+  fromStopId: string,
+  toStopId: string
+): number | null {
+  const db = openDatabase();
+
+  try {
+    // Count stops between from and to (exclusive)
+    const row = db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(DISTINCT st_mid.stop_id) as count
+       FROM trips
+       JOIN stop_times st_from ON trips.id = st_from.trip_id AND st_from.stop_id = ?
+       JOIN stop_times st_to ON trips.id = st_to.trip_id AND st_to.stop_id = ?
+       JOIN stop_times st_mid ON trips.id = st_mid.trip_id
+         AND st_mid.stop_sequence > st_from.stop_sequence
+         AND st_mid.stop_sequence < st_to.stop_sequence
+       WHERE trips.route_id = ?
+         AND st_from.stop_sequence < st_to.stop_sequence
+       LIMIT 1`,
+      [fromStopId, toStopId, routeId]
+    );
+
+    return row?.count ?? null;
+  } catch (error) {
+    logger.warn('[Database] Failed to get intermediate stops count:', error);
+    return null;
+  }
+}
+
+/**
+ * Get the names of intermediate stops between two stops on a route.
+ * Returns an array of stop names, or empty array if not found.
+ */
+export function getIntermediateStopNames(
+  routeId: string,
+  fromStopId: string,
+  toStopId: string
+): string[] {
+  const db = openDatabase();
+
+  try {
+    // Get stop names between from and to (exclusive), ordered by sequence
+    const rows = db.getAllSync<{ name: string; seq: number }>(
+      `SELECT DISTINCT stops.name as name, MIN(st_mid.stop_sequence) as seq
+       FROM trips
+       JOIN stop_times st_from ON trips.id = st_from.trip_id AND st_from.stop_id = ?
+       JOIN stop_times st_to ON trips.id = st_to.trip_id AND st_to.stop_id = ?
+       JOIN stop_times st_mid ON trips.id = st_mid.trip_id
+         AND st_mid.stop_sequence > st_from.stop_sequence
+         AND st_mid.stop_sequence < st_to.stop_sequence
+       JOIN stops ON st_mid.stop_id = stops.id
+       WHERE trips.route_id = ?
+         AND st_from.stop_sequence < st_to.stop_sequence
+       GROUP BY stops.name
+       ORDER BY seq ASC
+       LIMIT 20`,
+      [fromStopId, toStopId, routeId]
+    );
+
+    return rows.map(r => r.name);
+  } catch (error) {
+    logger.warn('[Database] Failed to get intermediate stop names:', error);
+    return [];
+  }
+}
+
+/**
  * Check if a route has any trips departing from a stop around a given time.
  * Returns the next departure time in minutes since midnight, or null if no service.
  * Also filters by active service IDs if provided.
