@@ -152,8 +152,8 @@ export function LineBadge({
   if (type === 'izban') {
     displayText = `🚆 ${lineNumber}`;
   }
-  // For ferry, show boat emoji + number
-  if (type === 'ferry' && /^\d+$/.test(lineNumber)) {
+  // For ferry, show boat emoji + number/name
+  if (type === 'ferry') {
     displayText = `⛴️ ${lineNumber}`;
   }
 
