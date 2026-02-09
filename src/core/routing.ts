@@ -54,18 +54,57 @@ function getTransitMinPerKm(routeType: number): number {
 
 /**
  * Estimate average wait time at a stop (half the typical headway).
- * During peak hours, headways are shorter; off-peak they're longer.
- * These are rough averages for İzmir.
+ * Calibrated for İzmir transit frequencies.
  */
 function getAverageWaitTime(routeType: number): number {
   switch (routeType) {
-    case 1: return 3;   // Metro: ~6 min headway → 3 min avg wait
-    case 2: return 5;   // İZBAN: ~10 min headway → 5 min avg wait
-    case 0: return 4;   // Tram: ~8 min headway → 4 min avg wait
+    case 1: return 2;   // Metro: ~3-5 min headway → 2 min avg wait
+    case 2: return 7;   // İZBAN: ~10-15 min headway → 7 min avg wait
+    case 0: return 4;   // Tram: ~5-8 min headway → 4 min avg wait
     case 3: return 5;   // Bus: ~10 min headway → 5 min avg wait
-    case 4: return 8;   // Ferry: ~15-20 min headway → 8 min avg wait
+    case 4: return 15;  // Ferry: ~20-30 min headway → 15 min avg wait
     default: return 5;
   }
+}
+
+/**
+ * Calculate transfer time between two modes at a multimodal station.
+ * Takes into account platform distance, escalators, and station layout.
+ * İzmir-specific: Halkapınar has quick Metro↔İZBAN transfers, Konak has longer Metro↔Ferry walks.
+ */
+function getTransferTime(fromRouteType: number, toRouteType: number): number {
+  // Same mode = same platform or adjacent platform
+  if (fromRouteType === toRouteType) {
+    return 2; // 2 min: same platform, just wait
+  }
+
+  // Metro (1) ↔ İZBAN (2): underground transfer at Halkapınar/Hilal
+  if ((fromRouteType === 1 && toRouteType === 2) || (fromRouteType === 2 && toRouteType === 1)) {
+    return 4; // 4 min: change platform, escalator
+  }
+
+  // Metro (1) ↔ Tram (0): exit station, walk to tram stop
+  if ((fromRouteType === 1 && toRouteType === 0) || (fromRouteType === 0 && toRouteType === 1)) {
+    return 6; // 6 min: exit + walk + wait at tram stop
+  }
+
+  // İZBAN (2) ↔ Tram (0): similar to Metro↔Tram
+  if ((fromRouteType === 2 && toRouteType === 0) || (fromRouteType === 0 && toRouteType === 2)) {
+    return 6; // 6 min
+  }
+
+  // Metro/İZBAN/Tram ↔ Ferry (4): walk to ferry terminal
+  if (fromRouteType === 4 || toRouteType === 4) {
+    return 9; // 9 min: longer walk to ferry terminal (Konak, Alsancak, Karşıyaka)
+  }
+
+  // Rail ↔ Bus (3): exit station, find bus stop
+  if ((fromRouteType === 3 && toRouteType !== 3) || (fromRouteType !== 3 && toRouteType === 3)) {
+    return 5; // 5 min: walk to/from bus stop
+  }
+
+  // Default fallback
+  return 5;
 }
 
 /**
@@ -100,8 +139,8 @@ function estimateIntermediateStops(distanceKm: number, routeType: number): numbe
   return Math.max(0, Math.round(distanceKm / avgKm) - 1);
 }
 
-// Transfer penalty: platform walking + waiting for next vehicle
-const TRANSFER_PENALTY_MIN = 5; // 5 min (was 4): walk between platforms + wait
+// Minimum transfer time when physical walk distance is negligible
+const MIN_TRANSFER_TIME = 2; // 2 min minimum even for same-platform transfers
 
 // Parse "HH:MM:SS" en minutes depuis minuit
 function parseGtfsTime(time: string): number {
@@ -524,9 +563,10 @@ export async function findRoute(
         logger.log(`[Routing] Using distance estimate for leg2 ${toRoute.shortName}: ${dist2Km.toFixed(1)}km = ${duration2}min`);
       }
 
-      // Walking time between transfer stops (if physically > 30m apart)
+      // Transfer time: mode-specific transfer + walking time (if physically > 30m apart)
       const transferWalkTime = tp.walkDistance > 30 ? Math.ceil(tp.walkDistance / 83.33) : 0;
-      const transferTime = Math.max(TRANSFER_PENALTY_MIN, transferWalkTime + 2);
+      const modeTransferTime = getTransferTime(fromRoute.type, toRoute.type);
+      const transferTime = Math.max(modeTransferTime, transferWalkTime + MIN_TRANSFER_TIME);
 
       // Calculate actual departure time for second leg
       const actualDep2 = new Date(departureTime);
@@ -726,7 +766,11 @@ export async function findRoute(
         dur3 = Math.max(3, Math.round(dist3Km * getTransitMinPerKm(toRoute.type)));
         logger.log(`[Routing] 2-transfer leg3 ${toRoute.shortName}: distance estimate ${dist3Km.toFixed(1)}km = ${dur3}min`);
       }
-      const totalDuration = dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN + dur3;
+
+      // Mode-specific transfer times for 2-transfer journeys
+      const transfer1Time = getTransferTime(fromRoute.type, midRoute.type);
+      const transfer2Time = getTransferTime(midRoute.type, toRoute.type);
+      const totalDuration = dur1 + transfer1Time + dur2 + transfer2Time + dur3;
 
       // Headsign lookups deferred to enrichWithHeadsigns() for performance
 
@@ -746,8 +790,8 @@ export async function findRoute(
             from: transferStop1,
             to: transferStop2,
             route: midRoute,
-            departureTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN) * 60000),
-            arrivalTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN + dur2) * 60000),
+            departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time) * 60000),
+            arrivalTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + dur2) * 60000),
             duration: dur2,
           },
           {
@@ -755,7 +799,7 @@ export async function findRoute(
             from: transferStop2,
             to: toStop,
             route: toRoute,
-            departureTime: new Date(departureTime.getTime() + (dur1 + TRANSFER_PENALTY_MIN + dur2 + TRANSFER_PENALTY_MIN) * 60000),
+            departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + dur2 + transfer2Time) * 60000),
             arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
             duration: dur3,
           },
