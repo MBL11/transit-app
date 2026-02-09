@@ -14,6 +14,11 @@ import {
   scoreJourney,
   getJourneyTags,
 } from '../types/routing-preferences';
+import {
+  isTransitOperating,
+  izmirOperatingHours,
+  IZMIR_NIGHT_BUS_LINES,
+} from '../adapters/izmir/config';
 
 // Calcule la distance entre 2 points GPS (en mètres)
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -403,20 +408,17 @@ export async function findRoute(
     logger.log(`[Routing] No direct route between ${fromStop.name} and ${toStop.name}`);
   }
 
-  // Night hours check: 1 AM - 5 AM (most transit stops, only Baykuş night buses)
-  // Note: İZBAN runs until ~00:09, Metro until ~00:00, so we only block 1-5 AM
-  // The GTFS data check (getNextDepartureForRoute) will handle actual availability
-  const isDeepNight = requestedTimeMinutes >= 60 && requestedTimeMinutes < 300; // 1:00 - 5:00
-  // İzmir night bus lines (Baykuş)
-  const NIGHT_BUS_LINES = ['910', '920', '930', '940', '950'];
-
-  logger.log(`[Routing] 🌙 Night check: requestedTimeMinutes=${requestedTimeMinutes} (${Math.floor(requestedTimeMinutes/60)}:${(requestedTimeMinutes%60).toString().padStart(2,'0')}), isDeepNight=${isDeepNight}`);
+  // Log requested time for debugging
+  const timeStr = `${Math.floor(requestedTimeMinutes/60)}:${(requestedTimeMinutes%60).toString().padStart(2,'0')}`;
+  logger.log(`[Routing] 🕐 Requested time: ${timeStr} (${requestedTimeMinutes} min)`);
 
   for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
-    // During deep night hours (1-5 AM), only allow Baykuş night bus lines
-    // Before 1 AM, trust GTFS data for İZBAN/Metro availability
-    if (isDeepNight && !NIGHT_BUS_LINES.includes(route.shortName || '')) {
-      logger.log(`[Routing] Skipping ${route.shortName}: not a night bus (only ${NIGHT_BUS_LINES.join(', ')} run 1-5 AM)`);
+    // Check if this transport mode is operating at the requested time
+    const isOperating = isTransitOperating(route.type, requestedTimeMinutes, route.shortName);
+    if (!isOperating) {
+      const hours = izmirOperatingHours[route.type];
+      const hoursInfo = hours ? `${hours.name}: ${Math.floor(hours.start/60)}:${(hours.start%60).toString().padStart(2,'0')}-${Math.floor(hours.end/60) % 24}:${(hours.end%60).toString().padStart(2,'0')}` : 'unknown';
+      logger.log(`[Routing] ⛔ Skipping ${route.shortName} (type=${route.type}): not operating at ${timeStr} (${hoursInfo})`);
       continue;
     }
 
@@ -530,12 +532,11 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
-      // During deep night hours (1-5 AM), only allow Baykuş night bus lines
-      // Before 1 AM, trust GTFS data for İZBAN/Metro availability
-      const fromIsNightBus = NIGHT_BUS_LINES.includes(fromRoute.shortName || '');
-      const toIsNightBus = NIGHT_BUS_LINES.includes(toRoute.shortName || '');
-      if (isDeepNight && (!fromIsNightBus || !toIsNightBus)) {
-        logger.log(`[Routing] Skipping transfer ${fromRoute.shortName}→${toRoute.shortName}: not night buses (1-5 AM)`);
+      // Check if both transport modes are operating at the requested time
+      const fromOperating = isTransitOperating(fromRoute.type, requestedTimeMinutes, fromRoute.shortName);
+      const toOperating = isTransitOperating(toRoute.type, requestedTimeMinutes, toRoute.shortName);
+      if (!fromOperating || !toOperating) {
+        logger.log(`[Routing] ⛔ Skipping transfer ${fromRoute.shortName}→${toRoute.shortName}: not operating at ${timeStr} (from=${fromOperating}, to=${toOperating})`);
         continue;
       }
 

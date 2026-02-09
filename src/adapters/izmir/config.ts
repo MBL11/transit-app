@@ -135,3 +135,166 @@ export const izmirTramwayLines = {
     stations: 14,
   },
 };
+
+/**
+ * Operating hours for İzmir transit modes
+ * Format: [firstDepartureHour, firstDepartureMinute, lastDepartureHour, lastDepartureMinute]
+ * Hours are in 24h format. Last departure is from TERMINUS.
+ */
+export const izmirOperatingHours: Record<number, { start: number; end: number; name: string }> = {
+  0: { start: 5 * 60, end: 24 * 60, name: 'Tramway' },        // 05:00 - 00:00
+  1: { start: 6 * 60, end: 24 * 60 + 20, name: 'Metro' },     // 06:00 - 00:20
+  2: { start: 5 * 60 + 10, end: 24 * 60 + 50, name: 'İZBAN' }, // 05:10 - 00:50
+  3: { start: 6 * 60, end: 23 * 60 + 30, name: 'Bus' },       // 06:00 - 23:30
+  4: { start: 7 * 60, end: 23 * 60, name: 'Ferry' },          // 07:00 - 23:00
+};
+
+/**
+ * Night bus lines (Baykuş - "Owl" lines)
+ * These operate from ~23:00 to ~05:00
+ */
+export const IZMIR_NIGHT_BUS_LINES = ['910', '920', '930', '940', '950'];
+
+/**
+ * Check if a transport mode is operating at the given time
+ * @param routeType GTFS route_type (0=Tram, 1=Metro, 2=İZBAN, 3=Bus, 4=Ferry)
+ * @param timeMinutes Time in minutes since midnight (e.g., 90 = 01:30)
+ * @param routeShortName Optional route name to check for night buses
+ * @returns true if the mode is operating, false otherwise
+ */
+export function isTransitOperating(
+  routeType: number,
+  timeMinutes: number,
+  routeShortName?: string
+): boolean {
+  // Night buses operate 23:00-05:00
+  if (routeType === 3 && routeShortName && IZMIR_NIGHT_BUS_LINES.includes(routeShortName)) {
+    // Night bus: operates from 23:00 (1380) to 05:00 (300)
+    return timeMinutes >= 23 * 60 || timeMinutes < 5 * 60;
+  }
+
+  const hours = izmirOperatingHours[routeType];
+  if (!hours) {
+    // Unknown type, allow by default
+    return true;
+  }
+
+  // Handle times after midnight (e.g., 00:30 = 30 minutes, but end might be 24*60+50 = 1490)
+  // Normalize: if time < 5:00 (300 min) and end > 24:00, add 24 hours to time
+  let normalizedTime = timeMinutes;
+  if (timeMinutes < 5 * 60 && hours.end > 24 * 60) {
+    normalizedTime = timeMinutes + 24 * 60;
+  }
+
+  return normalizedTime >= hours.start && normalizedTime <= hours.end;
+}
+
+/**
+ * Get the next operating window for a transport mode
+ * @returns { opensAt: number, closesAt: number } in minutes since midnight
+ */
+export function getOperatingWindow(routeType: number): { opensAt: number; closesAt: number } | null {
+  const hours = izmirOperatingHours[routeType];
+  if (!hours) return null;
+  return {
+    opensAt: hours.start,
+    closesAt: hours.end > 24 * 60 ? hours.end - 24 * 60 : hours.end
+  };
+}
+
+/**
+ * Average frequency (in minutes) for each transport mode
+ * Used to estimate wait times
+ */
+export const izmirFrequencies: Record<number, number> = {
+  0: 6,   // Tramway: every 6 min
+  1: 4,   // Metro: every 4 min
+  2: 12,  // İZBAN: every 12 min
+  3: 15,  // Bus: average every 15 min
+  4: 25,  // Ferry: every 25 min
+};
+
+/**
+ * Transfer times between modes at the same hub (in minutes)
+ * Format: [fromType][toType] = minutes
+ */
+export const izmirTransferTimes: Record<string, number> = {
+  // Metro transfers
+  '1-1': 2,   // Metro → Metro (same platform)
+  '1-2': 5,   // Metro → İZBAN (different platform)
+  '1-0': 6,   // Metro → Tram (exit station)
+  '1-4': 10,  // Metro → Ferry (walk to port)
+  '1-3': 4,   // Metro → Bus (exit station)
+
+  // İZBAN transfers
+  '2-1': 5,   // İZBAN → Metro
+  '2-2': 2,   // İZBAN → İZBAN (same platform)
+  '2-0': 5,   // İZBAN → Tram
+  '2-4': 8,   // İZBAN → Ferry
+  '2-3': 4,   // İZBAN → Bus
+
+  // Tram transfers
+  '0-1': 6,   // Tram → Metro
+  '0-2': 5,   // Tram → İZBAN
+  '0-0': 2,   // Tram → Tram
+  '0-4': 5,   // Tram → Ferry
+  '0-3': 3,   // Tram → Bus
+
+  // Ferry transfers
+  '4-1': 10,  // Ferry → Metro
+  '4-2': 8,   // Ferry → İZBAN
+  '4-0': 5,   // Ferry → Tram
+  '4-4': 5,   // Ferry → Ferry
+  '4-3': 5,   // Ferry → Bus
+
+  // Bus transfers
+  '3-1': 4,   // Bus → Metro
+  '3-2': 4,   // Bus → İZBAN
+  '3-0': 3,   // Bus → Tram
+  '3-4': 5,   // Bus → Ferry
+  '3-3': 3,   // Bus → Bus
+};
+
+/**
+ * Get transfer time between two modes at the same hub
+ */
+export function getTransferTime(fromRouteType: number, toRouteType: number): number {
+  const key = `${fromRouteType}-${toRouteType}`;
+  return izmirTransferTimes[key] ?? 5; // Default 5 min if unknown
+}
+
+/**
+ * Multimodal hubs in İzmir
+ * Key locations where multiple transit modes connect
+ */
+export const izmirMultimodalHubs: Record<string, { modes: number[]; transferTime: number }> = {
+  'halkapınar': { modes: [1, 2, 0, 3], transferTime: 5 },      // Metro + İZBAN + Tram + Bus (MAIN HUB)
+  'hilal': { modes: [1, 2], transferTime: 4 },                  // Metro + İZBAN
+  'konak': { modes: [1, 0, 4], transferTime: 6 },               // Metro + Tram + Ferry (nearby)
+  'alsancak': { modes: [2, 0, 4], transferTime: 5 },            // İZBAN + Tram + Ferry (nearby)
+  'çiğli': { modes: [2, 0], transferTime: 4 },                  // İZBAN + Tram
+  'alaybey': { modes: [2, 0], transferTime: 4 },                // İZBAN + Tram
+  'mavişehir': { modes: [2, 0], transferTime: 4 },              // İZBAN + Tram
+  'karşıyaka iskele': { modes: [0, 4], transferTime: 3 },       // Tram + Ferry
+  'bostanlı iskele': { modes: [0, 4], transferTime: 3 },        // Tram + Ferry
+  'fahrettin altay': { modes: [1, 0], transferTime: 4 },        // Metro + Tram (T2 terminus)
+  'üçyol': { modes: [1, 3], transferTime: 3 },                  // Metro + Bus hub
+  'bornova': { modes: [1, 3], transferTime: 3 },                // Metro + Bus hub
+};
+
+/**
+ * Check if a stop name matches a known multimodal hub
+ */
+export function isMultimodalHub(stopName: string): boolean {
+  const normalized = stopName.toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/\s+(metro|iskele|istasyonu|tram|vapur|feribot)$/g, '')
+    .trim();
+
+  return Object.keys(izmirMultimodalHubs).some(hub => normalized.includes(hub));
+}
