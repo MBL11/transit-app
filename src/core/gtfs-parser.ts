@@ -287,10 +287,10 @@ export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
       const id = rawRoute.route_id || '';
       const numericId = parseInt(id, 10);
       if (!isNaN(numericId)) {
-        // İzmir GTFS mapping: route_ids 1,2 = T2 (Konak line), 3,4 = T1 (Karşıyaka line)
-        // T2: Fahrettin Altay → Alsancak Gar → Halkapınar
-        // T1: Alaybey → Karşıyaka → Mavişehir
-        shortName = numericId <= 2 ? 'T2' : 'T1';
+        // İzmir GTFS mapping (verified from user testing):
+        // route_ids 1,2 = T1 (Karşıyaka line): Alaybey → Mavişehir
+        // route_ids 3,4 = T2 (Konak line): Fahrettin Altay → Halkapınar
+        shortName = numericId <= 2 ? 'T1' : 'T2';
       } else {
         shortName = `T${id}`;
       }
