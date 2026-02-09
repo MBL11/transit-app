@@ -58,11 +58,11 @@ function getTransitMinPerKm(routeType: number): number {
  */
 function getAverageWaitTime(routeType: number): number {
   switch (routeType) {
-    case 1: return 2;   // Metro: ~3-5 min headway → 2 min avg wait
-    case 2: return 7;   // İZBAN: ~10-15 min headway → 7 min avg wait
-    case 0: return 4;   // Tram: ~5-8 min headway → 4 min avg wait
+    case 1: return 2;   // Metro: ~4 min headway → 2 min avg wait
+    case 2: return 6;   // İZBAN: ~12 min headway → 6 min avg wait
+    case 0: return 3;   // Tram: ~6 min headway → 3 min avg wait
     case 3: return 5;   // Bus: ~10 min headway → 5 min avg wait
-    case 4: return 15;  // Ferry: ~20-30 min headway → 15 min avg wait
+    case 4: return 12;  // Ferry: ~25 min headway → 12 min avg wait
     default: return 5;
   }
 }
@@ -70,7 +70,7 @@ function getAverageWaitTime(routeType: number): number {
 /**
  * Calculate transfer time between two modes at a multimodal station.
  * Takes into account platform distance, escalators, and station layout.
- * İzmir-specific: Halkapınar has quick Metro↔İZBAN transfers, Konak has longer Metro↔Ferry walks.
+ * İzmir-specific: Halkapınar has Metro↔İZBAN transfers, Konak has Metro↔Ferry.
  */
 function getTransferTime(fromRouteType: number, toRouteType: number): number {
   // Same mode = same platform or adjacent platform
@@ -80,7 +80,7 @@ function getTransferTime(fromRouteType: number, toRouteType: number): number {
 
   // Metro (1) ↔ İZBAN (2): underground transfer at Halkapınar/Hilal
   if ((fromRouteType === 1 && toRouteType === 2) || (fromRouteType === 2 && toRouteType === 1)) {
-    return 4; // 4 min: change platform, escalator
+    return 5; // 5 min: change platform, escalator
   }
 
   // Metro (1) ↔ Tram (0): exit station, walk to tram stop
@@ -93,9 +93,19 @@ function getTransferTime(fromRouteType: number, toRouteType: number): number {
     return 6; // 6 min
   }
 
-  // Metro/İZBAN/Tram ↔ Ferry (4): walk to ferry terminal
-  if (fromRouteType === 4 || toRouteType === 4) {
-    return 9; // 9 min: longer walk to ferry terminal (Konak, Alsancak, Karşıyaka)
+  // Metro (1) ↔ Ferry (4): walk to ferry terminal (Konak)
+  if ((fromRouteType === 1 && toRouteType === 4) || (fromRouteType === 4 && toRouteType === 1)) {
+    return 10; // 10 min: longer walk to ferry terminal
+  }
+
+  // İZBAN (2) ↔ Ferry (4): walk to ferry terminal (Karşıyaka, Alsancak)
+  if ((fromRouteType === 2 && toRouteType === 4) || (fromRouteType === 4 && toRouteType === 2)) {
+    return 8; // 8 min: walk to ferry terminal
+  }
+
+  // Tram (0) ↔ Ferry (4): walk to ferry terminal
+  if ((fromRouteType === 0 && toRouteType === 4) || (fromRouteType === 4 && toRouteType === 0)) {
+    return 8; // 8 min
   }
 
   // Rail ↔ Bus (3): exit station, find bus stop
