@@ -401,16 +401,18 @@ export async function findRoute(
     logger.log(`[Routing] No direct route between ${fromStop.name} and ${toStop.name}`);
   }
 
-  // Check if we're in night hours (midnight - 5 AM) - only Baykuş night buses run in İzmir
-  // Metro/İZBAN/Tram/Ferry stop around 23:00-00:00
-  const isNightHours = requestedTimeMinutes < 300; // 0:00 - 5:00 (before 5 AM)
+  // Night hours check: 1 AM - 5 AM (most transit stops, only Baykuş night buses)
+  // Note: İZBAN runs until ~00:09, Metro until ~00:00, so we only block 1-5 AM
+  // The GTFS data check (getNextDepartureForRoute) will handle actual availability
+  const isDeepNight = requestedTimeMinutes >= 60 && requestedTimeMinutes < 300; // 1:00 - 5:00
   // İzmir night bus lines (Baykuş)
   const NIGHT_BUS_LINES = ['910', '920', '930', '940', '950'];
 
   for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
-    // During night hours, only allow Baykuş night bus lines
-    if (isNightHours && !NIGHT_BUS_LINES.includes(route.shortName || '')) {
-      logger.log(`[Routing] Skipping ${route.shortName}: not a night bus (only ${NIGHT_BUS_LINES.join(', ')} run at night)`);
+    // During deep night hours (1-5 AM), only allow Baykuş night bus lines
+    // Before 1 AM, trust GTFS data for İZBAN/Metro availability
+    if (isDeepNight && !NIGHT_BUS_LINES.includes(route.shortName || '')) {
+      logger.log(`[Routing] Skipping ${route.shortName}: not a night bus (only ${NIGHT_BUS_LINES.join(', ')} run 1-5 AM)`);
       continue;
     }
 
@@ -524,11 +526,12 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
-      // During night hours, only allow Baykuş night bus lines
+      // During deep night hours (1-5 AM), only allow Baykuş night bus lines
+      // Before 1 AM, trust GTFS data for İZBAN/Metro availability
       const fromIsNightBus = NIGHT_BUS_LINES.includes(fromRoute.shortName || '');
       const toIsNightBus = NIGHT_BUS_LINES.includes(toRoute.shortName || '');
-      if (isNightHours && (!fromIsNightBus || !toIsNightBus)) {
-        logger.log(`[Routing] Skipping transfer ${fromRoute.shortName}→${toRoute.shortName}: not night buses`);
+      if (isDeepNight && (!fromIsNightBus || !toIsNightBus)) {
+        logger.log(`[Routing] Skipping transfer ${fromRoute.shortName}→${toRoute.shortName}: not night buses (1-5 AM)`);
         continue;
       }
 
