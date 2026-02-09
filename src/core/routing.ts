@@ -616,7 +616,11 @@ export async function findRoute(
         actualDep2.setDate(actualDep2.getDate() + 1);
       }
 
-      const totalDuration = Math.round((actualDep2.getTime() - actualDep1.getTime()) / 60000) + duration2;
+      // Calculate total duration: time from first departure to second departure + second leg duration
+      const waitAndTransferTime = Math.round((actualDep2.getTime() - actualDep1.getTime()) / 60000);
+      const totalDuration = waitAndTransferTime + duration2;
+
+      logger.log(`[Routing] Duration calc: dep1=${actualDep1.toISOString()}, dep2=${actualDep2.toISOString()}, wait=${waitAndTransferTime}min, leg2=${duration2}min, total=${totalDuration}min`);
 
       // Build segments: transit → [walk if needed] → transit
       const segments: RouteSegment[] = [
