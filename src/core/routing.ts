@@ -401,8 +401,9 @@ export async function findRoute(
     logger.log(`[Routing] No direct route between ${fromStop.name} and ${toStop.name}`);
   }
 
-  // Check if we're in night hours (1 AM - 5 AM) - only Baykuş night buses run in İzmir
-  const isNightHours = requestedTimeMinutes >= 60 && requestedTimeMinutes < 300; // 1:00 - 5:00
+  // Check if we're in night hours (midnight - 5 AM) - only Baykuş night buses run in İzmir
+  // Metro/İZBAN/Tram/Ferry stop around 23:00-00:00
+  const isNightHours = requestedTimeMinutes < 300; // 0:00 - 5:00 (before 5 AM)
   // İzmir night bus lines (Baykuş)
   const NIGHT_BUS_LINES = ['910', '920', '930', '940', '950'];
 
@@ -429,8 +430,13 @@ export async function findRoute(
     }
 
     // Calculate actual departure time from minutes since midnight
+    // Handle midnight wrap: if nextDepartureMin < requestedTimeMinutes, it's the next day
     const actualDepartureTime = new Date(departureTime);
     actualDepartureTime.setHours(Math.floor(nextDepartureMin / 60), Math.round(nextDepartureMin % 60), 0, 0);
+    if (nextDepartureMin < requestedTimeMinutes) {
+      // Crossed midnight - add one day
+      actualDepartureTime.setDate(actualDepartureTime.getDate() + 1);
+    }
 
     // Try to get actual travel time from GTFS stop_times first
     // This also verifies that fromStop comes BEFORE toStop in the route sequence
@@ -545,8 +551,13 @@ export async function findRoute(
       };
 
       // Calculate actual departure time for first leg
+      // Handle midnight wrap: if firstLegDep < requestedTimeMinutes, it's the next day
       const actualDep1 = new Date(departureTime);
       actualDep1.setHours(Math.floor(firstLegDep / 60), Math.round(firstLegDep % 60), 0, 0);
+      if (firstLegDep < requestedTimeMinutes) {
+        // Crossed midnight - add one day
+        actualDep1.setDate(actualDep1.getDate() + 1);
+      }
 
       // Calculate durations using correct stop IDs for each route
       // Try GTFS times first, fall back to distance estimates
@@ -589,8 +600,13 @@ export async function findRoute(
       const transferTime = Math.max(modeTransferTime, transferWalkTime + MIN_TRANSFER_TIME);
 
       // Calculate actual departure time for second leg
+      // Handle midnight wrap: if secondLegDep < firstLegDep, it's the next day
       const actualDep2 = new Date(departureTime);
       actualDep2.setHours(Math.floor(secondLegDep / 60), Math.round(secondLegDep % 60), 0, 0);
+      if (secondLegDep < firstLegDep) {
+        // Crossed midnight - add one day
+        actualDep2.setDate(actualDep2.getDate() + 1);
+      }
 
       const totalDuration = Math.round((actualDep2.getTime() - actualDep1.getTime()) / 60000) + duration2;
 
