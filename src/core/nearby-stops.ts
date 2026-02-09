@@ -126,8 +126,16 @@ export async function findBestNearbyStops(
   // Get more stops initially to allow deduplication
   const allNearbyStops = await findNearbyStops(lat, lon, radiusMeters, count * 5);
 
-  // Deduplicate by station name - keep only the closest stop for each unique station
-  // This handles cases where same station has multiple stop IDs (e.g., M1_SAINT_PAUL, M8_SAINT_PAUL)
+  // Deduplicate by station name - prioritize rail/metro over bus
+  // This handles cases where same station has multiple stop IDs (e.g., metro_konak, bus_konak)
+  const getStopPriority = (stopId: string): number => {
+    if (stopId.startsWith('metro_')) return 0;  // Metro - highest priority
+    if (stopId.startsWith('rail_')) return 1;   // İZBAN
+    if (stopId.startsWith('tram_')) return 2;   // Tram
+    if (stopId.startsWith('ferry_')) return 3;  // Ferry
+    return 4;                                    // Bus and others - lowest priority
+  };
+
   const stationMap = new Map<string, NearbyStop>();
 
   for (const stop of allNearbyStops) {
@@ -136,8 +144,15 @@ export async function findBestNearbyStops(
 
     if (!stationMap.has(stationName)) {
       stationMap.set(stationName, stop);
+    } else {
+      // Replace if current stop has higher priority (lower number) OR same priority but closer
+      const existing = stationMap.get(stationName)!;
+      const existingPriority = getStopPriority(existing.id);
+      const currentPriority = getStopPriority(stop.id);
+      if (currentPriority < existingPriority) {
+        stationMap.set(stationName, stop);
+      }
     }
-    // If already exists, we keep the first one (which is closer due to sorting)
   }
 
   // Convert back to array and return top N

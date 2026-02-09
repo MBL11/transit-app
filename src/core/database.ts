@@ -1120,13 +1120,28 @@ export async function searchStops(query: string): Promise<Stop[]> {
     });
 
     // Deduplicate by exact name (case-insensitive)
-    // This prevents showing the same stop multiple times (metro_konak, tram_konak both named "Konak")
-    // Keep the first occurrence for each unique name
+    // IMPORTANT: Prioritize rail/metro/tram/ferry over bus stops
+    // This ensures metro_konak is shown instead of bus_konak when both exist
+    const getStopPriority = (stopId: string): number => {
+      if (stopId.startsWith('metro_')) return 0;  // Metro - highest priority
+      if (stopId.startsWith('rail_')) return 1;   // İZBAN
+      if (stopId.startsWith('tram_')) return 2;   // Tram
+      if (stopId.startsWith('ferry_')) return 3;  // Ferry
+      return 4;                                    // Bus and others - lowest priority
+    };
+
     const seen = new Map<string, any>();
     for (const row of filteredRows) {
       const key = row.name.toLowerCase().trim();
       if (!seen.has(key)) {
         seen.set(key, row);
+      } else {
+        // Replace if current stop has higher priority (lower number)
+        const existingPriority = getStopPriority(seen.get(key).id);
+        const currentPriority = getStopPriority(row.id);
+        if (currentPriority < existingPriority) {
+          seen.set(key, row);
+        }
       }
     }
 
