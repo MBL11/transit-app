@@ -1032,33 +1032,42 @@ export async function findRouteFromLocations(
       }
     }
 
-    // Sort combinations to prioritize same-mode high-speed transit (ferry→ferry, rail→rail)
-    // This ensures direct ferry/İZBAN routes are tried before mixed-mode combinations
+    // Sort combinations to prioritize rail modes (Metro, İZBAN, Tram, Ferry) over bus
+    // Key insight: metro→rail should be tried BEFORE bus→bus, even though bus→bus is "same mode"
+    const isRailMode = (stopId: string): boolean => {
+      return stopId.startsWith('metro_') || stopId.startsWith('rail_') ||
+             stopId.startsWith('tram_') || stopId.startsWith('ferry_');
+    };
     const getStopPriority = (stopId: string): number => {
-      if (stopId.startsWith('ferry_')) return 0;  // Ferry - highest priority for same-mode
+      if (stopId.startsWith('metro_')) return 0;  // Metro - highest (user selected this)
       if (stopId.startsWith('rail_')) return 1;   // İZBAN
-      if (stopId.startsWith('metro_')) return 2;  // Metro
+      if (stopId.startsWith('ferry_')) return 2;  // Ferry
       if (stopId.startsWith('tram_')) return 3;   // Tram
       return 4;                                    // Bus and others
     };
     combinations.sort((a, b) => {
-      const aFromPriority = getStopPriority(a.fromStop.id);
-      const aToPriority = getStopPriority(a.toStop.id);
-      const bFromPriority = getStopPriority(b.fromStop.id);
-      const bToPriority = getStopPriority(b.toStop.id);
+      const aFromRail = isRailMode(a.fromStop.id);
+      const aToRail = isRailMode(a.toStop.id);
+      const bFromRail = isRailMode(b.fromStop.id);
+      const bToRail = isRailMode(b.toStop.id);
 
-      // Prioritize same-mode combinations (ferry→ferry, rail→rail, etc.)
-      const aSameMode = aFromPriority === aToPriority;
-      const bSameMode = bFromPriority === bToPriority;
-      if (aSameMode && !bSameMode) return -1;
-      if (!aSameMode && bSameMode) return 1;
+      // Count how many rail stops in each combination
+      const aRailCount = (aFromRail ? 1 : 0) + (aToRail ? 1 : 0);
+      const bRailCount = (bFromRail ? 1 : 0) + (bToRail ? 1 : 0);
 
-      // Then sort by the better (lower) priority of the two stops
-      const aPriority = Math.min(aFromPriority, aToPriority);
-      const bPriority = Math.min(bFromPriority, bToPriority);
+      // Prioritize combinations with MORE rail stops (2 > 1 > 0)
+      if (aRailCount !== bRailCount) {
+        return bRailCount - aRailCount; // Higher rail count first
+      }
+
+      // If same rail count, sort by best priority
+      const aPriority = Math.min(getStopPriority(a.fromStop.id), getStopPriority(a.toStop.id));
+      const bPriority = Math.min(getStopPriority(b.fromStop.id), getStopPriority(b.toStop.id));
       return aPriority - bPriority;
     });
 
+    // Log first few combinations to verify sorting
+    logger.log(`[Routing] 🚇 First 3 combos: ${combinations.slice(0, 3).map(c => `${c.fromStop.id}→${c.toStop.id}`).join(', ')}`);
     logger.log(`[Routing] Trying ${combinations.length} combinations with shared cache...`);
 
     const routeResults: { fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }[] = [];
