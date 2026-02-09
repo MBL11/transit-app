@@ -1428,13 +1428,23 @@ export function findTransferStops(
     );
 
     // Build lookup indexes for toStops
+    // Use NORMALIZED BASE NAME for matching (e.g., "Halkapınar Metro" → "halkapinar")
+    // This allows multimodal transfers between stops with similar names
     const toByName = new Map<string, typeof toStops>();
+    const toByBaseName = new Map<string, typeof toStops>(); // NEW: index by base name
     const toByGrid = new Map<string, typeof toStops>();
 
     for (const ts of toStops) {
+      // Exact name match index
       const name = ts.stop_name.toLowerCase().trim();
       if (!toByName.has(name)) toByName.set(name, []);
       toByName.get(name)!.push(ts);
+
+      // Normalized base name index (for multimodal matching)
+      const normalized = normalizeStopName(ts.stop_name);
+      const baseName = extractBaseStationName(normalized);
+      if (!toByBaseName.has(baseName)) toByBaseName.set(baseName, []);
+      toByBaseName.get(baseName)!.push(ts);
 
       const gridKey = `${Math.round(ts.lat / 0.003)}_${Math.round(ts.lon / 0.003)}`;
       if (!toByGrid.has(gridKey)) toByGrid.set(gridKey, []);
@@ -1457,7 +1467,7 @@ export function findTransferStops(
     for (const fs of fromStops) {
       if (results.length >= limit) break;
 
-      // 1. Name match (same station name)
+      // 1a. Exact name match (same station name)
       const nameKey = fs.stop_name.toLowerCase().trim();
       const nameMatches = toByName.get(nameKey) || [];
       for (const ts of nameMatches) {
@@ -1466,6 +1476,34 @@ export function findTransferStops(
         if (seen.has(dedupKey)) continue;
         seen.add(dedupKey);
         const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
+        results.push({
+          stopId: fs.stop_id,
+          stopName: fs.stop_name,
+          lat: fs.lat,
+          lon: fs.lon,
+          fromRouteId: fs.route_id,
+          toRouteId: ts.route_id,
+          toStopId: ts.stop_id,
+          toStopLat: ts.lat,
+          toStopLon: ts.lon,
+          walkDistance: Math.round(walkDist),
+        });
+        if (results.length >= limit) break;
+      }
+      if (results.length >= limit) break;
+
+      // 1b. Base name match (multimodal stations: "Halkapınar Metro" ↔ "Halkapınar İZBAN")
+      const fsNormalized = normalizeStopName(fs.stop_name);
+      const fsBaseName = extractBaseStationName(fsNormalized);
+      const baseNameMatches = toByBaseName.get(fsBaseName) || [];
+      for (const ts of baseNameMatches) {
+        if (ts.route_id === fs.route_id) continue;
+        const dedupKey = `${fs.route_id}-${ts.route_id}-${fsBaseName}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+        const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
+        // Only accept base name matches within 500m (same station area)
+        if (walkDist > 500) continue;
         results.push({
           stopId: fs.stop_id,
           stopName: fs.stop_name,
