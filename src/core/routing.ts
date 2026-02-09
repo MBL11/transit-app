@@ -770,6 +770,15 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
+      // Check operating hours for all three legs
+      const fromOperating = isTransitOperating(fromRoute.type, requestedTimeMinutes, fromRoute.shortName);
+      const midOperating = isTransitOperating(midRoute.type, requestedTimeMinutes, midRoute.shortName);
+      const toOperating = isTransitOperating(toRoute.type, requestedTimeMinutes, toRoute.shortName);
+      if (!fromOperating || !midOperating || !toOperating) {
+        logger.log(`[Routing] ⛔ Skipping 2-transfer ${fromRoute.shortName}→${midRoute.shortName}→${toRoute.shortName}: not operating at ${timeStr}`);
+        continue;
+      }
+
       const transferStop1 = midEntry.transferStop1;
       const transferStop2: Stop = {
         id: tp.stopId,
