@@ -60,6 +60,18 @@ export async function findNearbyStops(
 
     logger.log(`[NearbyStops] Found ${rows.length} stops in bounding box`);
 
+    // Count stop types in raw results
+    const stopTypeCounts = { metro: 0, rail: 0, tram: 0, ferry: 0, bus: 0, other: 0 };
+    for (const row of rows) {
+      if (row.id.startsWith('metro_')) stopTypeCounts.metro++;
+      else if (row.id.startsWith('rail_')) stopTypeCounts.rail++;
+      else if (row.id.startsWith('tram_')) stopTypeCounts.tram++;
+      else if (row.id.startsWith('ferry_')) stopTypeCounts.ferry++;
+      else if (row.id.startsWith('bus_')) stopTypeCounts.bus++;
+      else stopTypeCounts.other++;
+    }
+    logger.log(`[NearbyStops] 📊 Stop types in area: Metro=${stopTypeCounts.metro}, İZBAN=${stopTypeCounts.rail}, Tram=${stopTypeCounts.tram}, Ferry=${stopTypeCounts.ferry}, Bus=${stopTypeCounts.bus}, Other=${stopTypeCounts.other}`);
+
     // Calculate exact distances and filter by radius
     const stopsWithDistance: NearbyStop[] = rows
       .map((row) => {
