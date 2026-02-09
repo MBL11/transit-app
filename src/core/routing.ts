@@ -336,6 +336,8 @@ export async function findRoute(
   cache?: RoutingCache
 ): Promise<JourneyResult[]> {
 
+  logger.log(`[Routing] 🕐 findRoute called with departureTime: ${departureTime.toISOString()} (${departureTime.getHours()}:${departureTime.getMinutes().toString().padStart(2,'0')})`);
+
   // 1. Charge les stops (using cache to avoid redundant queries)
   const fromStop = await getCachedStop(fromStopId, cache);
   const toStop = await getCachedStop(toStopId, cache);
@@ -407,6 +409,8 @@ export async function findRoute(
   const isDeepNight = requestedTimeMinutes >= 60 && requestedTimeMinutes < 300; // 1:00 - 5:00
   // İzmir night bus lines (Baykuş)
   const NIGHT_BUS_LINES = ['910', '920', '930', '940', '950'];
+
+  logger.log(`[Routing] 🌙 Night check: requestedTimeMinutes=${requestedTimeMinutes} (${Math.floor(requestedTimeMinutes/60)}:${(requestedTimeMinutes%60).toString().padStart(2,'0')}), isDeepNight=${isDeepNight}`);
 
   for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
     // During deep night hours (1-5 AM), only allow Baykuş night bus lines
