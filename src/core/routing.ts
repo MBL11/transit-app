@@ -482,10 +482,20 @@ export async function findRoute(
     if (journeys.length >= 3) break;
   }
 
-  // 4. Si pas de trajet direct, cherche avec une correspondance
-  //    Uses batch SQL query to find transfer points instead of N+1 loop
-  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0) {
-    logger.log('[Routing] No direct route, looking for connections...');
+  // 4. ALWAYS search for transfer routes (even if direct routes exist)
+  //    This ensures we find faster rail options vs slower direct bus routes
+  //    Example: Metro+İZBAN transfer at Halkapınar might be faster than 3 direct buses
+  if (fromRoutes.length > 0 && toRoutes.length > 0) {
+    // Check if we already have fast rail options (Metro/İZBAN/Tram)
+    const hasRailDirect = journeys.some(j =>
+      j.segments.some(s => s.type === 'transit' && s.route && [0, 1, 2].includes(s.route.type))
+    );
+
+    // Always search for transfers if:
+    // - No direct routes found, OR
+    // - No rail direct routes found (might find faster rail+transfer)
+    if (journeys.length === 0 || !hasRailDirect) {
+      logger.log(`[Routing] Looking for transfer connections (direct routes: ${journeys.length}, hasRailDirect: ${hasRailDirect})...`);
 
     const fromRouteIds = fromRoutes.map(r => r.id);
     const toRouteIdsArr = toRoutes.map(r => r.id);
@@ -668,7 +678,8 @@ export async function findRoute(
 
     transferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
     journeys.push(...transferJourneys.slice(0, 3));
-  }
+    } // End of inner if (journeys.length === 0 || !hasRailDirect)
+  } // End of outer if (fromRoutes.length > 0 && toRoutes.length > 0)
 
   // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
   //    Strategy: find routes that bridge from-routes to to-routes via an intermediate route
@@ -838,6 +849,10 @@ export async function findRoute(
 
   // Filter out journeys with absurd durations (coordinate errors can cause 40+ hour estimates)
   const validJourneys = sanitizedJourneys.filter(j => j.totalDuration <= MAX_JOURNEY_DURATION_MIN);
+
+  // Sort all journeys by duration to show fastest options first
+  // This ensures rail transfers (e.g., Metro+İZBAN) are shown before slower bus routes
+  validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
 
   // Si toujours pas de trajet, retourne un trajet à pied comme fallback (only if reasonable)
   if (validJourneys.length === 0) {
