@@ -175,11 +175,13 @@ export async function findBestNearbyStops(
   const resultMap = new Map<string, NearbyStop>();
 
   // 1. First, add all major transit hubs (Metro, İZBAN, Ferry)
+  logger.log(`[NearbyStops] 🚇 Major transit found: Metro=${majorTransitByType.has('metro_') ? 'YES' : 'NO'}, İZBAN=${majorTransitByType.has('rail_') ? 'YES' : 'NO'}, Ferry=${majorTransitByType.has('ferry_') ? 'YES' : 'NO'}`);
+
   for (const [prefix, stop] of majorTransitByType) {
     const stationName = normalizeStationName(stop.name);
     if (!resultMap.has(stationName)) {
       resultMap.set(stationName, stop);
-      logger.log(`[NearbyStops] Ensured major transit: ${stop.name} (${prefix}) at ${Math.round(stop.distance)}m`);
+      logger.log(`[NearbyStops] ✓ Added major transit: ${stop.name} (${stop.id}) at ${Math.round(stop.distance)}m`);
     }
   }
 
