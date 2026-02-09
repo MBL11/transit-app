@@ -111,6 +111,8 @@ export async function findClosestStop(
  * Find multiple nearby stops and return best candidates
  * Useful for routing when we want several options
  * Groups stops by station name and returns the closest entry point for each unique station
+ * IMPORTANT: Always includes at least one station per major transit type (Metro, İZBAN, Ferry)
+ *            to ensure multimodal routing options are available
  * @param lat - Latitude
  * @param lon - Longitude
  * @param count - Number of unique stations to return (default: 5)
@@ -123,8 +125,8 @@ export async function findBestNearbyStops(
   count: number = 5,
   radiusMeters: number = 800
 ): Promise<NearbyStop[]> {
-  // Get more stops initially to allow deduplication
-  const allNearbyStops = await findNearbyStops(lat, lon, radiusMeters, count * 5);
+  // Get more stops initially to allow deduplication and ensure we find major transit hubs
+  const allNearbyStops = await findNearbyStops(lat, lon, radiusMeters, count * 10);
 
   // Deduplicate by station name - prioritize rail/metro over bus
   // This handles cases where same station has multiple stop IDs (e.g., metro_konak, bus_konak)
@@ -136,11 +138,25 @@ export async function findBestNearbyStops(
     return 4;                                    // Bus and others - lowest priority
   };
 
+  // Major transit types that should always be included if available
+  const MAJOR_TRANSIT_PREFIXES = ['metro_', 'rail_', 'ferry_'];
+
   const stationMap = new Map<string, NearbyStop>();
+  const majorTransitByType = new Map<string, NearbyStop>(); // Track closest of each major type
 
   for (const stop of allNearbyStops) {
     // Normalize station name (remove line prefix like "M1_", handle accents)
     const stationName = normalizeStationName(stop.name);
+
+    // Track closest stop of each major transit type (regardless of name)
+    for (const prefix of MAJOR_TRANSIT_PREFIXES) {
+      if (stop.id.startsWith(prefix)) {
+        if (!majorTransitByType.has(prefix) || stop.distance < majorTransitByType.get(prefix)!.distance) {
+          majorTransitByType.set(prefix, stop);
+        }
+        break;
+      }
+    }
 
     if (!stationMap.has(stationName)) {
       stationMap.set(stationName, stop);
@@ -155,30 +171,90 @@ export async function findBestNearbyStops(
     }
   }
 
-  // Convert back to array and return top N
-  const uniqueStations = Array.from(stationMap.values())
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, count);
+  // Build result: start with major transit hubs to ensure they're included
+  const resultMap = new Map<string, NearbyStop>();
 
-  logger.log(`[NearbyStops] Deduplicated ${allNearbyStops.length} stops to ${uniqueStations.length} unique stations`);
+  // 1. First, add all major transit hubs (Metro, İZBAN, Ferry)
+  for (const [prefix, stop] of majorTransitByType) {
+    const stationName = normalizeStationName(stop.name);
+    if (!resultMap.has(stationName)) {
+      resultMap.set(stationName, stop);
+      logger.log(`[NearbyStops] Ensured major transit: ${stop.name} (${prefix}) at ${Math.round(stop.distance)}m`);
+    }
+  }
+
+  // 2. Then add other unique stations up to count, sorted by distance
+  const sortedStations = Array.from(stationMap.values())
+    .sort((a, b) => a.distance - b.distance);
+
+  for (const stop of sortedStations) {
+    if (resultMap.size >= count) break;
+    const stationName = normalizeStationName(stop.name);
+    if (!resultMap.has(stationName)) {
+      resultMap.set(stationName, stop);
+    }
+  }
+
+  // Convert back to array sorted by distance
+  const uniqueStations = Array.from(resultMap.values())
+    .sort((a, b) => a.distance - b.distance);
+
+  logger.log(`[NearbyStops] Deduplicated ${allNearbyStops.length} stops to ${uniqueStations.length} unique stations (incl. ${majorTransitByType.size} major transit types)`);
 
   return uniqueStations;
 }
 
 /**
  * Normalize station name for deduplication
- * Removes line prefixes and normalizes accents
+ * - Normalizes Turkish characters (ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c, İ→i)
+ * - Removes mode suffixes (İskele, Metro, İstasyon, Gar, etc.)
+ * - This ensures "Karşıyaka İskele" and "Karşıyaka" map to same base: "karsiyaka"
  */
 function normalizeStationName(name: string): string {
-  return name
+  let normalized = name
     // Remove common prefixes like "M1_", "RER_A_", etc.
     .replace(/^(M\d+_|RER_[A-Z]_|T\d+_|BUS_\d+_)/i, '')
     // Normalize accents
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // Turkish special characters that don't decompose with NFD
+    .replace(/ı/g, 'i')  // dotless i → i
+    .replace(/İ/g, 'i')  // dotted I → i
+    .replace(/ş/g, 's')  // s-cedilla
+    .replace(/Ş/g, 's')
+    .replace(/ğ/g, 'g')  // soft g
+    .replace(/Ğ/g, 'g')
+    .replace(/ü/g, 'u')  // u-umlaut
+    .replace(/Ü/g, 'u')
+    .replace(/ö/g, 'o')  // o-umlaut
+    .replace(/Ö/g, 'o')
+    .replace(/ç/g, 'c')  // c-cedilla
+    .replace(/Ç/g, 'c')
     // Lowercase for comparison
     .toLowerCase()
     .trim();
+
+  // Remove mode suffixes to get base station name
+  // This ensures "Konak İskele" and "Konak Metro" map to same base: "konak"
+  const MODE_SUFFIXES = [
+    'iskelesi', 'iskele', 'iskeli',  // Ferry terminal variants
+    'metro', 'istasyonu', 'istasyon',
+    'gari', 'gar', 'duragi', 'durak',
+    'tren', 'izban', 'tramvay',
+    'otobus', 'vapur', 'feribot'
+  ];
+
+  const words = normalized.split(/\s+/);
+  while (words.length > 1) {
+    const lastWord = words[words.length - 1];
+    if (MODE_SUFFIXES.includes(lastWord)) {
+      words.pop();
+    } else {
+      break;
+    }
+  }
+
+  return words.join(' ');
 }
 
 /**
