@@ -22,6 +22,12 @@ function formatTime(date: Date): string {
   return formatIzmirTime(date);
 }
 
+// Calculate duration from actual times (ensures consistency with displayed times)
+function calculateDuration(departureTime: Date, arrivalTime: Date): number {
+  const diffMs = arrivalTime.getTime() - departureTime.getTime();
+  return Math.round(diffMs / 60000);
+}
+
 function getTransportType(routeType?: number): TransportType {
   switch (routeType) {
     case 0: return 'tram';
@@ -46,7 +52,7 @@ export function RouteResult({ journey, onPress }: RouteResultProps) {
       {/* Header: Duration and Times */}
       <View style={styles.header}>
         <View style={styles.durationContainer}>
-          <Text style={styles.duration}>{journey.totalDuration} min</Text>
+          <Text style={styles.duration}>{calculateDuration(journey.departureTime, journey.arrivalTime)} min</Text>
           {hasTransfers && (
             <Text style={styles.transfers}>
               {t('transit.transfers', { count: journey.numberOfTransfers })}

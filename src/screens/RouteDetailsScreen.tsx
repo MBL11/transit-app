@@ -65,6 +65,15 @@ export function RouteDetailsScreen({ route }: Props) {
     return mins > 0 ? `${hours}h${mins}min` : `${hours}h`;
   };
 
+  // Calculate duration from actual times (ensures consistency with displayed times)
+  const calculateDuration = (departureTime: Date, arrivalTime: Date): number => {
+    const diffMs = arrivalTime.getTime() - departureTime.getTime();
+    return Math.round(diffMs / 60000);
+  };
+
+  // Get the actual journey duration from the times
+  const journeyDuration = calculateDuration(journey.departureTime, journey.arrivalTime);
+
   const generateShareText = (): string => {
     const lines: string[] = [];
 
@@ -78,7 +87,7 @@ export function RouteDetailsScreen({ route }: Props) {
     lines.push('');
 
     // Summary
-    lines.push(`⏱️ ${formatTime(journey.departureTime)} → ${formatTime(journey.arrivalTime)} (${formatDuration(journey.totalDuration)})`);
+    lines.push(`⏱️ ${formatTime(journey.departureTime)} → ${formatTime(journey.arrivalTime)} (${formatDuration(journeyDuration)})`);
 
     if (journey.numberOfTransfers > 0) {
       lines.push(`🔄 ${t('transit.transfers', { count: journey.numberOfTransfers })}`);
@@ -96,7 +105,7 @@ export function RouteDetailsScreen({ route }: Props) {
     if (isWalkingOnly) {
       // Simplified for walking-only
       lines.push(`${formatTime(journey.departureTime)} 🚶 ${fromName}`);
-      lines.push(`   ↓ ${t('route.walk')} ${journey.totalDuration} min (${Math.round(journey.totalWalkDistance)}m)`);
+      lines.push(`   ↓ ${t('route.walk')} ${journeyDuration} min (${Math.round(journey.totalWalkDistance)}m)`);
       lines.push(`${formatTime(journey.arrivalTime)} 🏁 ${toName}`);
     } else {
       displaySegments.forEach((segment, index) => {
@@ -219,7 +228,7 @@ export function RouteDetailsScreen({ route }: Props) {
               </View>
               <View style={styles.stepRight}>
                 <View style={styles.walkDetails}>
-                  <Text style={styles.segmentAction}>{t('route.walk')} {journey.totalDuration} min</Text>
+                  <Text style={styles.segmentAction}>{t('route.walk')} {journeyDuration} min</Text>
                   {journey.totalWalkDistance > 0 && (
                     <Text style={styles.segmentInfo}>≈ {Math.round(journey.totalWalkDistance)}m</Text>
                   )}
@@ -353,7 +362,7 @@ export function RouteDetailsScreen({ route }: Props) {
       {/* Footer Info */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          {t('transit.totalDuration')} : {formatDuration(journey.totalDuration)}
+          {t('transit.totalDuration')} : {formatDuration(journeyDuration)}
         </Text>
         <Text style={styles.footerSubtext}>
           {t('transit.estimatedArrival')}

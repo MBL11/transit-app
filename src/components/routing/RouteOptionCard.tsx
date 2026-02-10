@@ -38,6 +38,15 @@ function formatDuration(minutes: number): string {
 }
 
 /**
+ * Calculate actual duration from departure and arrival times
+ * This ensures the displayed duration matches the displayed times
+ */
+function calculateDuration(departureTime: Date, arrivalTime: Date): number {
+  const diffMs = arrivalTime.getTime() - departureTime.getTime();
+  return Math.round(diffMs / 60000); // Convert to minutes
+}
+
+/**
  * Determine transport type from route type code (GTFS)
  */
 function getTransportType(segment: RouteSegment): TransportType {
@@ -100,7 +109,9 @@ export function RouteOptionCard({ route, onPress, isSelected = false }: RouteOpt
           <Text style={styles.timeText}>{formatTime(route.arrivalTime)}</Text>
         </View>
         <View style={styles.durationBadge}>
-          <Text style={styles.durationText}>{formatDuration(route.totalDuration)}</Text>
+          <Text style={styles.durationText}>
+            {formatDuration(calculateDuration(route.departureTime, route.arrivalTime))}
+          </Text>
         </View>
       </View>
 
