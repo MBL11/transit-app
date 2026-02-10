@@ -1,6 +1,56 @@
+// İzmir timezone offset: UTC+3 (Turkey doesn't observe DST since 2016)
+const IZMIR_TIMEZONE_OFFSET = 3 * 60; // +3 hours in minutes
+
+/**
+ * Get İzmir local time components from any Date object
+ * This is essential because GTFS times are in İzmir local time
+ */
+export function getIzmirTime(date: Date): { hours: number; minutes: number; totalMinutes: number } {
+  // Get UTC time
+  const utcHours = date.getUTCHours();
+  const utcMinutes = date.getUTCMinutes();
+
+  // Convert to İzmir time (UTC+3)
+  let izmirTotalMinutes = utcHours * 60 + utcMinutes + IZMIR_TIMEZONE_OFFSET;
+
+  // Handle day overflow
+  if (izmirTotalMinutes >= 24 * 60) {
+    izmirTotalMinutes -= 24 * 60;
+  }
+  if (izmirTotalMinutes < 0) {
+    izmirTotalMinutes += 24 * 60;
+  }
+
+  const hours = Math.floor(izmirTotalMinutes / 60);
+  const minutes = izmirTotalMinutes % 60;
+
+  return { hours, minutes, totalMinutes: izmirTotalMinutes };
+}
+
+/**
+ * Create a Date object representing İzmir local time
+ * Useful for displaying times correctly regardless of device timezone
+ */
+export function toIzmirDate(date: Date): Date {
+  // Create a new date adjusted to İzmir timezone
+  const utcTime = date.getTime();
+  const deviceOffset = date.getTimezoneOffset() * 60000; // Device offset in ms
+  const izmirOffset = -IZMIR_TIMEZONE_OFFSET * 60000; // İzmir offset in ms (negative because getTimezoneOffset returns inverted)
+
+  return new Date(utcTime + deviceOffset + (-izmirOffset));
+}
+
+/**
+ * Format time in İzmir timezone
+ */
+export function formatIzmirTime(date: Date): string {
+  const { hours, minutes } = getIzmirTime(date);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
 export function formatTime(date: Date): string {
-  // Retourne "HH:MM"
-  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  // Retourne "HH:MM" in İzmir time
+  return formatIzmirTime(date);
 }
 
 export function formatRelativeTime(date: Date): string {

@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import type { JourneyResult, RouteSegment } from '../../core/types/routing';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { LineBadge, TransportType } from '../transit/LineBadge';
+import { formatIzmirTime } from '../../utils/time';
 
 interface RouteOptionCardProps {
   route: JourneyResult;
@@ -18,12 +19,10 @@ interface RouteOptionCardProps {
 }
 
 /**
- * Format time as HH:MM
+ * Format time as HH:MM in İzmir timezone (UTC+3)
  */
 function formatTime(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return formatIzmirTime(date);
 }
 
 /**

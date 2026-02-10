@@ -6,6 +6,7 @@
 import * as SQLite from 'expo-sqlite';
 import type { Stop, Route, Trip, StopTime, Calendar, CalendarDate } from './types/models';
 import { logger } from '../utils/logger';
+import { getIzmirTime } from '../utils/time';
 
 const DATABASE_NAME = 'transit.db';
 
@@ -1916,9 +1917,10 @@ export async function getNextDepartures(stopId: string, limit: number = 20): Pro
   const db = openDatabase();
 
   try {
-    // Get current time in HH:MM:SS format
+    // Get current time in HH:MM:SS format (İzmir local time, UTC+3)
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+    const izmirTime = getIzmirTime(now);
+    const currentTime = `${izmirTime.hours.toString().padStart(2, '0')}:${izmirTime.minutes.toString().padStart(2, '0')}:00`;
 
     // Get active service IDs for today (if calendar data exists)
     const activeServices = getActiveServiceIds(now);

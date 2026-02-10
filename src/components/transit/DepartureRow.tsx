@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { LineBadge, TransportType } from './LineBadge';
+import { formatIzmirTime } from '../../utils/time';
 
 export interface Departure {
   routeShortName: string;
@@ -72,12 +73,10 @@ function getRelativeTimeKey(diffMinutes: number): { key: string; params?: any } 
 }
 
 /**
- * Format time as HH:MM
+ * Format time as HH:MM in İzmir timezone
  */
 function formatTime(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return formatIzmirTime(date);
 }
 
 export function DepartureRow({ departure, onPress }: DepartureRowProps) {

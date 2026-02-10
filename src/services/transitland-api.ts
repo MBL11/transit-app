@@ -5,6 +5,7 @@
  */
 
 import { logger } from '../utils/logger';
+import { getIzmirTime } from '../utils/time';
 
 const TRANSITLAND_API_BASE = 'https://transit.land/api/v2/rest';
 
@@ -191,8 +192,10 @@ export async function getDepartures(
 ): Promise<TransitlandDeparture[]> {
   // Get current date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
+  // Use İzmir local time (UTC+3) for API queries
   const now = new Date();
-  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+  const izmirTime = getIzmirTime(now);
+  const currentTime = `${izmirTime.hours.toString().padStart(2, '0')}:${izmirTime.minutes.toString().padStart(2, '0')}:00`;
 
   const response = await transitlandFetch<TransitlandResponse<TransitlandDeparture>>(`/stops/${stopOnestopId}/departures`, {
     service_date: today,

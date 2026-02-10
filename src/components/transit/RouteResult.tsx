@@ -10,16 +10,16 @@ import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { LineBadge } from '../transit/LineBadge';
 import type { TransportType } from '../transit/LineBadge';
+import { formatIzmirTime } from '../../utils/time';
 
 interface RouteResultProps {
   journey: JourneyResult;
   onPress: () => void;
 }
 
+// Format time in İzmir timezone (UTC+3)
 function formatTime(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return formatIzmirTime(date);
 }
 
 function getTransportType(routeType?: number): TransportType {

@@ -32,6 +32,7 @@ import { DEFAULT_PREFERENCES, type RoutingPreferences } from '../../types/routin
 import { routeReducer, initialState } from './routeReducer';
 import { RouteScreenContent } from './RouteScreenContent';
 import { logger } from '../../utils/logger';
+import { formatIzmirTime } from '../../utils/time';
 import { trackEvent, AnalyticsEvents } from '../../services/analytics';
 import { captureException } from '../../services/crash-reporting';
 
@@ -278,10 +279,9 @@ export function RouteScreen() {
     navigation.navigate('RouteDetails', { journey: serializeJourney(journey) });
   };
 
+  // Use İzmir timezone for display (UTC+3) - GTFS data is in İzmir local time
   const formatTime = (date: Date) => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return formatIzmirTime(date);
   };
 
   // Render using the separated content component

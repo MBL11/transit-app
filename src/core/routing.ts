@@ -6,6 +6,7 @@ import { geocodeAddress, GeocodingResult } from './geocoding';
 import { findBestNearbyStops, NearbyStop, getWalkingTime, expandToAllSameNameStops } from './nearby-stops';
 import { logger } from '../utils/logger';
 import { captureException } from '../services/crash-reporting';
+import { getIzmirTime } from '../utils/time';
 import {
   RoutingPreferences,
   DEFAULT_PREFERENCES,
@@ -341,7 +342,9 @@ export async function findRoute(
   cache?: RoutingCache
 ): Promise<JourneyResult[]> {
 
-  logger.log(`[Routing] 🕐 findRoute called with departureTime: ${departureTime.toISOString()} (${departureTime.getHours()}:${departureTime.getMinutes().toString().padStart(2,'0')})`);
+  // Convert departure time to İzmir local time (UTC+3) for GTFS comparison
+  const izmirTime = getIzmirTime(departureTime);
+  logger.log(`[Routing] 🕐 findRoute called with departureTime: ${departureTime.toISOString()} → İzmir time: ${izmirTime.hours}:${izmirTime.minutes.toString().padStart(2,'0')}`);
 
   // 1. Charge les stops (using cache to avoid redundant queries)
   const fromStop = await getCachedStop(fromStopId, cache);
@@ -374,9 +377,9 @@ export async function findRoute(
   // 3. Algorithme : trouve les lignes directes d'abord
   const journeys: JourneyResult[] = [];
 
-  // Get active service IDs for this date and time in minutes
+  // Get active service IDs for this date and time in İzmir local time
   const activeServiceIds = db.getActiveServiceIds(departureTime);
-  const requestedTimeMinutes = departureTime.getHours() * 60 + departureTime.getMinutes();
+  const requestedTimeMinutes = izmirTime.totalMinutes;
 
   // Debug: Check if İZBAN services are active
   if (activeServiceIds) {
@@ -1715,8 +1718,9 @@ export async function findMultipleRoutes(
     logger.log('[Routing] Finding multiple routes with preferences:', preferences.optimizeFor);
 
     // Check if it's night hours (midnight to 5 AM) - limited service in İzmir
-    const hour = departureTime.getHours();
-    const isNightHours = hour >= 0 && hour < 5;
+    // Use İzmir local time (UTC+3) for proper comparison
+    const izmirTime = getIzmirTime(departureTime);
+    const isNightHours = izmirTime.hours >= 0 && izmirTime.hours < 5;
 
     // 0. Check if transit services are running at this time
     const activeServices = db.getActiveServiceIds(departureTime);

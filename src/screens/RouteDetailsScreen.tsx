@@ -14,6 +14,7 @@ import { ScreenContainer } from '../components/ui/ScreenContainer';
 import { LineBadge, TransportType } from '../components/transit/LineBadge';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { logger } from '../utils/logger';
+import { formatIzmirTime } from '../utils/time';
 
 // Helper to determine transport type from route type
 const getTransportType = (routeType?: number): TransportType => {
@@ -50,10 +51,9 @@ export function RouteDetailsScreen({ route }: Props) {
   // Check if it's a walking-only journey (and has segments)
   const isWalkingOnly = displaySegments.length > 0 && displaySegments.every(s => s.type === 'walk');
 
+  // Use İzmir timezone for display (UTC+3)
   const formatTime = (date: Date): string => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return formatIzmirTime(date);
   };
 
   const formatDuration = (minutes: number): string => {
