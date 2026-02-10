@@ -891,6 +891,62 @@ export async function findRoute(
   // This ensures rail transfers (e.g., Metro+İZBAN) are shown before slower bus routes
   validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
 
+  // 6. Night bus fallback: if no routes and it's night time, try to find night bus connections
+  const isNightTime = requestedTimeMinutes >= 23 * 60 || requestedTimeMinutes < 5 * 60;
+  if (validJourneys.length === 0 && isNightTime) {
+    logger.log('[Routing] 🦉 Night time with no routes, searching for Baykuş night buses...');
+
+    // Find night bus routes that pass through stops near origin
+    const nightBusRoutes = fromRoutes.filter(r =>
+      r.type === 3 && IZMIR_NIGHT_BUS_LINES.includes(r.shortName || '')
+    );
+
+    if (nightBusRoutes.length > 0) {
+      logger.log(`[Routing] Found ${nightBusRoutes.length} night bus routes at origin: ${nightBusRoutes.map(r => r.shortName).join(', ')}`);
+
+      for (const nightRoute of nightBusRoutes.slice(0, 3)) {
+        // Check if this night bus also serves the destination area
+        const nightBusStopsAtDest = toRoutes.filter(r => r.id === nightRoute.id);
+
+        if (nightBusStopsAtDest.length > 0) {
+          // Direct night bus route found!
+          logger.log(`[Routing] 🦉 Night bus ${nightRoute.shortName} serves both origin and destination!`);
+
+          const nextDep = db.getNextDepartureForRoute(nightRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60);
+          if (nextDep !== null) {
+            const actualDep = new Date(departureTime);
+            actualDep.setHours(Math.floor(nextDep / 60), Math.round(nextDep % 60), 0, 0);
+            if (nextDep < requestedTimeMinutes) {
+              actualDep.setDate(actualDep.getDate() + 1);
+            }
+
+            const travelTime = db.getActualTravelTime(nightRoute.id, fromStopId, toStopId);
+            const duration = travelTime !== null ? Math.max(5, travelTime) : Math.round(directDistance / 1000 * 3.0);
+
+            validJourneys.push({
+              segments: [{
+                type: 'transit',
+                from: fromStop,
+                to: toStop,
+                route: nightRoute,
+                departureTime: actualDep,
+                arrivalTime: new Date(actualDep.getTime() + duration * 60000),
+                duration: duration,
+              }],
+              totalDuration: duration,
+              totalWalkDistance: 0,
+              numberOfTransfers: 0,
+              departureTime: actualDep,
+              arrivalTime: new Date(actualDep.getTime() + duration * 60000),
+              tags: ['night-bus'],
+            });
+            logger.log(`[Routing] 🦉 Added night bus route: ${nightRoute.shortName}, duration=${duration}min`);
+          }
+        }
+      }
+    }
+  }
+
   // Si toujours pas de trajet, retourne un trajet à pied comme fallback (only if reasonable)
   if (validJourneys.length === 0) {
     const walkTime = walkingTime(directDistance);
