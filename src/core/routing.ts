@@ -6,7 +6,7 @@ import { geocodeAddress, GeocodingResult } from './geocoding';
 import { findBestNearbyStops, NearbyStop, getWalkingTime, expandToAllSameNameStops } from './nearby-stops';
 import { logger } from '../utils/logger';
 import { captureException } from '../services/crash-reporting';
-import { getIzmirTime } from '../utils/time';
+import { getIzmirTime, izmirMinutesToDate } from '../utils/time';
 import {
   RoutingPreferences,
   DEFAULT_PREFERENCES,
@@ -440,14 +440,13 @@ export async function findRoute(
       continue;
     }
 
-    // Calculate actual departure time from minutes since midnight
+    // Calculate actual departure time from İzmir minutes since midnight
+    // Use izmirMinutesToDate to correctly create Date from İzmir local time
     // Handle midnight wrap: if nextDepartureMin < requestedTimeMinutes, it's the next day
-    const actualDepartureTime = new Date(departureTime);
-    actualDepartureTime.setHours(Math.floor(nextDepartureMin / 60), Math.round(nextDepartureMin % 60), 0, 0);
-    if (nextDepartureMin < requestedTimeMinutes) {
-      // Crossed midnight - add one day
-      actualDepartureTime.setDate(actualDepartureTime.getDate() + 1);
-    }
+    const adjustedMinutes = nextDepartureMin < requestedTimeMinutes
+      ? nextDepartureMin + 24 * 60  // Add a day if we crossed midnight
+      : nextDepartureMin;
+    const actualDepartureTime = izmirMinutesToDate(departureTime, adjustedMinutes);
 
     // Try to get actual travel time from GTFS stop_times first
     // This also verifies that fromStop comes BEFORE toStop in the route sequence
@@ -562,13 +561,11 @@ export async function findRoute(
       };
 
       // Calculate actual departure time for first leg
-      // Handle midnight wrap: if firstLegDep < requestedTimeMinutes, it's the next day
-      const actualDep1 = new Date(departureTime);
-      actualDep1.setHours(Math.floor(firstLegDep / 60), Math.round(firstLegDep % 60), 0, 0);
-      if (firstLegDep < requestedTimeMinutes) {
-        // Crossed midnight - add one day
-        actualDep1.setDate(actualDep1.getDate() + 1);
-      }
+      // Use izmirMinutesToDate to correctly create Date from İzmir local time
+      const adjustedFirstLegDep = firstLegDep < requestedTimeMinutes
+        ? firstLegDep + 24 * 60  // Add a day if we crossed midnight
+        : firstLegDep;
+      const actualDep1 = izmirMinutesToDate(departureTime, adjustedFirstLegDep);
 
       // Calculate durations using correct stop IDs for each route
       // Try GTFS times first, fall back to distance estimates
@@ -611,13 +608,12 @@ export async function findRoute(
       const transferTime = Math.max(modeTransferTime, transferWalkTime + MIN_TRANSFER_TIME);
 
       // Calculate actual departure time for second leg
-      // Handle midnight wrap: if secondLegDep < firstLegDep, it's the next day
-      const actualDep2 = new Date(departureTime);
-      actualDep2.setHours(Math.floor(secondLegDep / 60), Math.round(secondLegDep % 60), 0, 0);
-      if (secondLegDep < firstLegDep) {
-        // Crossed midnight - add one day
-        actualDep2.setDate(actualDep2.getDate() + 1);
-      }
+      // Use izmirMinutesToDate to correctly create Date from İzmir local time
+      // Note: secondLegDep is relative to arrivalAtTransferMin, so compare with firstLegDep
+      const adjustedSecondLegDep = secondLegDep < firstLegDep
+        ? secondLegDep + 24 * 60  // Add a day if we crossed midnight
+        : secondLegDep;
+      const actualDep2 = izmirMinutesToDate(departureTime, adjustedSecondLegDep);
 
       // Calculate total duration: time from first departure to second departure + second leg duration
       const waitAndTransferTime = Math.round((actualDep2.getTime() - actualDep1.getTime()) / 60000);
@@ -917,11 +913,11 @@ export async function findRoute(
 
           const nextDep = db.getNextDepartureForRoute(nightRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60);
           if (nextDep !== null) {
-            const actualDep = new Date(departureTime);
-            actualDep.setHours(Math.floor(nextDep / 60), Math.round(nextDep % 60), 0, 0);
-            if (nextDep < requestedTimeMinutes) {
-              actualDep.setDate(actualDep.getDate() + 1);
-            }
+            // Use izmirMinutesToDate to correctly create Date from İzmir local time
+            const adjustedNextDep = nextDep < requestedTimeMinutes
+              ? nextDep + 24 * 60  // Add a day if we crossed midnight
+              : nextDep;
+            const actualDep = izmirMinutesToDate(departureTime, adjustedNextDep);
 
             const travelTime = db.getActualTravelTime(nightRoute.id, fromStopId, toStopId);
             const duration = travelTime !== null ? Math.max(5, travelTime) : Math.round(directDistance / 1000 * 3.0);

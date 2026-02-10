@@ -66,3 +66,41 @@ export function formatRelativeTime(date: Date): string {
   if (mins === 0) return `dans ${hours}h`;
   return `dans ${hours}h${mins}`;
 }
+
+/**
+ * Convert İzmir local time (minutes since midnight) to a proper Date object.
+ * This is crucial because GTFS times are in İzmir local time (UTC+3),
+ * and we need to create Date objects that represent the correct moment in time.
+ *
+ * @param baseDate - A reference date (the İzmir date/time context for GTFS lookup)
+ * @param izmirMinutes - Minutes since midnight in İzmir time (0-1439, or >1440 for next day)
+ * @returns Date object representing that İzmir time
+ */
+export function izmirMinutesToDate(baseDate: Date, izmirMinutes: number): Date {
+  // First, get the İzmir date components from baseDate
+  // This is important: if user selects 22:00 France time on Feb 10,
+  // that's 00:00 İzmir time on Feb 11, so we need Feb 11 as the base İzmir date
+  const baseIzmirTime = getIzmirTime(baseDate);
+  const baseUtcMs = baseDate.getTime();
+
+  // Calculate the start of the İzmir day (midnight İzmir time)
+  // by going back from current İzmir time to midnight
+  const msFromMidnight = baseIzmirTime.totalMinutes * 60000;
+  const izmirMidnightUtcMs = baseUtcMs - msFromMidnight;
+
+  // Handle times past midnight (GTFS can have times like 25:30 for 01:30 next day)
+  let dayOffset = 0;
+  let normalizedMinutes = izmirMinutes;
+  while (normalizedMinutes >= 24 * 60) {
+    normalizedMinutes -= 24 * 60;
+    dayOffset++;
+  }
+
+  // Calculate the target İzmir time in milliseconds from İzmir midnight
+  const targetMsFromMidnight = normalizedMinutes * 60000;
+
+  // The result is İzmir midnight (in UTC) + target minutes + day offset
+  const resultMs = izmirMidnightUtcMs + targetMsFromMidnight + (dayOffset * 24 * 60 * 60000);
+
+  return new Date(resultMs);
+}
