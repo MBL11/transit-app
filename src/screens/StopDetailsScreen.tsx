@@ -24,14 +24,6 @@ import { captureException } from '../services/crash-reporting';
 
 type Props = NativeStackScreenProps<LinesStackParamList, 'StopDetails'>;
 
-// Mock departures for testing
-const getMockDepartures = (): Departure[] => [
-  { routeShortName: '35', routeColor: '#0066CC', headsign: 'Konak', departureTime: new Date(Date.now() + 3*60000), isRealtime: false, delay: 0 },
-  { routeShortName: '35', routeColor: '#0066CC', headsign: 'Karşıyaka', departureTime: new Date(Date.now() + 7*60000), isRealtime: false, delay: 0 },
-  { routeShortName: 'M1', routeColor: '#D61C1F', headsign: 'Fahrettin Altay', departureTime: new Date(Date.now() + 5*60000), isRealtime: false, delay: 0 },
-  { routeShortName: 'İZBAN', routeColor: '#005BBB', headsign: 'Aliağa', departureTime: new Date(Date.now() + 12*60000), isRealtime: false, delay: 0 },
-];
-
 export function StopDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { stopId } = route.params;
@@ -63,8 +55,7 @@ export function StopDetailsScreen({ route, navigation }: Props) {
         delay: dep.delay,
       }));
 
-      // Use mock data if no real data available (for testing)
-      setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
+      setDepartures(formattedDepartures);
     } catch (err) {
       logger.error('[StopDetailsScreen] Error refreshing departures:', err);
       captureException(err, { tags: { screen: 'stop_details', action: 'refresh_departures' }, extra: { stopId } });
@@ -117,10 +108,9 @@ export function StopDetailsScreen({ route, navigation }: Props) {
           delay: dep.delay,
         }));
 
-        // Use mock data if no real data available (for testing)
-        setDepartures(formattedDepartures.length > 0 ? formattedDepartures : getMockDepartures());
+        setDepartures(formattedDepartures);
       } else {
-        setDepartures(getMockDepartures());
+        setDepartures([]);
       }
     } catch (err) {
       logger.error('[StopDetailsScreen] Error loading stop data:', err);

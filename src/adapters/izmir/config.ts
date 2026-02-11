@@ -167,19 +167,14 @@ export function isTransitOperating(
   timeMinutes: number,
   routeShortName?: string
 ): boolean {
-  const timeStr = `${Math.floor(timeMinutes/60)}:${(timeMinutes%60).toString().padStart(2,'0')}`;
-
   // Night buses operate 23:00-05:00
   if (routeType === 3 && routeShortName && IZMIR_NIGHT_BUS_LINES.includes(routeShortName)) {
-    const result = timeMinutes >= 23 * 60 || timeMinutes < 5 * 60;
-    console.log(`[OperatingHours] Night bus ${routeShortName} at ${timeStr}: ${result ? 'OPERATING' : 'CLOSED'}`);
-    return result;
+    return timeMinutes >= 23 * 60 || timeMinutes < 5 * 60;
   }
 
   const hours = izmirOperatingHours[routeType];
   if (!hours) {
-    console.log(`[OperatingHours] Unknown routeType=${routeType}, allowing by default`);
-    return true;
+    return true; // Unknown route type, allow by default
   }
 
   // Handle times after midnight (e.g., 00:30 = 30 minutes, but end might be 24*60+50 = 1490)
@@ -189,9 +184,7 @@ export function isTransitOperating(
     normalizedTime = timeMinutes + 24 * 60;
   }
 
-  const isOpen = normalizedTime >= hours.start && normalizedTime <= hours.end;
-  console.log(`[OperatingHours] ${hours.name} (type=${routeType}) at ${timeStr}: normalizedTime=${normalizedTime}, range=${hours.start}-${hours.end}, result=${isOpen ? 'OPERATING' : 'CLOSED'}`);
-  return isOpen;
+  return normalizedTime >= hours.start && normalizedTime <= hours.end;
 }
 
 /**

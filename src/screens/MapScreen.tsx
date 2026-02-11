@@ -56,7 +56,6 @@ export function MapScreen({ navigation }: Props) {
   const [underConstructionStops, setUnderConstructionStops] = useState<Set<string>>(new Set());
   const [loadingStops, setLoadingStops] = useState(true);
   const [stopsError, setStopsError] = useState<Error | null>(null);
-  const [importing, setImporting] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
   // Track current map region
@@ -319,36 +318,7 @@ export function MapScreen({ navigation }: Props) {
     // Close sheet and navigate to Lines tab with the selected route
     setSheetVisible(false);
     logger.log('[MapScreen] Line pressed:', routeId);
-    // TODO: Navigate to Lines tab and show route details
   }, []);
-
-  const handleImportData = useCallback(async () => {
-    try {
-      setImporting(true);
-      logger.log('[MapScreen] Starting İzmir GTFS data import...');
-
-      // Import İzmir GTFS data (ESHOT, Metro, İZBAN)
-      const { downloadAndImportAllIzmir } = await import('../core/gtfs-downloader');
-
-      await downloadAndImportAllIzmir((stage, progress, source) => {
-        logger.log(`[MapScreen] Import: ${stage} - ${Math.round(progress * 100)}% (${source || ''})`);
-      });
-
-      Alert.alert(
-        t('common.success'),
-        t('common.dataImported', { defaultValue: 'İzmir transit data imported successfully!' })
-      );
-
-      // Reload all stops
-      await loadAllStops();
-    } catch (err) {
-      logger.error('[MapScreen] Import error:', err);
-      captureException(err, { tags: { screen: 'map', action: 'data_import' } });
-      Alert.alert(t('common.error'), t('common.importFailed'));
-    } finally {
-      setImporting(false);
-    }
-  }, [t, loadAllStops]);
 
   // Calculate initial region based on user location or default to İzmir (memoized)
   // IMPORTANT: Must be before early returns to respect Rules of Hooks
@@ -398,29 +368,7 @@ export function MapScreen({ navigation }: Props) {
         <View style={styles.centerContainer}>
           <Text style={styles.emptyIcon}>🗺️</Text>
           <Text style={styles.emptyText}>{t('transit.noStopsAvailable')}</Text>
-          <Text style={styles.emptySubtext}>Import sample data to test the app</Text>
-          <TouchableOpacity
-            style={styles.importButton}
-            onPress={handleImportData}
-            disabled={importing}
-          >
-            {importing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.importButtonText}>🔄 {t('data.downloadIzmir', { defaultValue: 'Download İzmir Data' })}</Text>
-                <Text style={styles.importButtonSubtext}>ESHOT • Metro • İZBAN</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.dataManagementLink}
-            onPress={() => navigation.navigate('Settings' as never)}
-          >
-            <Text style={styles.dataManagementLinkText}>
-              {t('data.manageData', { defaultValue: 'Manage data in settings →' })}
-            </Text>
-          </TouchableOpacity>
+          <Text style={styles.emptySubtext}>{t('transit.dataNotAvailable', { defaultValue: 'Transit data is not available. Please try again later.' })}</Text>
         </View>
       </ScreenContainer>
     );
@@ -651,44 +599,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 24,
     textAlign: 'center',
-  },
-  importButton: {
-    backgroundColor: '#D61C1F', // İzmir Metro Red
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
-    minWidth: 240,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  importButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  importButtonSubtext: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  dataManagementLink: {
-    marginTop: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  dataManagementLinkText: {
-    color: '#D61C1F', // İzmir Metro Red
-    fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+    paddingHorizontal: 32,
   },
   reimportContainer: {
     position: 'absolute',
