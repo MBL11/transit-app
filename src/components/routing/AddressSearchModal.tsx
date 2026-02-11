@@ -411,6 +411,6 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       letterSpacing: 0.5,
     },
     recentIcon: {
-      backgroundColor: colors.primaryLight || colors.buttonBackground,
+      backgroundColor: colors.buttonBackground,
     },
   });

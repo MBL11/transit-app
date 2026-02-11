@@ -16,6 +16,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -227,7 +229,7 @@ export async function scheduleDepartureReminder(
         },
         sound: true,
       },
-      trigger: triggerTime,
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerTime },
     });
 
     logger.log('[Notifications] Scheduled departure reminder:', notificationId);

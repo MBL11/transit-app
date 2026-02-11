@@ -148,10 +148,10 @@ export function validateGTFSData<T>(
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      logger.error(`[Validation] Failed to validate ${context || 'data'}:`, error.errors);
+      logger.error(`[Validation] Failed to validate ${context || 'data'}:`, error.issues);
       // Log first error for debugging
-      if (error.errors.length > 0) {
-        const firstError = error.errors[0];
+      if (error.issues.length > 0) {
+        const firstError = error.issues[0];
         logger.error(
           `[Validation] ${firstError.path.join('.')}: ${firstError.message}`
         );
@@ -186,7 +186,7 @@ export function validateGTFSArray<T>(
         // Only log first 5 errors to avoid spam
         logger.warn(
           `[Validation] Skipping invalid ${context || 'item'} at index ${i}:`,
-          error instanceof z.ZodError ? error.errors[0]?.message : error
+          error instanceof z.ZodError ? error.issues[0]?.message : error
         );
       }
     }

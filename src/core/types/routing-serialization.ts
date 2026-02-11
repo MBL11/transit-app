@@ -6,6 +6,9 @@
 import type { JourneyResult, RouteSegment } from './routing';
 import type { Stop, Route, Trip } from './models';
 
+// Re-export JourneyResult for convenience
+export type { JourneyResult } from './routing';
+
 // Serializable version with ISO date strings instead of Date objects
 export interface SerializableRouteSegment {
   type: 'walk' | 'transit';

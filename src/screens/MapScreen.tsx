@@ -415,7 +415,7 @@ export function MapScreen({ navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dataManagementLink}
-            onPress={() => navigation.navigate('Settings', { screen: 'DataManagement' })}
+            onPress={() => navigation.navigate('Settings' as never)}
           >
             <Text style={styles.dataManagementLinkText}>
               {t('data.manageData', { defaultValue: 'Manage data in settings →' })}

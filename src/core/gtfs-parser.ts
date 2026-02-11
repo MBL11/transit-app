@@ -104,7 +104,7 @@ export function parseCalendarDates(csvContent: string): GTFSCalendarDate[] {
  */
 export function normalizeStop(gtfsStop: GTFSStop): Stop {
   // Handle various column name formats (lowercase transformed by parser)
-  const rawStop = gtfsStop as Record<string, string>;
+  const rawStop = gtfsStop as unknown as Record<string, string>;
 
   const id = rawStop.stop_id || rawStop.stopid || rawStop.id || '';
   const name = rawStop.stop_name || rawStop.stopname || rawStop.name || '';
@@ -260,7 +260,7 @@ const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = 
  * Normalize GTFS route to internal Route model
  */
 export function normalizeRoute(gtfsRoute: GTFSRoute): Route {
-  const rawRoute = gtfsRoute as Record<string, string>;
+  const rawRoute = gtfsRoute as unknown as Record<string, string>;
 
   // Try multiple column names for shortName (handle different GTFS formats)
   let shortName = rawRoute.route_short_name || rawRoute.routeshortname || rawRoute.short_name || '';

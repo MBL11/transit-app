@@ -48,8 +48,8 @@ export interface GeocodingResult {
   displayName: string;
   shortAddress?: string; // Short format: "rue, ville"
   city?: string; // Just the city name
-  type: string; // 'house', 'street', 'city', etc.
-  importance: number; // 0-1, relevance score
+  type?: string; // 'house', 'street', 'city', etc.
+  importance?: number; // 0-1, relevance score
   boundingBox?: [number, number, number, number]; // [south, north, west, east]
   stopId?: string; // If this location is a transit stop, its ID (e.g., 'rail_21')
 }
@@ -310,9 +310,9 @@ export async function searchPlaces(
         // Filter out neighbourhood/suburb-only results, keep streets and addresses
         const validTypes = ['house', 'building', 'street', 'road', 'amenity', 'shop', 'office',
                            'residential', 'pedestrian', 'path', 'city', 'town', 'village'];
-        return validTypes.includes(result.type) || result.importance > 0.3;
+        return (result.type && validTypes.includes(result.type)) || (result.importance && result.importance > 0.3);
       })
-      .sort((a: GeocodingResult, b: GeocodingResult) => b.importance - a.importance);
+      .sort((a: GeocodingResult, b: GeocodingResult) => (b.importance || 0) - (a.importance || 0));
 
     return results;
   } catch (error) {

@@ -67,7 +67,7 @@ async function checkFavoriteAlertsInternal(
     }
 
     // Get favorite lines
-    const favoriteLines = await favoritesStorage.getFavorites('line');
+    const favoriteLines = await favoritesStorage.getFavoritesByType('route');
     if (favoriteLines.length === 0) {
       logger.log('[AlertMonitor] No favorite lines to monitor');
       return;

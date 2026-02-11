@@ -196,7 +196,7 @@ export async function extractGTFSZip(zipUri: string): Promise<{
  * Download and import GTFS data into database
  */
 export async function downloadAndImportGTFS(
-  source: GTFSSourceKey = 'ESHOT',
+  source: GTFSSourceKey = 'METRO_IZMIR',
   onProgress?: (stage: string, progress: number) => void
 ): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
   logger.log(`[GTFSDownloader] Starting GTFS import from ${GTFS_SOURCES[source].name}...`);

@@ -485,7 +485,7 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       // Disable ALL modes — should still return best available route
       const allDisabledPrefs: RoutingPreferences = {
         ...DEFAULT_PREFERENCES,
-        allowedModes: { metro: false, bus: false, tram: false, train: false, walking: false },
+        allowedModes: { metro: false, bus: false, tram: false, izban: false, ferry: false, walking: false },
       };
 
       const results = await findMultipleRoutes(from, to, DEPARTURE, allDisabledPrefs, 3);

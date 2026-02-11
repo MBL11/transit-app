@@ -42,7 +42,7 @@ export function MapStackNavigator() {
       />
       <Stack.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsScreen as React.ComponentType<any>}
       />
     </Stack.Navigator>
   );

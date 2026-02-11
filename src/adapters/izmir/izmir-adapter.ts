@@ -193,7 +193,7 @@ export class IzmirAdapter implements TransitAdapter {
       );
 
       const departures: NextDeparture[] = rows
-        .map((row) => {
+        .map((row): NextDeparture | null => {
           // Parse time string "HH:MM:SS"
           const timeParts = row.departure_time.split(':');
           const hours = parseInt(timeParts[0], 10);
