@@ -30,7 +30,8 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "com.google.android.gms.permission.AD_ID"
       ]
     },
     "plugins": [
