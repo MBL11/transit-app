@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "İzmir Metro & Otobüs",
+    "name": "Izmir Metro Otobus",
     "slug": "izmir-metro-otobus",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,7 +17,7 @@
       "bundleIdentifier": "com.izmir.metro.otobus",
       "supportsTablet": true,
       "infoPlist": {
-        "CFBundleDisplayName": "İzmir Metro",
+        "CFBundleDisplayName": "Izmir Metro",
         "NSLocationWhenInUseUsageDescription": "Bu uygulama, yakındaki ulaşım duraklarını bulmak ve mevcut konumunuzdan güzergahları hesaplamak için konumunuzu kullanır.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Bu uygulama, yakındaki ulaşım duraklarını bulmak ve mevcut konumunuzdan güzergahları hesaplamak için konumunuzu kullanır."
       }
