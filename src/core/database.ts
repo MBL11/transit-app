@@ -1094,8 +1094,11 @@ export async function searchStops(query: string): Promise<Stop[]> {
       return [];
     }
 
-    // Normalize query for accent-insensitive comparison
-    const normalizedQuery = query
+    // Normalize query using Turkish-aware normalization
+    const normalizedQuery = normalizeStopName(query);
+
+    // Also create a simpler ASCII version for SQL LIKE
+    const asciiQuery = query
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
@@ -1103,20 +1106,20 @@ export async function searchStops(query: string): Promise<Stop[]> {
 
     // Use SQL LIKE to pre-filter (much faster than loading all rows)
     // This reduces the dataset significantly before client-side accent filtering
+    // Search with multiple variants to catch Turkish characters
     const rows = db.getAllSync<any>(
       `SELECT * FROM stops
        WHERE name LIKE ? COLLATE NOCASE
        OR name LIKE ? COLLATE NOCASE
+       OR name LIKE ? COLLATE NOCASE
        LIMIT 200`,
-      [`%${query}%`, `%${normalizedQuery}%`]
+      [`%${query}%`, `%${asciiQuery}%`, `%${normalizedQuery}%`]
     );
 
     // Now do precise accent-insensitive filtering on the smaller set
+    // Use the proper Turkish normalization function
     const filteredRows = rows.filter((row: any) => {
-      const normalizedName = row.name
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
+      const normalizedName = normalizeStopName(row.name);
       return normalizedName.includes(normalizedQuery);
     });
 
