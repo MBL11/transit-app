@@ -1085,6 +1085,7 @@ export function normalizeStopName(name: string): string {
 /**
  * Search stops by name (case insensitive, accent-insensitive)
  * Optimized: Uses SQL LIKE first to reduce dataset, then filters client-side for accents
+ * IMPORTANT: Orders results to prioritize metro/tram/rail/ferry over bus stops
  */
 export async function searchStops(query: string): Promise<Stop[]> {
   const db = openDatabase();
@@ -1107,12 +1108,23 @@ export async function searchStops(query: string): Promise<Stop[]> {
     // Use SQL LIKE to pre-filter (much faster than loading all rows)
     // This reduces the dataset significantly before client-side accent filtering
     // Search with multiple variants to catch Turkish characters
+    // ORDER BY: prioritize metro/tram/rail/ferry stops over bus stops using CASE
+    // This ensures we get transit stops first within the LIMIT
     const rows = db.getAllSync<any>(
       `SELECT * FROM stops
        WHERE name LIKE ? COLLATE NOCASE
        OR name LIKE ? COLLATE NOCASE
        OR name LIKE ? COLLATE NOCASE
-       LIMIT 200`,
+       ORDER BY
+         CASE
+           WHEN id LIKE 'metro_%' THEN 0
+           WHEN id LIKE 'rail_%' THEN 1
+           WHEN id LIKE 'tram_%' THEN 2
+           WHEN id LIKE 'ferry_%' THEN 3
+           ELSE 4
+         END,
+         name COLLATE NOCASE
+       LIMIT 500`,
       [`%${query}%`, `%${asciiQuery}%`, `%${normalizedQuery}%`]
     );
 
