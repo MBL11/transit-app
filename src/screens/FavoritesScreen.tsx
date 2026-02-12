@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
@@ -41,6 +42,13 @@ export function FavoritesScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Refresh favorites when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
