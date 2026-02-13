@@ -9,6 +9,8 @@ import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
 import { downloadAndImportEshot } from './eshot-data-fetcher';
 import { generateT3CigliData } from './t3-cigli-data';
+import { generateM1MetroData } from './metro-m1-data';
+import { generateT1T2TramData } from './tram-t1t2-data';
 import { logger } from '../utils/logger';
 import { captureException } from '../services/crash-reporting';
 
@@ -425,6 +427,58 @@ export async function downloadAndImportAllIzmir(
       logger.log(`[GTFSDownloader] ✅ T3 Cigli data imported: ${t3Data.stops.length} stops, ${t3Data.routes.length} routes, ${t3Data.trips.length} trips`);
     } catch (t3Error) {
       logger.warn('[GTFSDownloader] ⚠️ T3 Cigli import failed (non-fatal):', t3Error);
+    }
+
+    // Import M1 Metro data with correct station names (fallback for official GTFS parsing issues)
+    try {
+      logger.log('[GTFSDownloader] Importing M1 Metro manual data...');
+      onProgress?.('importing', 0.83, 'M1 Metro');
+
+      const m1Data = generateM1MetroData();
+      await db.insertRoutes(m1Data.routes);
+      await db.insertStops(m1Data.stops);
+      await db.insertTrips(m1Data.trips);
+
+      const batchSize = 10000;
+      for (let j = 0; j < m1Data.stopTimes.length; j += batchSize) {
+        const batch = m1Data.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+
+      totalStops += m1Data.stops.length;
+      totalRoutes += m1Data.routes.length;
+      totalTrips += m1Data.trips.length;
+      totalStopTimes += m1Data.stopTimes.length;
+
+      logger.log(`[GTFSDownloader] ✅ M1 Metro data imported: ${m1Data.stops.length} stops, ${m1Data.routes.length} routes`);
+    } catch (m1Error) {
+      logger.warn('[GTFSDownloader] ⚠️ M1 Metro import failed (non-fatal):', m1Error);
+    }
+
+    // Import T1/T2 Tram data with correct station names
+    try {
+      logger.log('[GTFSDownloader] Importing T1/T2 Tram manual data...');
+      onProgress?.('importing', 0.84, 'T1/T2 Tramvay');
+
+      const tramData = generateT1T2TramData();
+      await db.insertRoutes(tramData.routes);
+      await db.insertStops(tramData.stops);
+      await db.insertTrips(tramData.trips);
+
+      const batchSize = 10000;
+      for (let j = 0; j < tramData.stopTimes.length; j += batchSize) {
+        const batch = tramData.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+
+      totalStops += tramData.stops.length;
+      totalRoutes += tramData.routes.length;
+      totalTrips += tramData.trips.length;
+      totalStopTimes += tramData.stopTimes.length;
+
+      logger.log(`[GTFSDownloader] ✅ T1/T2 Tram data imported: ${tramData.stops.length} stops, ${tramData.routes.length} routes`);
+    } catch (tramError) {
+      logger.warn('[GTFSDownloader] ⚠️ T1/T2 Tram import failed (non-fatal):', tramError);
     }
 
     // Import ESHOT bus data from open data portal
