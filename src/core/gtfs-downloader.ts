@@ -534,6 +534,37 @@ export async function downloadAndImportAllIzmir(
       }
     }
 
+    // Add calendar entries for manually generated services
+    // Without these, trips with _DAILY service IDs get filtered out when calendar data exists
+    try {
+      logger.log('[GTFSDownloader] Adding calendar entries for manual data services...');
+      const manualServiceIds = [
+        'tram_t1_DAILY',
+        'tram_t2_DAILY',
+        'T3_DAILY',
+        'M1_DAILY',
+        'ESHOT_DAILY',
+      ];
+
+      const calendarEntries = manualServiceIds.map(serviceId => ({
+        serviceId,
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: true,
+        sunday: true,
+        startDate: '20240101',
+        endDate: '20301231',
+      }));
+
+      await db.insertCalendar(calendarEntries);
+      logger.log(`[GTFSDownloader] ✅ Added calendar entries for ${manualServiceIds.length} manual services`);
+    } catch (calendarError) {
+      logger.warn('[GTFSDownloader] ⚠️ Failed to add manual calendar entries (non-fatal):', calendarError);
+    }
+
     const result = {
       stops: totalStops,
       routes: totalRoutes,
