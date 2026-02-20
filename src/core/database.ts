@@ -1135,9 +1135,22 @@ export async function searchStops(query: string): Promise<Stop[]> {
       return normalizedName.includes(normalizedQuery);
     });
 
-    // Deduplicate by exact name (case-insensitive)
-    // IMPORTANT: Prioritize rail/metro/tram/ferry over bus stops
-    // This ensures metro_konak is shown instead of bus_konak when both exist
+    // Deduplicate by exact name AND transport type
+    // IMPORTANT: We need to show BOTH metro_konak AND tram_konak when both exist
+    // because they're on different lines. User needs to be able to select the right one.
+    // Only deduplicate within the same transport type.
+    const getStopPrefix = (stopId: string): string => {
+      if (stopId.startsWith('metro_')) return 'metro';
+      if (stopId.startsWith('rail_')) return 'rail';
+      if (stopId.startsWith('tram_t1_')) return 'tram_t1';
+      if (stopId.startsWith('tram_t2_')) return 'tram_t2';
+      if (stopId.startsWith('tram_t3_')) return 'tram_t3';
+      if (stopId.startsWith('tram_')) return 'tram';
+      if (stopId.startsWith('ferry_')) return 'ferry';
+      if (stopId.startsWith('bus_')) return 'bus';
+      return 'other';
+    };
+
     const getStopPriority = (stopId: string): number => {
       if (stopId.startsWith('metro_')) return 0;  // Metro - highest priority
       if (stopId.startsWith('rail_')) return 1;   // İZBAN
@@ -1146,25 +1159,25 @@ export async function searchStops(query: string): Promise<Stop[]> {
       return 4;                                    // Bus and others - lowest priority
     };
 
+    // Key = name + transport prefix (e.g., "fahrettin altay_metro", "fahrettin altay_tram_t2")
     const seen = new Map<string, any>();
     for (const row of filteredRows) {
-      const key = row.name.toLowerCase().trim();
+      const baseName = row.name.toLowerCase().trim();
+      const prefix = getStopPrefix(row.id);
+      const key = `${baseName}_${prefix}`;
+
       if (!seen.has(key)) {
         seen.set(key, row);
-      } else {
-        // Replace if current stop has higher priority (lower number)
-        const existingPriority = getStopPriority(seen.get(key).id);
-        const currentPriority = getStopPriority(row.id);
-        if (currentPriority < existingPriority) {
-          seen.set(key, row);
-        }
       }
     }
 
-    // Sort alphabetically by name and limit to 50
-    const sortedRows = Array.from(seen.values()).sort((a: any, b: any) =>
-      a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' })
-    );
+    // Sort by: 1) name alphabetically, 2) transport priority (metro first, bus last)
+    const sortedRows = Array.from(seen.values()).sort((a: any, b: any) => {
+      const nameCompare = a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' });
+      if (nameCompare !== 0) return nameCompare;
+      // Same name: sort by transport priority
+      return getStopPriority(a.id) - getStopPriority(b.id);
+    });
     return sortedRows.slice(0, 50).map((row: any) => ({
       id: row.id,
       name: row.name,
