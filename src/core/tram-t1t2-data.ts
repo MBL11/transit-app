@@ -211,7 +211,7 @@ export function generateT2TramData(): {
       shortName: 'T2',
       longName: 'Konak Tramvayı (Halkapınar - Fahrettin Altay)',
       type: 0, // Tram
-      color: '#F7941D', // Orange
+      color: '#00A651', // Green (same as T1 - İzmir trams use green)
       textColor: '#FFFFFF',
     },
   ];

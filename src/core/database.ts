@@ -702,14 +702,33 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
     const isBusStop = stopId.startsWith('bus_');
     const excludeBus = !isBusStop && !includeBus;
 
-    // Search by exact name (case-insensitive) - no distance restriction
-    // This ensures we find BOTH metro_fahrettin AND tram_t2_fahrettin
-    const sameStationStops = db.getAllSync<{ id: string }>(
-      `SELECT id FROM stops
-       WHERE LOWER(name) = LOWER(?)
+    // Search by NORMALIZED name to handle Turkish suffix variations:
+    // "Konak İskelesi" should match "Konak İskele" (possessive suffix)
+    // "Fahrettin Altay" should match across metro, tram, bus stops
+    const normalizedStopName = normalizeStopName(stop.name);
+    const baseStationName = extractBaseStationName(normalizedStopName);
+
+    // Strategy: Use SQL LIKE with first few chars of base name, then filter in JS
+    // This is much faster than loading ALL stops
+    const searchPattern = baseStationName.length >= 3
+      ? `%${baseStationName.slice(0, 5)}%`  // First 5 chars for LIKE
+      : `%${baseStationName}%`;
+
+    const candidateStops = db.getAllSync<{ id: string; name: string }>(
+      `SELECT id, name FROM stops
+       WHERE location_type = 0
+       AND (LOWER(name) LIKE ? OR LOWER(name) = ?)
        ${excludeBus ? "AND id NOT LIKE 'bus_%'" : ''}`,
-      [stop.name]
+      [searchPattern, stop.name.toLowerCase().trim()]
     );
+
+    // Filter to stops with matching normalized base name
+    const sameStationStops = candidateStops.filter(s => {
+      const candidateNormalized = normalizeStopName(s.name);
+      const candidateBase = extractBaseStationName(candidateNormalized);
+      // Match by base name (e.g., "konak" matches both "Konak İskele" and "Konak İskelesi")
+      return candidateBase === baseStationName;
+    });
 
     const stopIds = sameStationStops.map(s => s.id);
     logger.log(`[Database] Found ${stopIds.length} stops for station "${stop.name}":`, stopIds);

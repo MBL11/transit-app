@@ -240,7 +240,7 @@ const IZMIR_LINE_COLORS: Record<string, { color: string; textColor: string }> = 
   'M2': { color: '#D61C1F', textColor: '#FFFFFF' }, // Under construction
   // Tramway - Each line has a distinct color
   'T1': { color: '#00A651', textColor: '#FFFFFF' }, // Karşıyaka tram (green) - Alaybey → Mavişehir
-  'T2': { color: '#F7941D', textColor: '#FFFFFF' }, // Konak tram (orange) - Fahrettin Altay → Halkapınar
+  'T2': { color: '#00A651', textColor: '#FFFFFF' }, // Konak tram (green) - Fahrettin Altay → Halkapınar
   'T3': { color: '#9B59B6', textColor: '#FFFFFF' }, // Çiğli circular (purple)
   // T3 Çiğli directional variants
   'CIGLI-IC': { color: '#4ABEFF', textColor: '#000000' },  // İç Hat (inner, light blue)
