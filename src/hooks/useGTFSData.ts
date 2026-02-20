@@ -124,6 +124,10 @@ export function useGTFSData() {
           setSource(null);
           logger.log('[useGTFSData] ✅ Old data cleared, ready for İzmir import');
         } else {
+          // Auto-fix: ensure calendar entries exist for manual services (T1, T2, T3, M1, ESHOT)
+          // This runs silently and fixes missing calendars without requiring user to reload data
+          await db.ensureManualServiceCalendars();
+
           // Count stops by type for diagnostics
           const counts = await countStopsByType();
           setStopCounts(counts);
