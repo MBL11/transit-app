@@ -281,6 +281,71 @@ export async function clearAllData(): Promise<void> {
   }
 }
 
+/**
+ * Ensure calendar entries exist for manually generated services (T1, T2, T3, M1, ESHOT).
+ * These services use _DAILY service IDs but didn't have calendar entries,
+ * causing them to be filtered out when calendar data exists from GTFS sources.
+ * Called automatically at app startup - no user action required.
+ */
+export async function ensureManualServiceCalendars(): Promise<void> {
+  const database = openDatabase();
+
+  const manualServiceIds = [
+    'tram_t1_DAILY',
+    'tram_t2_DAILY',
+    'T3_DAILY',
+    'M1_DAILY',
+    'ESHOT_DAILY',
+  ];
+
+  try {
+    // Check if any trips exist (database has data)
+    const tripCount = database.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM trips');
+    if (!tripCount || tripCount.count === 0) return; // No data yet, skip
+
+    // Check which manual services are missing from calendar
+    const missing: string[] = [];
+    for (const serviceId of manualServiceIds) {
+      const exists = database.getFirstSync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM calendar WHERE service_id = ?',
+        [serviceId]
+      );
+      if (!exists || exists.count === 0) {
+        // Only add if trips actually use this service_id
+        const tripExists = database.getFirstSync<{ count: number }>(
+          'SELECT COUNT(*) as count FROM trips WHERE service_id = ?',
+          [serviceId]
+        );
+        if (tripExists && tripExists.count > 0) {
+          missing.push(serviceId);
+        }
+      }
+    }
+
+    if (missing.length === 0) return; // All calendars already exist
+
+    logger.log(`[Database] Adding missing calendar entries for: ${missing.join(', ')}`);
+
+    const calendarEntries = missing.map(serviceId => ({
+      serviceId,
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: true,
+      sunday: true,
+      startDate: '20240101',
+      endDate: '20301231',
+    }));
+
+    await insertCalendar(calendarEntries);
+    logger.log(`[Database] ✅ Auto-added ${missing.length} calendar entries`);
+  } catch (error) {
+    logger.warn('[Database] Failed to ensure manual service calendars:', error);
+  }
+}
+
 // ============================================================================
 // CRUD OPERATIONS
 // ============================================================================
