@@ -22,45 +22,46 @@
 
 import type { Stop, Route, Trip, StopTime } from './types/models';
 
-// T1 stations: Alaybey (west) → Flamingo/Mavişehir (east)
+// T1 stations: Alaybey (west) → Flamingo (east) - Official names from tramizmir.com
+// KARŞIYAKA TRAMVAYI YEŞİL HAT - 13 stations
 const T1_STATIONS = [
   { id: 1, name: 'Alaybey', lat: 38.4570, lon: 27.0700 },
-  { id: 2, name: 'Karşıyaka Vapur İskelesi', lat: 38.4565, lon: 27.0780 },
-  { id: 3, name: 'Karşıyaka Çarşı', lat: 38.4575, lon: 27.0850 },
-  { id: 4, name: 'Eski Karşıyaka', lat: 38.4590, lon: 27.0900 },
-  { id: 5, name: 'Bostanlı', lat: 38.4610, lon: 27.0960 },
-  { id: 6, name: 'Bostanlı İskele', lat: 38.4615, lon: 27.0990 },
-  { id: 7, name: 'Atakent', lat: 38.4630, lon: 27.1020 },
-  { id: 8, name: 'Mavişehir', lat: 38.4700, lon: 27.0790 },
-  { id: 9, name: 'Mavişehir Plaj', lat: 38.4710, lon: 27.0750 },
-  { id: 10, name: 'Devlet Hastanesi', lat: 38.4730, lon: 27.0700 },
-  { id: 11, name: 'Tersane', lat: 38.4760, lon: 27.0650 },
-  { id: 12, name: 'Ataşehir', lat: 38.4800, lon: 27.0620 },
-  { id: 13, name: 'SB Köprüsü', lat: 38.4830, lon: 27.0600 },
-  { id: 14, name: 'Flamingo', lat: 38.4861, lon: 27.0595 },
+  { id: 2, name: 'Karşıyaka İskele', lat: 38.4565, lon: 27.0780 },
+  { id: 3, name: 'Nikah Sarayı', lat: 38.4575, lon: 27.0830 },
+  { id: 4, name: 'Yunuslar', lat: 38.4590, lon: 27.0880 },
+  { id: 5, name: 'Bostanlı İskele', lat: 38.4610, lon: 27.0960 },
+  { id: 6, name: 'Çarşı', lat: 38.4620, lon: 27.1000 },
+  { id: 7, name: 'Vilayet Evi', lat: 38.4640, lon: 27.1050 },
+  { id: 8, name: 'Selçuk Yaşar', lat: 38.4660, lon: 27.1020 },
+  { id: 9, name: 'Atakent', lat: 38.4680, lon: 27.0980 },
+  { id: 10, name: 'Bilim Müzesi', lat: 38.4720, lon: 27.0900 },
+  { id: 11, name: 'Mustafa Kemal Atatürk Spor Salonu', lat: 38.4760, lon: 27.0820 },
+  { id: 12, name: 'Mavişehir', lat: 38.4800, lon: 27.0720 },
+  { id: 13, name: 'Flamingo', lat: 38.4861, lon: 27.0595 },
 ] as const;
 
-// T2 stations: Fahrettin Altay (south) → Halkapınar (north)
+// T2 stations: Fahrettin Altay (south) → Halkapınar (north) - Official names from tramizmir.com
+// KONAK TRAMVAYI - 19 stations
 const T2_STATIONS = [
-  { id: 1, name: 'Fahrettin Altay', lat: 38.3960, lon: 27.0730 },
-  { id: 2, name: 'Göztepe', lat: 38.3990, lon: 27.0800 },
-  { id: 3, name: 'SSK İşhanları', lat: 38.4020, lon: 27.0870 },
-  { id: 4, name: 'Bahri Baba Parkı', lat: 38.4050, lon: 27.0930 },
-  { id: 5, name: 'Montrö', lat: 38.4080, lon: 27.1000 },
-  { id: 6, name: 'Güzelyalı', lat: 38.4110, lon: 27.1070 },
-  { id: 7, name: 'Karataş', lat: 38.4140, lon: 27.1140 },
-  { id: 8, name: 'Konak İskele', lat: 38.4180, lon: 27.1280 },
-  { id: 9, name: 'Konak', lat: 38.4190, lon: 27.1300 },
-  { id: 10, name: 'Konak Metro', lat: 38.4195, lon: 27.1310 },
-  { id: 11, name: 'Çankaya', lat: 38.4220, lon: 27.1370 },
-  { id: 12, name: 'Mezarlıkbaşı', lat: 38.4240, lon: 27.1420 },
-  { id: 13, name: 'Basmane', lat: 38.4260, lon: 27.1440 },
-  { id: 14, name: 'Çorakkapı', lat: 38.4280, lon: 27.1500 },
-  { id: 15, name: 'Tepecik', lat: 38.4300, lon: 27.1550 },
-  { id: 16, name: 'Hilal', lat: 38.4310, lon: 27.1570 },
-  { id: 17, name: 'Liman', lat: 38.4320, lon: 27.1600 },
-  { id: 18, name: 'Alsancak Gar', lat: 38.4330, lon: 27.1630 },
-  { id: 19, name: 'Halkapınar', lat: 38.4340, lon: 27.1670 },
+  { id: 1, name: 'Fahrettin Altay', lat: 38.3920, lon: 27.0550 },
+  { id: 2, name: 'Üçkuyular', lat: 38.3950, lon: 27.0620 },
+  { id: 3, name: 'AASSM', lat: 38.3980, lon: 27.0700 },
+  { id: 4, name: 'Güzelyalı', lat: 38.4020, lon: 27.0780 },
+  { id: 5, name: 'Göztepe', lat: 38.4060, lon: 27.0860 },
+  { id: 6, name: 'Sadık Bey', lat: 38.4090, lon: 27.0930 },
+  { id: 7, name: 'Köprü', lat: 38.4110, lon: 27.1000 },
+  { id: 8, name: 'Karantina', lat: 38.4130, lon: 27.1070 },
+  { id: 9, name: 'Karataş', lat: 38.4150, lon: 27.1140 },
+  { id: 10, name: 'Konak İskele', lat: 38.4180, lon: 27.1280 },
+  { id: 11, name: 'Gazi Bulvarı', lat: 38.4210, lon: 27.1350 },
+  { id: 12, name: 'Kültürpark Atatürk Lisesi', lat: 38.4240, lon: 27.1400 },
+  { id: 13, name: 'Hocazade Camii', lat: 38.4270, lon: 27.1430 },
+  { id: 14, name: 'Atatürk Spor Salonu', lat: 38.4300, lon: 27.1460 },
+  { id: 15, name: 'Alsancak Gar', lat: 38.4330, lon: 27.1490 },
+  { id: 16, name: 'Alsancak Stadyum', lat: 38.4350, lon: 27.1520 },
+  { id: 17, name: 'Havagazı', lat: 38.4380, lon: 27.1560 },
+  { id: 18, name: 'Üniversite', lat: 38.4410, lon: 27.1600 },
+  { id: 19, name: 'Halkapınar', lat: 38.4440, lon: 27.1670 },
 ] as const;
 
 const T1_TRIP_DURATION = 25; // minutes
@@ -150,7 +151,7 @@ export function generateT1TramData(): {
     {
       id: 'tram_t1',
       shortName: 'T1',
-      longName: 'Karşıyaka Tramvayı (Alaybey - Flamingo)',
+      longName: 'Karşıyaka Tramvayı Yeşil Hat (Alaybey - Flamingo)',
       type: 0, // Tram
       color: '#00A651', // Green
       textColor: '#FFFFFF',
@@ -207,7 +208,7 @@ export function generateT2TramData(): {
     {
       id: 'tram_t2',
       shortName: 'T2',
-      longName: 'Konak Tramvayı (Fahrettin Altay - Halkapınar)',
+      longName: 'Konak Tramvayı (Halkapınar - Fahrettin Altay)',
       type: 0, // Tram
       color: '#F7941D', // Orange
       textColor: '#FFFFFF',
