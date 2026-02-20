@@ -11,6 +11,7 @@ import { downloadAndImportEshot } from './eshot-data-fetcher';
 import { generateT3CigliData } from './t3-cigli-data';
 import { generateM1MetroData } from './metro-m1-data';
 import { generateT1T2TramData } from './tram-t1t2-data';
+import { generateEshotFallbackData } from './eshot-fallback-data';
 import { logger } from '../utils/logger';
 import { captureException } from '../services/crash-reporting';
 
@@ -499,8 +500,37 @@ export async function downloadAndImportAllIzmir(
 
       logger.log(`[GTFSDownloader] ✅ ESHOT bus data imported: ${eshotResult.stops} stops, ${eshotResult.routes} routes`);
     } catch (eshotError) {
-      // ESHOT import failure is non-fatal - log and continue
-      logger.warn('[GTFSDownloader] ⚠️ ESHOT bus import failed (non-fatal):', eshotError);
+      // ESHOT API failed - use fallback generated data
+      logger.warn('[GTFSDownloader] ⚠️ ESHOT API failed, using fallback data:', eshotError);
+      try {
+        onProgress?.('importing', 0.87, 'ESHOT Otobüs (fallback)');
+        const fallback = generateEshotFallbackData();
+
+        logger.log(`[GTFSDownloader] Importing ESHOT fallback: ${fallback.routes.length} routes, ${fallback.stops.length} stops`);
+
+        await db.insertRoutes(fallback.routes);
+        onProgress?.('importing', 0.90);
+        await db.insertStops(fallback.stops);
+        onProgress?.('importing', 0.93);
+        await db.insertTrips(fallback.trips);
+        onProgress?.('importing', 0.96);
+
+        const batchSize = 10000;
+        for (let i = 0; i < fallback.stopTimes.length; i += batchSize) {
+          const batch = fallback.stopTimes.slice(i, i + batchSize);
+          await db.insertStopTimes(batch);
+        }
+        onProgress?.('importing', 1.0);
+
+        totalStops += fallback.stops.length;
+        totalRoutes += fallback.routes.length;
+        totalTrips += fallback.trips.length;
+        totalStopTimes += fallback.stopTimes.length;
+
+        logger.log(`[GTFSDownloader] ✅ ESHOT fallback imported: ${fallback.stops.length} stops, ${fallback.routes.length} routes, ${fallback.trips.length} trips`);
+      } catch (fallbackError) {
+        logger.warn('[GTFSDownloader] ⚠️ ESHOT fallback also failed (non-fatal):', fallbackError);
+      }
     }
 
     const result = {
