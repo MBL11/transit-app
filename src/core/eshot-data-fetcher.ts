@@ -23,6 +23,11 @@ const SCHEDULES_RESOURCE_ID = 'c6fa6046-f755-47d7-b69e-db6bb06a8b5a';
 const ESHOT_BUS_COLOR = '#0066CC';
 const ESHOT_TEXT_COLOR = '#FFFFFF';
 
+// Network configuration
+const FETCH_TIMEOUT_MS = 30000; // 30 seconds per request
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000; // 2 seconds, doubles each retry
+
 // Maximum departures per route to keep database size manageable
 // With ~73 stops/route avg, 5 departures * 2 directions * 73 stops * 428 routes ≈ 312K stop_times
 const MAX_DEPARTURES_PER_ROUTE = 5;
@@ -81,7 +86,31 @@ interface CKANResponse<T> {
 // ============================================================================
 
 /**
- * Fetch paginated records from CKAN DataStore API
+ * Sleep helper for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch with timeout using AbortController
+ */
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * Fetch paginated records from CKAN DataStore API with timeout and retry
  */
 async function fetchFromDataStore<T>(
   resourceId: string,
@@ -98,22 +127,45 @@ async function fetchFromDataStore<T>(
     url += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }
 
-  logger.log(`[ESHOT] Fetching: ${url}`);
+  let lastError: Error | null = null;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`CKAN API error: HTTP ${response.status}`);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      logger.log(`[ESHOT] Fetching (attempt ${attempt}/${MAX_RETRIES}): ${url.substring(0, 100)}...`);
+
+      const response = await fetchWithTimeout(url, FETCH_TIMEOUT_MS);
+
+      if (!response.ok) {
+        throw new Error(`CKAN API error: HTTP ${response.status}`);
+      }
+
+      const data: CKANResponse<T> = await response.json();
+      if (!data.success) {
+        throw new Error('CKAN API returned success=false');
+      }
+
+      logger.log(`[ESHOT] ✅ Fetched ${data.result.records.length} records (total: ${data.result.total})`);
+
+      return {
+        records: data.result.records,
+        total: data.result.total,
+      };
+    } catch (error) {
+      lastError = error as Error;
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      const errorType = isAbort ? 'timeout' : 'network error';
+
+      logger.warn(`[ESHOT] ❌ Attempt ${attempt}/${MAX_RETRIES} failed (${errorType}):`, error);
+
+      if (attempt < MAX_RETRIES) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        logger.log(`[ESHOT] Retrying in ${delay}ms...`);
+        await sleep(delay);
+      }
+    }
   }
 
-  const data: CKANResponse<T> = await response.json();
-  if (!data.success) {
-    throw new Error('CKAN API returned success=false');
-  }
-
-  return {
-    records: data.result.records,
-    total: data.result.total,
-  };
+  throw new Error(`CKAN fetch failed after ${MAX_RETRIES} attempts: ${lastError?.message}`);
 }
 
 /**
