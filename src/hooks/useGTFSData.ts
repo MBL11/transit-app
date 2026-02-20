@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isGTFSDataAvailable, downloadAndImportAllIzmir } from '../core/gtfs-downloader';
+import { isGTFSDataAvailable, downloadAndImportAllIzmir, importEshotOnly } from '../core/gtfs-downloader';
 import * as db from '../core/database';
 import { logger } from '../utils/logger';
 
@@ -124,6 +124,33 @@ export function useGTFSData() {
           setSource(null);
           logger.log('[useGTFSData] ✅ Old data cleared, ready for İzmir import');
         } else {
+          // Count stops by type for diagnostics
+          const counts = await countStopsByType();
+          setStopCounts(counts);
+          if (counts) {
+            logger.log('[useGTFSData] Stop counts:', counts);
+          }
+
+          // Check if buses are missing - if so, import ESHOT data
+          if (counts && counts.bus === 0) {
+            logger.log('[useGTFSData] ⚠️ No bus data found, importing ESHOT...');
+            try {
+              const result = await importEshotOnly((stage, progress) => {
+                logger.log(`[useGTFSData] ESHOT import: ${stage} ${Math.round(progress * 100)}%`);
+              });
+              logger.log('[useGTFSData] ✅ ESHOT import complete:', result);
+
+              // Recount after import
+              const newCounts = await countStopsByType();
+              setStopCounts(newCounts);
+              if (newCounts) {
+                logger.log('[useGTFSData] Updated stop counts:', newCounts);
+              }
+            } catch (eshotError) {
+              logger.warn('[useGTFSData] ESHOT import failed:', eshotError);
+            }
+          }
+
           setIsLoaded(true);
           // Get metadata from AsyncStorage
           const updateStr = await AsyncStorage.getItem(GTFS_LAST_UPDATE_KEY);
@@ -134,13 +161,6 @@ export function useGTFSData() {
           }
           if (sourceStr) {
             setSource(sourceStr);
-          }
-
-          // Count stops by type for diagnostics
-          const counts = await countStopsByType();
-          setStopCounts(counts);
-          if (counts) {
-            logger.log('[useGTFSData] Stop counts:', counts);
           }
         }
       } else {
@@ -220,6 +240,60 @@ export function useGTFSData() {
     }
   };
 
+  /**
+   * Force a complete reload of all GTFS data
+   * Clears existing data and re-imports everything
+   */
+  const forceReloadAllData = async (): Promise<void> => {
+    if (refreshInProgress.current) {
+      logger.log('[useGTFSData] Refresh already in progress, skipping');
+      return;
+    }
+
+    refreshInProgress.current = true;
+    setIsRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      logger.log('[useGTFSData] Force reload: clearing all data...');
+
+      // Clear database and AsyncStorage
+      db.clearAllData();
+      await AsyncStorage.removeItem(GTFS_LOADED_KEY);
+      await AsyncStorage.removeItem(GTFS_LAST_UPDATE_KEY);
+      await AsyncStorage.removeItem(GTFS_SOURCE_KEY);
+
+      logger.log('[useGTFSData] Force reload: re-importing all data...');
+
+      const result = await downloadAndImportAllIzmir((stage, progress, sourceName) => {
+        logger.log(`[useGTFSData] Reload: ${stage} ${Math.round(progress * 100)}% ${sourceName || ''}`);
+      });
+
+      // Update metadata
+      const now = new Date().toISOString();
+      await AsyncStorage.setItem(GTFS_LOADED_KEY, 'true');
+      await AsyncStorage.setItem(GTFS_LAST_UPDATE_KEY, now);
+      await AsyncStorage.setItem(GTFS_SOURCE_KEY, 'İzmir');
+
+      setLastUpdate(new Date(now));
+      setSource('İzmir');
+      setIsLoaded(true);
+
+      // Update stop counts
+      const counts = await countStopsByType();
+      setStopCounts(counts);
+
+      logger.log('[useGTFSData] ✅ Force reload complete:', result);
+    } catch (error) {
+      logger.error('[useGTFSData] Force reload failed:', error);
+      setRefreshError(error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    } finally {
+      refreshInProgress.current = false;
+      setIsRefreshing(false);
+    }
+  };
+
   return {
     isLoaded,
     lastUpdate,
@@ -232,6 +306,8 @@ export function useGTFSData() {
     isRefreshing,
     refreshError,
     triggerBackgroundRefresh,
+    // Force reload
+    forceReloadAllData,
     // Diagnostics
     stopCounts,
   };

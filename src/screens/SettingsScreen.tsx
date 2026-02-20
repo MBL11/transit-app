@@ -51,7 +51,7 @@ export function SettingsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const { mode: themeMode, setThemeMode } = useTheme();
   const colors = useThemeColors();
-  const { lastUpdate, source, needsUpdate } = useGTFSData();
+  const { lastUpdate, source, needsUpdate, forceReloadAllData, isRefreshing, stopCounts } = useGTFSData();
   const { isOffline } = useNetwork();
   const { isGranted, requestPermissions } = useNotificationPermissions();
 
@@ -124,6 +124,28 @@ export function SettingsScreen({ navigation }: Props) {
           onPress: async () => {
             await favoritesStorage.clearAllFavorites();
             Alert.alert(t('common.confirm'), t('settings.favoritesCleared'));
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReloadData = () => {
+    Alert.alert(
+      t('settings.reloadData'),
+      t('settings.reloadDataConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.confirm'),
+          onPress: async () => {
+            try {
+              await forceReloadAllData();
+              Alert.alert('✅', t('settings.reloadDataSuccess'));
+            } catch (error) {
+              logger.error('[Settings] Failed to reload data:', error);
+              Alert.alert(t('common.error'), t('settings.reloadDataFailed'));
+            }
           },
         },
       ]
@@ -282,6 +304,25 @@ export function SettingsScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
 
+        {/* Data stats */}
+        {stopCounts && (
+          <View style={styles.dataStats}>
+            <Text style={styles.dataStatsText}>
+              🚇 Metro: {stopCounts.metro} | 🚊 Tram: {stopCounts.tram} | 🚌 Bus: {stopCounts.bus} | ⛴️ Ferry: {stopCounts.ferry} | 🚆 Rail: {stopCounts.rail}
+            </Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.button, isRefreshing && styles.buttonDisabled]}
+          onPress={handleReloadData}
+          disabled={isRefreshing}
+        >
+          <Text style={styles.buttonText}>
+            {isRefreshing ? '⏳ ' + t('settings.reloading') : '🔄 ' + t('settings.reloadData')}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.button} onPress={handleClearCache}>
           <Text style={styles.buttonText}>{t('settings.clearCache')}</Text>
         </TouchableOpacity>
@@ -393,8 +434,23 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
     },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
     buttonDanger: {
       backgroundColor: colors.isDark ? '#3D1A1A' : '#FFF5F5',
+    },
+    dataStats: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      backgroundColor: colors.isDark ? '#1E293B' : '#F1F5F9',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    dataStatsText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      textAlign: 'center',
     },
     buttonText: {
       fontSize: 16,

@@ -550,6 +550,59 @@ export async function downloadAndImportAllIzmir(
 }
 
 /**
+ * Import only ESHOT bus data (for when other data exists but buses are missing)
+ */
+export async function importEshotOnly(
+  onProgress?: (stage: string, progress: number) => void
+): Promise<{ stops: number; routes: number; trips: number; stopTimes: number }> {
+  logger.log('[GTFSDownloader] Starting ESHOT-only import...');
+
+  try {
+    onProgress?.('downloading', 0);
+
+    const eshotResult = await downloadAndImportEshot((stage, progress) => {
+      onProgress?.(stage, progress);
+    });
+
+    logger.log(`[GTFSDownloader] ✅ ESHOT import complete: ${eshotResult.stops} stops, ${eshotResult.routes} routes`);
+    return eshotResult;
+  } catch (eshotError) {
+    logger.warn('[GTFSDownloader] ⚠️ ESHOT API failed, using fallback:', eshotError);
+
+    try {
+      onProgress?.('importing', 0.5);
+      const fallback = generateEshotFallbackData();
+
+      logger.log(`[GTFSDownloader] Importing ESHOT fallback: ${fallback.routes.length} routes, ${fallback.stops.length} stops`);
+
+      await db.insertRoutes(fallback.routes);
+      onProgress?.('importing', 0.6);
+
+      await db.insertStops(fallback.stops);
+      onProgress?.('importing', 0.7);
+
+      await db.insertTrips(fallback.trips);
+      onProgress?.('importing', 0.85);
+
+      await db.insertStopTimes(fallback.stopTimes);
+      onProgress?.('importing', 1.0);
+
+      logger.log(`[GTFSDownloader] ✅ ESHOT fallback imported: ${fallback.stops.length} stops, ${fallback.routes.length} routes`);
+
+      return {
+        stops: fallback.stops.length,
+        routes: fallback.routes.length,
+        trips: fallback.trips.length,
+        stopTimes: fallback.stopTimes.length,
+      };
+    } catch (fallbackError) {
+      logger.error('[GTFSDownloader] ❌ ESHOT fallback also failed:', fallbackError);
+      throw fallbackError;
+    }
+  }
+}
+
+/**
  * Check if GTFS data is already imported
  */
 export async function isGTFSDataAvailable(): Promise<boolean> {

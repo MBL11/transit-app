@@ -249,7 +249,12 @@
     "cacheCleared": "Caché limpiado con éxito",
     "clearFavorites": "Eliminar todos los favoritos",
     "clearFavoritesConfirm": "¿Estás seguro de que quieres eliminar todos tus favoritos?",
-    "favoritesCleared": "Todos los favoritos han sido eliminados"
+    "favoritesCleared": "Todos los favoritos han sido eliminados",
+    "reloadData": "Recargar datos",
+    "reloadDataConfirm": "Esta acción descargará y reimportará todos los datos de transporte. Puede tardar un minuto.",
+    "reloadDataSuccess": "Datos de transporte recargados con éxito",
+    "reloadDataFailed": "Error al recargar. Verifica tu conexión.",
+    "reloading": "Recargando..."
   },
   "share": {
     "title": "Compartir ruta",

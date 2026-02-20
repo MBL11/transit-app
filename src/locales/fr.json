@@ -249,7 +249,12 @@
     "cacheCleared": "Le cache a été vidé avec succès",
     "clearFavorites": "Supprimer tous les favoris",
     "clearFavoritesConfirm": "Voulez-vous vraiment supprimer tous vos favoris ?",
-    "favoritesCleared": "Tous les favoris ont été supprimés"
+    "favoritesCleared": "Tous les favoris ont été supprimés",
+    "reloadData": "Recharger les données",
+    "reloadDataConfirm": "Cette action va télécharger et réimporter toutes les données de transport. Cela peut prendre une minute.",
+    "reloadDataSuccess": "Données rechargées avec succès",
+    "reloadDataFailed": "Échec du rechargement. Vérifiez votre connexion.",
+    "reloading": "Rechargement..."
   },
   "network": {
     "offline": "Vous êtes hors ligne",
