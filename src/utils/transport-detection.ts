@@ -21,15 +21,17 @@ const METRO_KEYWORDS = [
 ];
 
 // Tram-specific keywords and terminus names
-// T1 Karşıyaka: Alaybey ↔ Ataşehir/Flamingo
-// T2 Konak: Halkapınar ↔ Fahrettin Altay
+// T1 Karşıyaka: Alaybey ↔ Ataşehir (via Mavişehir)
+// T2 Konak: Fahrettin Altay ↔ Halkapınar (via Konak İskele)
 // T3 Çiğli: around Çiğli area
 const TRAM_KEYWORDS = [
   'ALAYBEY', 'ATASEHIR', 'ATAŞEHİR', 'ATAŞEHIR',
-  'FLAMINGO',
+  'FLAMINGO', 'MAVİŞEHİR', 'MAVISEHIR',
   'ÇİĞLİ', 'CIGLI',
   'KARŞIYAKA TRAM', 'KARSIYAKA TRAM',
   'KONAK TRAM',
+  // T2 specific stations (to differentiate from metro which shares some termini)
+  'KARANTINA', 'KARATAŞ', 'KONAK İSKELE', 'KONAK ISKELE',
 ];
 
 // Known İZBAN indicators (unique to İZBAN commuter rail)
