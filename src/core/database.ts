@@ -814,6 +814,98 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
 }
 
 /**
+ * Route with associated stop ID (for multimodal routing)
+ */
+export interface RouteWithStopId extends Route {
+  actualStopId: string;  // The stop ID that actually serves this route
+}
+
+/**
+ * Get routes serving a station, WITH the actual stop IDs that serve each route.
+ * Essential for multimodal routing where the user selects "Fahrettin Altay" (metro_4)
+ * but we need to find T2 tram which uses a different stop ID (tram_t2_1).
+ *
+ * @param stopId - The selected stop ID
+ * @param includeBus - Whether to include bus routes
+ * @returns Routes with their actual serving stop IDs
+ */
+export async function getRoutesWithStopIds(stopId: string, includeBus: boolean = false): Promise<RouteWithStopId[]> {
+  const db = openDatabase();
+
+  try {
+    const stop = db.getFirstSync<any>(
+      'SELECT name, lat, lon FROM stops WHERE id = ?',
+      [stopId]
+    );
+
+    if (!stop) {
+      logger.warn(`[Database] Stop not found: ${stopId}`);
+      return [];
+    }
+
+    const isBusStop = stopId.startsWith('bus_');
+    const excludeBus = !isBusStop && !includeBus;
+
+    // Find all stops at this station (normalized name matching)
+    const normalizedStopName = normalizeStopName(stop.name);
+    const baseStationName = extractBaseStationName(normalizedStopName);
+
+    const searchPattern = baseStationName.length >= 3
+      ? `%${baseStationName.slice(0, 5)}%`
+      : `%${baseStationName}%`;
+
+    const candidateStops = db.getAllSync<{ id: string; name: string }>(
+      `SELECT id, name FROM stops
+       WHERE location_type = 0
+       AND (LOWER(name) LIKE ? OR LOWER(name) = ?)
+       ${excludeBus ? "AND id NOT LIKE 'bus_%'" : ''}`,
+      [searchPattern, stop.name.toLowerCase().trim()]
+    );
+
+    const sameStationStops = candidateStops.filter(s => {
+      const candidateNormalized = normalizeStopName(s.name);
+      const candidateBase = extractBaseStationName(candidateNormalized);
+      return candidateBase === baseStationName;
+    });
+
+    const stopIds = sameStationStops.map(s => s.id);
+    if (stopIds.length === 0) {
+      return [];
+    }
+
+    // Get routes WITH their actual stop IDs
+    const placeholders = stopIds.map(() => '?').join(', ');
+    const rows = db.getAllSync<any>(
+      `SELECT DISTINCT
+         routes.id, routes.short_name, routes.long_name, routes.type, routes.color, routes.text_color,
+         stop_times.stop_id as actual_stop_id
+       FROM routes
+       JOIN trips ON routes.id = trips.route_id
+       JOIN stop_times ON trips.id = stop_times.trip_id
+       WHERE stop_times.stop_id IN (${placeholders})
+       GROUP BY routes.id, stop_times.stop_id`,
+      stopIds
+    );
+
+    const routesWithStops: RouteWithStopId[] = rows.map((row) => ({
+      id: row.id,
+      shortName: row.short_name,
+      longName: row.long_name,
+      type: row.type,
+      color: row.color,
+      textColor: row.text_color,
+      actualStopId: row.actual_stop_id,
+    }));
+
+    logger.log(`[Database] Found ${routesWithStops.length} route-stop pairs for station "${stop.name}"`);
+    return routesWithStops;
+  } catch (error) {
+    logger.error('[Database] ❌ Failed to get routes with stop IDs:', error);
+    throw error;
+  }
+}
+
+/**
  * Get routes for multiple stops in a single query (batch operation)
  * Returns a Map of stopId -> Route[]
  * This avoids N+1 query problem when fetching routes for multiple stops
