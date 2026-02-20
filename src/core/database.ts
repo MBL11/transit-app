@@ -693,27 +693,22 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
       return [];
     }
 
-    // Find all stop IDs with the same name within 100m (same station, different lines)
-    // This handles cases like Konak which has metro_konak, tram_konak, etc.
+    // Find all stop IDs with the same name (same station, different transport modes)
+    // This handles multimodal stations like "Fahrettin Altay" which has metro AND tram stops
+    // that may be up to 500m apart physically but are the same logical station.
     // IMPORTANT: Exclude bus stops when the clicked stop is non-bus to avoid
     // showing 100+ bus route numbers on metro/tram/ferry stop details.
     // When includeBus is true (used by routing engine), include all stops.
     const isBusStop = stopId.startsWith('bus_');
     const excludeBus = !isBusStop && !includeBus;
-    const radiusDegrees = 100 / 111000; // ~100 meters in degrees
+
+    // Search by exact name (case-insensitive) - no distance restriction
+    // This ensures we find BOTH metro_fahrettin AND tram_t2_fahrettin
     const sameStationStops = db.getAllSync<{ id: string }>(
       `SELECT id FROM stops
-       WHERE name = ?
-       AND lat BETWEEN ? AND ?
-       AND lon BETWEEN ? AND ?
+       WHERE LOWER(name) = LOWER(?)
        ${excludeBus ? "AND id NOT LIKE 'bus_%'" : ''}`,
-      [
-        stop.name,
-        stop.lat - radiusDegrees,
-        stop.lat + radiusDegrees,
-        stop.lon - radiusDegrees,
-        stop.lon + radiusDegrees,
-      ]
+      [stop.name]
     );
 
     const stopIds = sameStationStops.map(s => s.id);
@@ -1135,22 +1130,9 @@ export async function searchStops(query: string): Promise<Stop[]> {
       return normalizedName.includes(normalizedQuery);
     });
 
-    // Deduplicate by exact name AND transport type
-    // IMPORTANT: We need to show BOTH metro_konak AND tram_konak when both exist
-    // because they're on different lines. User needs to be able to select the right one.
-    // Only deduplicate within the same transport type.
-    const getStopPrefix = (stopId: string): string => {
-      if (stopId.startsWith('metro_')) return 'metro';
-      if (stopId.startsWith('rail_')) return 'rail';
-      if (stopId.startsWith('tram_t1_')) return 'tram_t1';
-      if (stopId.startsWith('tram_t2_')) return 'tram_t2';
-      if (stopId.startsWith('tram_t3_')) return 'tram_t3';
-      if (stopId.startsWith('tram_')) return 'tram';
-      if (stopId.startsWith('ferry_')) return 'ferry';
-      if (stopId.startsWith('bus_')) return 'bus';
-      return 'other';
-    };
-
+    // Deduplicate by exact name (case-insensitive)
+    // Keep the highest priority stop for display (metro > rail > tram > ferry > bus)
+    // The routing engine will find ALL routes for this station name via getAllStopIdsForName()
     const getStopPriority = (stopId: string): number => {
       if (stopId.startsWith('metro_')) return 0;  // Metro - highest priority
       if (stopId.startsWith('rail_')) return 1;   // İZBAN
@@ -1159,25 +1141,25 @@ export async function searchStops(query: string): Promise<Stop[]> {
       return 4;                                    // Bus and others - lowest priority
     };
 
-    // Key = name + transport prefix (e.g., "fahrettin altay_metro", "fahrettin altay_tram_t2")
     const seen = new Map<string, any>();
     for (const row of filteredRows) {
-      const baseName = row.name.toLowerCase().trim();
-      const prefix = getStopPrefix(row.id);
-      const key = `${baseName}_${prefix}`;
-
+      const key = row.name.toLowerCase().trim();
       if (!seen.has(key)) {
         seen.set(key, row);
+      } else {
+        // Replace if current stop has higher priority (lower number)
+        const existingPriority = getStopPriority(seen.get(key).id);
+        const currentPriority = getStopPriority(row.id);
+        if (currentPriority < existingPriority) {
+          seen.set(key, row);
+        }
       }
     }
 
-    // Sort by: 1) name alphabetically, 2) transport priority (metro first, bus last)
-    const sortedRows = Array.from(seen.values()).sort((a: any, b: any) => {
-      const nameCompare = a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' });
-      if (nameCompare !== 0) return nameCompare;
-      // Same name: sort by transport priority
-      return getStopPriority(a.id) - getStopPriority(b.id);
-    });
+    // Sort alphabetically by name
+    const sortedRows = Array.from(seen.values()).sort((a: any, b: any) =>
+      a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' })
+    );
     return sortedRows.slice(0, 50).map((row: any) => ({
       id: row.id,
       name: row.name,
