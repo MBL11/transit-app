@@ -249,7 +249,12 @@
     "cacheCleared": "Cache cleared successfully",
     "clearFavorites": "Delete all favorites",
     "clearFavoritesConfirm": "Are you sure you want to delete all your favorites?",
-    "favoritesCleared": "All favorites have been deleted"
+    "favoritesCleared": "All favorites have been deleted",
+    "reloadData": "Reload all data",
+    "reloadDataConfirm": "This will download and reimport all transit data. This may take a minute.",
+    "reloadDataSuccess": "Transit data reloaded successfully",
+    "reloadDataFailed": "Failed to reload data. Please check your connection.",
+    "reloading": "Reloading..."
   },
   "network": {
     "offline": "You are offline",

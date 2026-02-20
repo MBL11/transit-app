@@ -249,7 +249,12 @@
     "cacheCleared": "Önbellek başarıyla temizlendi",
     "clearFavorites": "Tüm favorileri sil",
     "clearFavoritesConfirm": "Tüm favorilerinizi silmek istediğinizden emin misiniz?",
-    "favoritesCleared": "Tüm favoriler silindi"
+    "favoritesCleared": "Tüm favoriler silindi",
+    "reloadData": "Verileri yeniden yükle",
+    "reloadDataConfirm": "Bu işlem tüm ulaşım verilerini indirip yeniden içe aktaracaktır. Bu bir dakika sürebilir.",
+    "reloadDataSuccess": "Ulaşım verileri başarıyla yüklendi",
+    "reloadDataFailed": "Yükleme başarısız. Bağlantınızı kontrol edin.",
+    "reloading": "Yükleniyor..."
   },
   "network": {
     "offline": "Çevrimdışısınız",
