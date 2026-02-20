@@ -53,7 +53,8 @@ export const GTFS_SOURCES = {
 } as const;
 
 // İzmir sources list for combined download (only working URLs)
-export const IZMIR_SOURCES: GTFSSourceKey[] = ['METRO_IZMIR', 'TRAM_IZMIR', 'IZBAN', 'IZDENIZ'];
+// NOTE: TRAM_IZMIR removed - using generateT1T2TramData() instead for accurate station names
+export const IZMIR_SOURCES: GTFSSourceKey[] = ['METRO_IZMIR', 'IZBAN', 'IZDENIZ'];
 
 export type GTFSSourceKey = keyof typeof GTFS_SOURCES;
 
