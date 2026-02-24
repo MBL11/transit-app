@@ -471,14 +471,9 @@ export async function findRoute(
       60 // 60 min window to catch less frequent night buses
     );
 
-<<<<<<< HEAD
     if (nextDepartureMin == null) {
       // No departures for this route at this time
-      logger.log(`[Routing] Skipping ${route.shortName}: no service at ${Math.floor(requestedTimeMinutes / 60)}:${(requestedTimeMinutes % 60).toString().padStart(2, '0')}`);
-=======
-    if (nextDepartureMin === null) {
       logger.log(`[Routing] Skipping ${route.shortName}: no service from ${fromActualStopId} at ${Math.floor(requestedTimeMinutes / 60)}:${(requestedTimeMinutes % 60).toString().padStart(2, '0')}`);
->>>>>>> 37a9c7f (feat: fix multimodal routing to use correct stop IDs for each route)
       continue;
     }
 
@@ -491,25 +486,16 @@ export async function findRoute(
     // Get travel time using ACTUAL stop IDs
     let actualTime = db.getActualTravelTime(route.id, fromActualStopId, toActualStopId);
 
-<<<<<<< HEAD
     // If no data for this specific route, try to get time from ANY route between these stops
     // This helps when some İZBAN routes (1793, 1884) don't have stop_times but others (2010) do
     if (actualTime == null) {
-      actualTime = db.getActualTravelTimeAnyRoute(fromStopId, toStopId);
-=======
-    if (actualTime === null) {
       actualTime = db.getActualTravelTimeAnyRoute(fromActualStopId, toActualStopId);
->>>>>>> 37a9c7f (feat: fix multimodal routing to use correct stop IDs for each route)
     }
 
     let estimatedDuration: number;
 
-<<<<<<< HEAD
     if (actualTime != null) {
       // Use actual GTFS data
-=======
-    if (actualTime !== null) {
->>>>>>> 37a9c7f (feat: fix multimodal routing to use correct stop IDs for each route)
       estimatedDuration = Math.max(3, actualTime);
     } else {
       // Get actual stop coordinates for distance calculation

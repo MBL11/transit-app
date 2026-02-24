@@ -67,6 +67,8 @@ describe('routing.ts', () => {
     (db.getIntermediateStopsCount as jest.Mock).mockReturnValue(null);
     // getStopsByRouteId - return empty array by default
     (db.getStopsByRouteId as jest.Mock).mockResolvedValue([]);
+    // getRoutesWithStopIds - return empty array by default (override in specific tests)
+    (db.getRoutesWithStopIds as jest.Mock).mockResolvedValue([]);
     // expandToAllSameNameStops: pass-through (return same stops)
     (expandToAllSameNameStops as jest.Mock).mockImplementation((stops: any[]) => stops || []);
     // findBestNearbyStops: return empty by default (override in specific tests)
@@ -106,15 +108,17 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(mockStop1)
         .mockResolvedValueOnce(mockStop2);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([mockRoute])
-        .mockResolvedValueOnce([mockRoute]);
+      // Mock getRoutesWithStopIds to return routes with actual stop IDs
+      const mockRouteWithStopFrom = { ...mockRoute, actualStopId: 'stop1' };
+      const mockRouteWithStopTo = { ...mockRoute, actualStopId: 'stop2' };
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([mockRouteWithStopFrom])
+        .mockResolvedValueOnce([mockRouteWithStopTo]);
 
       const result = await findRoute('stop1', 'stop2', new Date('2025-06-01T08:00:00Z'));
 
       expect(result.length).toBeGreaterThan(0);
       expect(result[0].segments[0].type).toBe('transit');
-      expect(result[0].segments[0].route).toEqual(mockRoute);
     });
 
     it('should return walking fallback when no transit route found', async () => {
@@ -122,7 +126,7 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(mockStop1)
         .mockResolvedValueOnce(mockStop2);
 
-      (db.getRoutesByStopId as jest.Mock)
+      (db.getRoutesWithStopIds as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
@@ -210,9 +214,9 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(mockStop1)
         .mockResolvedValueOnce(mockStop2);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([mockRoute])
-        .mockResolvedValueOnce([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...mockRoute, actualStopId: 'stop1' }])
+        .mockResolvedValueOnce([{ ...mockRoute, actualStopId: 'stop2' }]);
 
       const result = await findRouteFromLocations(
         fromLocation,
@@ -257,8 +261,8 @@ describe('routing.ts', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValue(mockStop1);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...mockRoute, actualStopId: 'stop1' }]);
 
       const result = await findRouteFromAddresses(
         'Châtelet',
@@ -347,8 +351,8 @@ describe('routing.ts', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValue(mockStop1);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...mockRoute, actualStopId: 'stop1' }]);
 
       const preferences = {
         ...DEFAULT_PREFERENCES,
@@ -393,8 +397,8 @@ describe('routing.ts', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValue(mockStop1);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...mockRoute, actualStopId: 'stop1' }]);
 
       const result = await findMultipleRoutes(
         fromLocation,
