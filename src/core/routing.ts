@@ -585,8 +585,11 @@ export async function findRoute(
       }
 
       // Check if first leg has service at requested time (60 min for night buses)
+      // IMPORTANT: Use fromRoute.actualStopId, not fromStopId!
+      // When user selects metro_4 but fromRoute is T2 tram, the tram uses tram_t2_1
+      const fromActualId = (fromRoute as RouteWithStopId).actualStopId || fromStopId;
       const firstLegDep = db.getNextDepartureForRoute(
-        fromRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60
+        fromRoute.id, fromActualId, requestedTimeMinutes, activeServiceIds, 60
       );
       if (firstLegDep == null) {
         logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${fromRoute.shortName} has no service`);
@@ -611,8 +614,10 @@ export async function findRoute(
 
       // Calculate durations using correct stop IDs for each route
       // Try GTFS times first, fall back to distance estimates
-      const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStopFrom.id);
-      const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toStopId);
+      // IMPORTANT: Use actualStopId for each route, not the user-selected stop ID
+      const toActualId = (toRoute as RouteWithStopId).actualStopId || toStopId;
+      const actual1 = db.getActualTravelTime(fromRoute.id, fromActualId, transferStopFrom.id);
+      const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toActualId);
 
       let duration1: number;
       if (actual1 != null) {
@@ -834,9 +839,12 @@ export async function findRoute(
       };
 
       // Calculate 3-segment durations - try GTFS times, fall back to distance estimates
-      const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStop1.id);
+      // IMPORTANT: Use actualStopId for routes that may serve different physical stops at multimodal stations
+      const fromActualId2 = (fromRoute as RouteWithStopId).actualStopId || fromStopId;
+      const toActualId2 = (toRoute as RouteWithStopId).actualStopId || toStopId;
+      const actual1 = db.getActualTravelTime(fromRoute.id, fromActualId2, transferStop1.id);
       const actual2 = db.getActualTravelTime(midRoute.id, transferStop1.id, transferStop2.id);
-      const actual3 = db.getActualTravelTime(toRoute.id, transferStop2.id, toStopId);
+      const actual3 = db.getActualTravelTime(toRoute.id, transferStop2.id, toActualId2);
 
       // Calculate durations with distance-based fallback for routes with incomplete GTFS data
       let dur1: number;
@@ -953,7 +961,9 @@ export async function findRoute(
           // Direct night bus route found!
           logger.log(`[Routing] 🦉 Night bus ${nightRoute.shortName} serves both origin and destination!`);
 
-          const nextDep = db.getNextDepartureForRoute(nightRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60);
+          const nightFromId = (nightRoute as RouteWithStopId).actualStopId || fromStopId;
+          const nightToId = nightBusStopsAtDest[0]?.actualStopId || toStopId;
+          const nextDep = db.getNextDepartureForRoute(nightRoute.id, nightFromId, requestedTimeMinutes, activeServiceIds, 60);
           if (nextDep != null) {
             // Use izmirMinutesToDate to correctly create Date from İzmir local time
             const adjustedNextDep = nextDep < requestedTimeMinutes
@@ -961,7 +971,7 @@ export async function findRoute(
               : nextDep;
             const actualDep = izmirMinutesToDate(departureTime, adjustedNextDep);
 
-            const travelTime = db.getActualTravelTime(nightRoute.id, fromStopId, toStopId);
+            const travelTime = db.getActualTravelTime(nightRoute.id, nightFromId, nightToId);
             const duration = travelTime != null ? Math.max(5, travelTime) : Math.round(directDistance / 1000 * 3.0);
 
             validJourneys.push({
