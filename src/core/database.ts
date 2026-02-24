@@ -2063,6 +2063,13 @@ export function getNextDepartureForRoute(
     const minTime = timeMinutes;
     const maxTime = timeMinutes + windowMinutes;
 
+    // DEBUG: Log what we're looking for
+    const isTramOrMetro = routeId.includes('tram') || routeId.includes('metro');
+    if (isTramOrMetro) {
+      const servicesStr = activeServiceIds ? Array.from(activeServiceIds).filter(s => s.includes('tram') || s.includes('M1')).join(', ') : 'null';
+      logger.log(`[Database] getNextDepartureForRoute: route=${routeId}, stop=${stopId}, time=${Math.floor(timeMinutes/60)}:${(timeMinutes%60).toString().padStart(2,'0')}, services=${servicesStr}`);
+    }
+
     // Format times as HH:MM:SS for comparison
     const minTimeStr = `${Math.floor(minTime / 60).toString().padStart(2, '0')}:${(minTime % 60).toString().padStart(2, '0')}:00`;
     const maxTimeStr = `${Math.floor(maxTime / 60).toString().padStart(2, '0')}:${(maxTime % 60).toString().padStart(2, '0')}:00`;
@@ -2101,7 +2108,18 @@ export function getNextDepartureForRoute(
       );
     }
 
-    if (!row) return null;
+    if (!row) {
+      // DEBUG: Log when no departure found for tram/metro
+      if (isTramOrMetro) {
+        logger.log(`[Database] ❌ No departure found for ${routeId} at ${stopId}`);
+      }
+      return null;
+    }
+
+    // DEBUG: Log success for tram/metro
+    if (isTramOrMetro) {
+      logger.log(`[Database] ✓ Found departure for ${routeId}: ${row.departure_time}`);
+    }
     return parseTimeToMinutes(row.departure_time);
   } catch (error) {
     logger.warn('[Database] Failed to get next departure for route:', error);
