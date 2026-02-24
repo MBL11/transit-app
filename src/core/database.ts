@@ -677,30 +677,7 @@ export function getActiveServiceIds(date: Date): Set<string> | null {
       }
     }
 
-    // DEBUG: Log ALL active services to diagnose missing metro/tram/izban
-    const allServices = Array.from(activeServiceIds);
-    const tramServices = allServices.filter(s => s.includes('tram'));
-    const metroServices = allServices.filter(s => s.includes('M1') || s.includes('metro'));
-    const izbanServices = allServices.filter(s => s.includes('rail') || s.includes('izban') || s.includes('IZBAN'));
     logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size} total`);
-    logger.log(`[Database] ALL active service IDs: ${allServices.join(', ')}`);
-    logger.log(`[Database] Active TRAM services: ${tramServices.join(', ') || 'NONE'}`);
-    logger.log(`[Database] Active METRO services: ${metroServices.join(', ') || 'NONE'}`);
-    logger.log(`[Database] Active İZBAN services: ${izbanServices.join(', ') || 'NONE'}`);
-
-    // Check if M1_DAILY exists in calendar but is not active today
-    const m1Calendar = db.getFirstSync<{ service_id: string; tuesday: number; start_date: string; end_date: string }>(
-      'SELECT service_id, ' + dayColumn + ' as today_flag, start_date, end_date FROM calendar WHERE service_id = ?',
-      ['M1_DAILY']
-    );
-    if (m1Calendar) {
-      logger.log(`[Database] M1_DAILY calendar entry: today_flag=${(m1Calendar as any).today_flag}, start=${m1Calendar.start_date}, end=${m1Calendar.end_date}`);
-    } else {
-      logger.warn(`[Database] ⚠️ M1_DAILY NOT FOUND in calendar table!`);
-      // Check if M1 trips exist at all
-      const m1Trips = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM trips WHERE service_id = ?', ['M1_DAILY']);
-      logger.warn(`[Database] M1_DAILY trips count: ${m1Trips?.count ?? 0}`);
-    }
 
     // If calendar data exists but no services match (likely expired dates),
     // return null to skip filtering rather than blocking all routes
@@ -966,22 +943,6 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
       return [];
     }
 
-    // DIAGNOSTIC: If this is a metro/tram stop, directly check if stop_times exist
-    if (stopId.startsWith('metro_') || stopId.startsWith('tram_')) {
-      const directCheck = db.getFirstSync<{ count: number }>(
-        'SELECT COUNT(*) as count FROM stop_times WHERE stop_id = ?',
-        [stopId]
-      );
-      const tripCheck = db.getAllSync<{ route_id: string; trip_count: number }>(
-        `SELECT t.route_id, COUNT(*) as trip_count FROM stop_times st
-         JOIN trips t ON st.trip_id = t.id
-         WHERE st.stop_id = ?
-         GROUP BY t.route_id`,
-        [stopId]
-      );
-      logger.log(`[Database] DIAGNOSTIC ${stopId}: stop_times count=${directCheck?.count ?? 0}, routes=${tripCheck.map(r => `${r.route_id}(${r.trip_count}trips)`).join(', ') || 'NONE'}`);
-    }
-
     const isBusStop = stopId.startsWith('bus_');
     const excludeBus = !isBusStop && !includeBus;
 
@@ -989,8 +950,7 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
     const normalizedStopName = normalizeStopName(stop.name);
     const baseStationName = extractBaseStationName(normalizedStopName);
 
-    // DEBUG: Log the normalization
-    logger.log(`[Database] getRoutesWithStopIds: stopId=${stopId}, name="${stop.name}", normalized="${normalizedStopName}", base="${baseStationName}"`);
+    logger.log(`[Database] getRoutesWithStopIds: stopId=${stopId}, name="${stop.name}", base="${baseStationName}"`);
 
     const searchPattern = baseStationName.length >= 3
       ? `%${baseStationName.slice(0, 5)}%`
@@ -1005,16 +965,11 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
     );
 
     // DEBUG: Log candidates found
-    logger.log(`[Database] Candidate stops for "${baseStationName}": ${candidateStops.map(s => `${s.id}(${s.name})`).join(', ') || 'NONE'}`);
-
     const sameStationStops = candidateStops.filter(s => {
       const candidateNormalized = normalizeStopName(s.name);
       const candidateBase = extractBaseStationName(candidateNormalized);
       return candidateBase === baseStationName;
     });
-
-    // DEBUG: Log filtered stops
-    logger.log(`[Database] Same-station stops (base="${baseStationName}"): ${sameStationStops.map(s => s.id).join(', ') || 'NONE'}`);
 
     const stopIds = sameStationStops.map(s => s.id);
 
@@ -1046,10 +1001,6 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
     if (stopIds.length === 0) {
       return [];
     }
-
-    // DIAGNOSTIC: Log the exact stop IDs being queried
-    const metroTramInList = stopIds.filter(s => s.startsWith('metro_') || s.startsWith('tram_'));
-    logger.log(`[Database] Query stopIds (${stopIds.length} total): metro/tram=[${metroTramInList.join(', ')}], bus=${stopIds.filter(s => s.startsWith('bus_')).length}`);
 
     // Get routes WITH their actual stop IDs
     const placeholders = stopIds.map(() => '?').join(', ');

@@ -1295,17 +1295,23 @@ export async function findRouteFromLocations(
         const walkToStop = getWalkingTime(fromStop.distance);
         const walkFromStop = getWalkingTime(toStop.distance);
 
+        // Adjust departure/arrival times to account for walking
+        // departureTime = when user starts walking FROM their address
+        // arrivalTime = when user arrives AT the destination address
+        const adjustedDepartureTime = new Date(route.departureTime.getTime() - walkToStop * 60000);
+        const adjustedArrivalTime = new Date(route.arrivalTime.getTime() + walkFromStop * 60000);
+
         const newJourney: JourneyResult = {
           segments: [
-            { type: 'walk', from: fromVirtualStop, to: fromStop, duration: walkToStop, distance: Math.round(fromStop.distance) },
+            ...(walkToStop > 0 ? [{ type: 'walk' as const, from: fromVirtualStop, to: fromStop, duration: walkToStop, distance: Math.round(fromStop.distance) }] : []),
             ...route.segments,
-            { type: 'walk', from: toStop, to: toVirtualStop, duration: walkFromStop, distance: Math.round(toStop.distance) },
+            ...(walkFromStop > 0 ? [{ type: 'walk' as const, from: toStop, to: toVirtualStop, duration: walkFromStop, distance: Math.round(toStop.distance) }] : []),
           ],
           totalDuration: route.totalDuration + walkToStop + walkFromStop,
           totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
           numberOfTransfers: route.numberOfTransfers,
-          departureTime: route.departureTime,
-          arrivalTime: route.arrivalTime,
+          departureTime: adjustedDepartureTime,
+          arrivalTime: adjustedArrivalTime,
         };
 
         logger.log(`[Routing] Added journey: ${routeKey}, duration=${newJourney.totalDuration}min`);
