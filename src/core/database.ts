@@ -915,6 +915,9 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
     const normalizedStopName = normalizeStopName(stop.name);
     const baseStationName = extractBaseStationName(normalizedStopName);
 
+    // DEBUG: Log the normalization
+    logger.log(`[Database] getRoutesWithStopIds: stopId=${stopId}, name="${stop.name}", normalized="${normalizedStopName}", base="${baseStationName}"`);
+
     const searchPattern = baseStationName.length >= 3
       ? `%${baseStationName.slice(0, 5)}%`
       : `%${baseStationName}%`;
@@ -927,11 +930,17 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
       [searchPattern, stop.name.toLowerCase().trim()]
     );
 
+    // DEBUG: Log candidates found
+    logger.log(`[Database] Candidate stops for "${baseStationName}": ${candidateStops.map(s => `${s.id}(${s.name})`).join(', ') || 'NONE'}`);
+
     const sameStationStops = candidateStops.filter(s => {
       const candidateNormalized = normalizeStopName(s.name);
       const candidateBase = extractBaseStationName(candidateNormalized);
       return candidateBase === baseStationName;
     });
+
+    // DEBUG: Log filtered stops
+    logger.log(`[Database] Same-station stops (base="${baseStationName}"): ${sameStationStops.map(s => s.id).join(', ') || 'NONE'}`);
 
     const stopIds = sameStationStops.map(s => s.id);
     if (stopIds.length === 0) {
@@ -962,7 +971,8 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
       actualStopId: row.actual_stop_id,
     }));
 
-    logger.log(`[Database] Found ${routesWithStops.length} route-stop pairs for station "${stop.name}"`);
+    // DEBUG: Log routes found
+    logger.log(`[Database] Found ${routesWithStops.length} route-stop pairs for station "${stop.name}": ${routesWithStops.map(r => `${r.shortName}(${r.actualStopId})`).join(', ') || 'NONE'}`);
     return routesWithStops;
   } catch (error) {
     logger.error('[Database] ❌ Failed to get routes with stop IDs:', error);
