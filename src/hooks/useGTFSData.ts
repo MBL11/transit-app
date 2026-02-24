@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isGTFSDataAvailable, downloadAndImportAllIzmir, importEshotOnly } from '../core/gtfs-downloader';
+import { isGTFSDataAvailable, downloadAndImportAllIzmir, importEshotOnly, ensureManualTransitData } from '../core/gtfs-downloader';
 import * as db from '../core/database';
 import { logger } from '../utils/logger';
 
@@ -127,6 +127,17 @@ export function useGTFSData() {
           // Auto-fix: ensure calendar entries exist for manual services (T1, T2, T3, M1, ESHOT)
           // This runs silently and fixes missing calendars without requiring user to reload data
           await db.ensureManualServiceCalendars();
+
+          // Auto-fix: ensure manual transit data (M1 metro, T1/T2/T3 trams) is present
+          // Critical for multimodal routing - without this, only buses appear in route results
+          try {
+            const manualResult = await ensureManualTransitData();
+            if (manualResult.imported.length > 0) {
+              logger.log(`[useGTFSData] Auto-imported missing transit data: ${manualResult.imported.join(', ')}`);
+            }
+          } catch (manualError) {
+            logger.warn('[useGTFSData] Manual transit data check failed:', manualError);
+          }
 
           // Count stops by type for diagnostics
           const counts = await countStopsByType();

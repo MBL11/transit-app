@@ -635,6 +635,76 @@ export async function importEshotOnly(
 }
 
 /**
+ * Ensure all manually-generated transit data (M1 metro, T1/T2/T3 trams) is present in the database.
+ * This runs silently on app start to auto-repair missing data without requiring user intervention.
+ * Critical for multimodal routing: without M1 stop_times, metro won't appear in route results.
+ */
+export async function ensureManualTransitData(): Promise<{ imported: string[] }> {
+  const imported: string[] = [];
+
+  try {
+    // Check M1 Metro
+    if (!db.hasStopTimesForRoute('metro_m1')) {
+      logger.log('[GTFSDownloader] ⚠️ M1 Metro data missing, importing...');
+      const m1Data = generateM1MetroData();
+      await db.insertRoutes(m1Data.routes);
+      await db.insertStops(m1Data.stops);
+      await db.insertTrips(m1Data.trips);
+      const batchSize = 10000;
+      for (let j = 0; j < m1Data.stopTimes.length; j += batchSize) {
+        const batch = m1Data.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+      imported.push('M1 Metro');
+      logger.log(`[GTFSDownloader] ✅ M1 Metro imported: ${m1Data.stops.length} stops, ${m1Data.trips.length} trips, ${m1Data.stopTimes.length} stop_times`);
+    }
+
+    // Check T1 Tram (Karşıyaka)
+    if (!db.hasStopTimesForRoute('tram_t1')) {
+      logger.log('[GTFSDownloader] ⚠️ T1/T2 Tram data missing, importing...');
+      const tramData = generateT1T2TramData();
+      await db.insertRoutes(tramData.routes);
+      await db.insertStops(tramData.stops);
+      await db.insertTrips(tramData.trips);
+      const batchSize = 10000;
+      for (let j = 0; j < tramData.stopTimes.length; j += batchSize) {
+        const batch = tramData.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+      imported.push('T1/T2 Tram');
+      logger.log(`[GTFSDownloader] ✅ T1/T2 Tram imported: ${tramData.stops.length} stops, ${tramData.trips.length} trips, ${tramData.stopTimes.length} stop_times`);
+    }
+
+    // Check T3 Tram (Çiğli)
+    if (!db.hasStopTimesForRoute('tram_t3_red') && !db.hasStopTimesForRoute('tram_t3_blue')) {
+      logger.log('[GTFSDownloader] ⚠️ T3 Tram data missing, importing...');
+      const t3Data = generateT3CigliData();
+      await db.insertRoutes(t3Data.routes);
+      await db.insertStops(t3Data.stops);
+      await db.insertTrips(t3Data.trips);
+      const batchSize = 10000;
+      for (let j = 0; j < t3Data.stopTimes.length; j += batchSize) {
+        const batch = t3Data.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+      imported.push('T3 Tram');
+      logger.log(`[GTFSDownloader] ✅ T3 Tram imported: ${t3Data.stops.length} stops, ${t3Data.trips.length} trips, ${t3Data.stopTimes.length} stop_times`);
+    }
+
+    if (imported.length > 0) {
+      // Also ensure calendar entries exist for the imported services
+      await db.ensureManualServiceCalendars();
+      logger.log(`[GTFSDownloader] ✅ Auto-repaired missing transit data: ${imported.join(', ')}`);
+    }
+  } catch (error) {
+    logger.warn('[GTFSDownloader] Failed to ensure manual transit data:', error);
+    captureException(error as Error, { tags: { function: 'ensureManualTransitData' } });
+  }
+
+  return { imported };
+}
+
+/**
  * Check if GTFS data is already imported
  */
 export async function isGTFSDataAvailable(): Promise<boolean> {

@@ -410,9 +410,24 @@ export async function findRoute(
   const fromRoutesWithStops = await getCachedRoutesWithStops(fromStopId, cache);
   const toRoutesWithStops = await getCachedRoutesWithStops(toStopId, cache);
 
-  // Also get regular routes for transfer finding (fallback)
-  const fromRoutes = fromRoutesWithStops.slice(0, MAX_ROUTES_PER_STOP);
-  const toRoutes = toRoutesWithStops.slice(0, MAX_ROUTES_PER_STOP);
+  // Sort routes to prioritize rail/metro/tram over bus, then apply limit.
+  // This ensures Metro M1, İZBAN, Tram routes aren't cut off by MAX_ROUTES_PER_STOP
+  // when there are many bus routes at the same station.
+  const routeTypePriority = (type: number): number => {
+    switch (type) {
+      case 1: return 0;  // Metro
+      case 2: return 1;  // İZBAN
+      case 0: return 2;  // Tram
+      case 4: return 3;  // Ferry
+      case 3: return 4;  // Bus
+      default: return 5;
+    }
+  };
+  const sortByPriority = (a: RouteWithStopId, b: RouteWithStopId) =>
+    routeTypePriority(a.type) - routeTypePriority(b.type);
+
+  const fromRoutes = [...fromRoutesWithStops].sort(sortByPriority).slice(0, MAX_ROUTES_PER_STOP);
+  const toRoutes = [...toRoutesWithStops].sort(sortByPriority).slice(0, MAX_ROUTES_PER_STOP);
 
   // Debug: log routes found for each stop
   logger.log(`[Routing] Routes for FROM stop "${fromStop.name}" (${fromStopId}): ${fromRoutes.map(r => `${r.shortName}(${r.actualStopId})`).join(', ') || 'NONE'}`);

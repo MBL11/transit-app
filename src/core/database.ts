@@ -346,6 +346,41 @@ export async function ensureManualServiceCalendars(): Promise<void> {
   }
 }
 
+/**
+ * Check if a specific route has stop_times data in the database
+ * Used to detect missing manual transit data (M1 metro, T1/T2 trams, etc.)
+ */
+export function hasStopTimesForRoute(routeId: string): boolean {
+  const database = openDatabase();
+  try {
+    const result = database.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM stop_times st
+       JOIN trips t ON st.trip_id = t.id
+       WHERE t.route_id = ?`,
+      [routeId]
+    );
+    return (result?.count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a specific route exists in the database
+ */
+export function hasRoute(routeId: string): boolean {
+  const database = openDatabase();
+  try {
+    const result = database.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM routes WHERE id = ?',
+      [routeId]
+    );
+    return (result?.count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================================
 // CRUD OPERATIONS
 // ============================================================================
@@ -948,6 +983,32 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
     logger.log(`[Database] Same-station stops (base="${baseStationName}"): ${sameStationStops.map(s => s.id).join(', ') || 'NONE'}`);
 
     const stopIds = sameStationStops.map(s => s.id);
+
+    // Also add nearby rail/metro/tram/ferry stops by geographic proximity (within 400m)
+    // This ensures multimodal routing works even when stop names don't match exactly
+    // Example: bus stop "FAHRETTİN ALTAY CD." might not match metro stop "Fahrettin Altay"
+    if (stop.lat && stop.lon) {
+      const proximityRadius = 400; // meters
+      const latDelta = proximityRadius / 111000;
+      const lonDelta = proximityRadius / (111000 * Math.cos((stop.lat * Math.PI) / 180));
+
+      const nearbyRailStops = db.getAllSync<{ id: string; name: string }>(
+        `SELECT id, name FROM stops
+         WHERE location_type = 0
+         AND lat BETWEEN ? AND ?
+         AND lon BETWEEN ? AND ?
+         AND (id LIKE 'metro_%' OR id LIKE 'rail_%' OR id LIKE 'tram_%' OR id LIKE 'ferry_%' OR id LIKE 'm1_%')`,
+        [stop.lat - latDelta, stop.lat + latDelta, stop.lon - lonDelta, stop.lon + lonDelta]
+      );
+
+      for (const nearbyStop of nearbyRailStops) {
+        if (!stopIds.includes(nearbyStop.id)) {
+          stopIds.push(nearbyStop.id);
+          logger.log(`[Database] Added nearby rail stop by proximity: ${nearbyStop.id} (${nearbyStop.name})`);
+        }
+      }
+    }
+
     if (stopIds.length === 0) {
       return [];
     }
