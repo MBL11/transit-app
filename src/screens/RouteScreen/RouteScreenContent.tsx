@@ -84,12 +84,16 @@ export function RouteScreenContent({
   };
 
   // Normalize text for search (Turkish char normalization + lowercase + Unicode decomposition)
+  // Also normalizes hyphens/dashes to spaces so "ucyol bah" matches "Üçyol-Bahçelievler"
   const normalizeForSearch = (text: string): string => {
     return text.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
       .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
-      .replace(/İ/g, 'i').replace(/I/g, 'i'); // Turkish uppercase I handling
+      .replace(/İ/g, 'i').replace(/I/g, 'i') // Turkish uppercase I handling
+      .replace(/[-–—]/g, ' ')  // Normalize hyphens/dashes to spaces
+      .replace(/\s+/g, ' ')    // Collapse multiple spaces
+      .trim();
   };
 
   // Helper functions

@@ -1304,6 +1304,9 @@ export function normalizeStopName(name: string): string {
     .replace(/Ö/g, 'o')
     .replace(/ç/g, 'c')  // c-cedilla
     .replace(/Ç/g, 'c')
+    // Normalize hyphens/dashes to spaces (e.g., "Üçyol-Bahçelievler" → "ucyol bahcelievler")
+    .replace(/[-–—]/g, ' ')
+    .replace(/\s+/g, ' ')  // Collapse multiple spaces
     .toLowerCase()
     .trim();
 

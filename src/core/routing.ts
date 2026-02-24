@@ -556,19 +556,10 @@ export async function findRoute(
   }
 
   // 4. ALWAYS search for transfer routes (even if direct routes exist)
-  //    This ensures we find faster rail options vs slower direct bus routes
-  //    Example: Metro+İZBAN transfer at Halkapınar might be faster than 3 direct buses
+  //    This ensures we find alternative options (e.g., Metro+İZBAN vs direct Tram)
+  //    Users always get at least 2-3 route options to compare duration/transfers
   if (fromRoutes.length > 0 && toRoutes.length > 0) {
-    // Check if we already have fast rail options (Metro/İZBAN/Tram)
-    const hasRailDirect = journeys.some(j =>
-      j.segments.some(s => s.type === 'transit' && s.route && [0, 1, 2].includes(s.route.type))
-    );
-
-    // Always search for transfers if:
-    // - No direct routes found, OR
-    // - No rail direct routes found (might find faster rail+transfer)
-    if (journeys.length === 0 || !hasRailDirect) {
-      logger.log(`[Routing] Looking for transfer connections (direct routes: ${journeys.length}, hasRailDirect: ${hasRailDirect})...`);
+      logger.log(`[Routing] Looking for transfer connections (direct routes found: ${journeys.length})...`);
 
     const fromRouteIds = fromRoutes.map(r => r.id);
     const toRouteIdsArr = toRoutes.map(r => r.id);
@@ -767,7 +758,6 @@ export async function findRoute(
 
     transferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
     journeys.push(...transferJourneys.slice(0, 3));
-    } // End of inner if (journeys.length === 0 || !hasRailDirect)
   } // End of outer if (fromRoutes.length > 0 && toRoutes.length > 0)
 
   // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
