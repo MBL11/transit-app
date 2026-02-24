@@ -327,7 +327,7 @@ async function enrichWithHeadsigns(journeys: JourneyResult[]): Promise<void> {
           segment.from.id,
           segment.to.id
         );
-        if (stopsCount !== null) {
+        if (stopsCount != null) {
           segment.intermediateStopsCount = stopsCount;
         }
       }
@@ -434,7 +434,7 @@ export async function findRoute(
       60 // 60 min window to catch less frequent night buses
     );
 
-    if (nextDepartureMin === null) {
+    if (nextDepartureMin == null) {
       // No departures for this route at this time
       logger.log(`[Routing] Skipping ${route.shortName}: no service at ${Math.floor(requestedTimeMinutes / 60)}:${(requestedTimeMinutes % 60).toString().padStart(2, '0')}`);
       continue;
@@ -454,13 +454,13 @@ export async function findRoute(
 
     // If no data for this specific route, try to get time from ANY route between these stops
     // This helps when some İZBAN routes (1793, 1884) don't have stop_times but others (2010) do
-    if (actualTime === null) {
+    if (actualTime == null) {
       actualTime = db.getActualTravelTimeAnyRoute(fromStopId, toStopId);
     }
 
     let estimatedDuration: number;
 
-    if (actualTime !== null) {
+    if (actualTime != null) {
       // Use actual GTFS data
       estimatedDuration = Math.max(3, actualTime);
     } else {
@@ -546,7 +546,7 @@ export async function findRoute(
       const firstLegDep = db.getNextDepartureForRoute(
         fromRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60
       );
-      if (firstLegDep === null) {
+      if (firstLegDep == null) {
         logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${fromRoute.shortName} has no service`);
         continue;
       }
@@ -573,7 +573,7 @@ export async function findRoute(
       const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toStopId);
 
       let duration1: number;
-      if (actual1 !== null) {
+      if (actual1 != null) {
         duration1 = Math.max(3, actual1);
       } else {
         // Fallback: distance-based estimate for first leg
@@ -587,13 +587,13 @@ export async function findRoute(
       const secondLegDep = db.getNextDepartureForRoute(
         toRoute.id, transferStopTo.id, arrivalAtTransferMin, activeServiceIds, 60
       );
-      if (secondLegDep === null) {
+      if (secondLegDep == null) {
         logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${toRoute.shortName} has no service after transfer`);
         continue;
       }
 
       let duration2: number;
-      if (actual2 !== null) {
+      if (actual2 != null) {
         duration2 = Math.max(3, actual2);
       } else {
         // Fallback: distance-based estimate for second leg
@@ -798,7 +798,7 @@ export async function findRoute(
 
       // Calculate durations with distance-based fallback for routes with incomplete GTFS data
       let dur1: number;
-      if (actual1 !== null) {
+      if (actual1 != null) {
         dur1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
       } else {
         const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStop1.lat, transferStop1.lon) / 1000;
@@ -807,7 +807,7 @@ export async function findRoute(
       }
 
       let dur2: number;
-      if (actual2 !== null) {
+      if (actual2 != null) {
         dur2 = Math.max(3, actual2);
       } else {
         const dist2Km = haversineDistance(transferStop1.lat, transferStop1.lon, transferStop2.lat, transferStop2.lon) / 1000;
@@ -816,7 +816,7 @@ export async function findRoute(
       }
 
       let dur3: number;
-      if (actual3 !== null) {
+      if (actual3 != null) {
         dur3 = Math.max(3, actual3);
       } else {
         const dist3Km = haversineDistance(transferStop2.lat, transferStop2.lon, toStop.lat, toStop.lon) / 1000;
@@ -912,7 +912,7 @@ export async function findRoute(
           logger.log(`[Routing] 🦉 Night bus ${nightRoute.shortName} serves both origin and destination!`);
 
           const nextDep = db.getNextDepartureForRoute(nightRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60);
-          if (nextDep !== null) {
+          if (nextDep != null) {
             // Use izmirMinutesToDate to correctly create Date from İzmir local time
             const adjustedNextDep = nextDep < requestedTimeMinutes
               ? nextDep + 24 * 60  // Add a day if we crossed midnight
@@ -920,7 +920,7 @@ export async function findRoute(
             const actualDep = izmirMinutesToDate(departureTime, adjustedNextDep);
 
             const travelTime = db.getActualTravelTime(nightRoute.id, fromStopId, toStopId);
-            const duration = travelTime !== null ? Math.max(5, travelTime) : Math.round(directDistance / 1000 * 3.0);
+            const duration = travelTime != null ? Math.max(5, travelTime) : Math.round(directDistance / 1000 * 3.0);
 
             validJourneys.push({
               segments: [{
@@ -1040,8 +1040,8 @@ export async function findRouteFromLocations(
     // Otherwise, search for nearby stops by coordinates
     logger.log('[Routing] Finding nearby stops...');
 
-    let fromStops: NearbyStop[];
-    let toStops: NearbyStop[];
+    let fromStops: NearbyStop[] = [];
+    let toStops: NearbyStop[] = [];
 
     if (fromLocation.stopId) {
       // User selected a specific stop - use it directly
@@ -1059,7 +1059,7 @@ export async function findRouteFromLocations(
       }
     } else {
       // Search by coordinates
-      const fromStopsBase = await findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500);
+      const fromStopsBase = await findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500) || [];
       if (fromStopsBase.length === 0) {
         throw new Error(`NO_STOPS_NEAR:${fromLocation.shortAddress || fromLocation.displayName}`);
       }
@@ -1082,7 +1082,7 @@ export async function findRouteFromLocations(
       }
     } else {
       // Search by coordinates
-      const toStopsBase = await findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500);
+      const toStopsBase = await findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500) || [];
       if (toStopsBase.length === 0) {
         throw new Error(`NO_STOPS_NEAR:${toLocation.shortAddress || toLocation.displayName}`);
       }
@@ -1720,7 +1720,7 @@ export async function findMultipleRoutes(
 
     // 0. Check if transit services are running at this time
     const activeServices = db.getActiveServiceIds(departureTime);
-    const noTransitService = activeServices !== null && activeServices.size === 0;
+    const noTransitService = activeServices != null && activeServices.size === 0;
 
     // Helper to build walking-only journey
     const buildWalkingJourney = (tag: string): JourneyResult => {

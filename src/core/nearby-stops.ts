@@ -327,7 +327,7 @@ export function expandToAllSameNameStops(stops: NearbyStop[]): NearbyStop[] {
   for (const stop of stops) {
     // Get all stops with the same name AND nearby ferry/transit stops
     // Pass coordinates for geographic proximity search
-    const sameNameStops = getAllStopsWithSameName(stop.name, stop.lat, stop.lon);
+    const sameNameStops = getAllStopsWithSameName(stop.name, stop.lat, stop.lon) || [];
 
     for (const sameStop of sameNameStops) {
       if (seenIds.has(sameStop.id)) continue;

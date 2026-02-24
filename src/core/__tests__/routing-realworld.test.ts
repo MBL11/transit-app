@@ -20,7 +20,7 @@ import {
   findMultipleRoutes,
 } from '../routing';
 import * as db from '../database';
-import { findBestNearbyStops, getWalkingTime } from '../nearby-stops';
+import { findBestNearbyStops, getWalkingTime, expandToAllSameNameStops } from '../nearby-stops';
 import { Stop, Route } from '../types/models';
 import { DEFAULT_PREFERENCES } from '../../types/routing-preferences';
 
@@ -76,7 +76,7 @@ const TRAM_T1: Route = { id: 'tram_t1', shortName: 'T1', longName: 'Karşıyaka 
 const BUS_303: Route = { id: 'bus_303', shortName: '303', longName: 'Buca SGK - Konak', type: 3, color: '#0066CC', textColor: '#FFFFFF' };
 const BUS_417: Route = { id: 'bus_417', shortName: '417', longName: 'Konak - Buca Koop', type: 3, color: '#0066CC', textColor: '#FFFFFF' };
 
-const DEPARTURE = new Date('2025-02-01T08:00:00');
+const DEPARTURE = new Date('2025-02-01T08:00:00Z'); // 11:00 İzmir time (UTC+3)
 
 // ============================================================================
 // Real-world reference data (from Google Maps, Rome2Rio, ESHOT)
@@ -125,10 +125,23 @@ describe('Real-World İzmir Route Comparisons', () => {
     });
     // Return null for schedule-based lookups → fall back to distance estimates
     (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
+    (db.getActualTravelTimeAnyRoute as jest.Mock).mockReturnValue(null);
     (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
+    // getNextDepartureForRoute: return departure 2 min after requested time by default
+    (db.getNextDepartureForRoute as jest.Mock).mockImplementation(
+      (_routeId: string, _stopId: string, timeMinutes: number) => timeMinutes + 2
+    );
     // Batch query mocks — return empty by default
     (db.findTransferStops as jest.Mock).mockReturnValue([]);
     (db.getRoutesByStopIds as jest.Mock).mockResolvedValue(new Map());
+    // getTripInfoForRoute - return null by default
+    (db.getTripInfoForRoute as jest.Mock).mockReturnValue(null);
+    // getIntermediateStopsCount - return null by default
+    (db.getIntermediateStopsCount as jest.Mock).mockReturnValue(null);
+    // getStopsByRouteId - return empty array by default
+    (db.getStopsByRouteId as jest.Mock).mockResolvedValue([]);
+    // expandToAllSameNameStops: pass-through (return same stops)
+    (expandToAllSameNameStops as jest.Mock).mockImplementation((stops: any[]) => stops || []);
   });
 
   // ==========================================================================
@@ -253,6 +266,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: KONAK.lon,
         fromRouteId: 'metro_m1',
         toRouteId: 'ferry_kk',
+        toStopId: 'ferry_konak',
+        toStopLat: KONAK_FERRY.lat,
+        toStopLon: KONAK_FERRY.lon,
+        walkDistance: 400,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Karşıyaka' });
@@ -325,6 +342,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: HALKAPINAR.lon,
         fromRouteId: 'metro_m1',
         toRouteId: 'izban_s1',
+        toStopId: 'rail_halkapinar',
+        toStopLat: HALKAPINAR_IZBAN.lat,
+        toStopLon: HALKAPINAR_IZBAN.lon,
+        walkDistance: 50,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Alsancak' });
@@ -387,6 +408,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: BOSTANLI_FERRY.lon,
         fromRouteId: 'ferry_ub',
         toRouteId: 'tram_t1',
+        toStopId: 'tram_bostanli',
+        toStopLat: BOSTANLI_TRAM.lat,
+        toStopLon: BOSTANLI_TRAM.lon,
+        walkDistance: 200,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Mavişehir' });
@@ -460,6 +485,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: HALKAPINAR.lon,
         fromRouteId: 'metro_m1',
         toRouteId: 'izban_s1',
+        toStopId: 'rail_halkapinar',
+        toStopLat: HALKAPINAR_IZBAN.lat,
+        toStopLon: HALKAPINAR_IZBAN.lon,
+        walkDistance: 50,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Aliağa' });
