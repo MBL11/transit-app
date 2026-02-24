@@ -642,7 +642,12 @@ export function getActiveServiceIds(date: Date): Set<string> | null {
       }
     }
 
-    logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size}`);
+    // DEBUG: Log all active services including tram/metro
+    const tramServices = Array.from(activeServiceIds).filter(s => s.includes('tram'));
+    const metroServices = Array.from(activeServiceIds).filter(s => s.includes('M1') || s.includes('metro'));
+    logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size} total`);
+    logger.log(`[Database] Active TRAM services: ${tramServices.join(', ') || 'NONE'}`);
+    logger.log(`[Database] Active METRO services: ${metroServices.join(', ') || 'NONE'}`);
 
     // If calendar data exists but no services match (likely expired dates),
     // return null to skip filtering rather than blocking all routes
