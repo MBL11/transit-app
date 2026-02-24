@@ -96,9 +96,21 @@ export function RouteScreenContent({
       .trim();
   };
 
+  // Mode suffixes used for deduplication decisions
+  const MODE_SUFFIX_WORDS = [
+    'iskele', 'iskelesi', 'iskeli', 'metro', 'istasyon', 'istasyonu',
+    'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+    'tramvay', 'otobus', 'vapur', 'feribot'
+  ];
+
   // Helper functions
   const filterStops = (query: string): Stop[] => {
     const lowerQuery = normalizeForSearch(query.trim());
+
+    // Check if user's query specifically contains a mode suffix word
+    // e.g., "karsiyaka iskele" or "alsancak gar" → user wants the specific stop
+    const queryWords = lowerQuery.split(/\s+/);
+    const queryHasModeSuffix = queryWords.some(w => MODE_SUFFIX_WORDS.includes(w));
 
     // If no query, show recent stops first
     if (!lowerQuery && recentStops.length > 0) {
@@ -128,14 +140,29 @@ export function RouteScreenContent({
       normalizeForSearch(stop.name).includes(lowerQuery)
     );
 
-    // Deduplicate by BASE name - "Karşıyaka İskeli" and "Karşıyaka İskelesi" become one
-    // Keep the stop with highest priority (rail > ferry > metro > tram > bus)
+    // Deduplication strategy depends on whether user is searching for a specific mode
     const seen = new Map<string, Stop>();
-    for (const stop of filtered) {
-      const key = getBaseName(stop.name);
-      const existing = seen.get(key);
-      if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
-        seen.set(key, stop);
+
+    if (queryHasModeSuffix) {
+      // User typed a mode suffix (e.g., "karsiyaka iskele", "alsancak gar")
+      // → Deduplicate by FULL normalized name to keep distinct stops visible
+      // This ensures "Karşıyaka İskelesi" (ferry) stays separate from "Karşıyaka" (metro)
+      for (const stop of filtered) {
+        const key = normalizeForSearch(stop.name);
+        const existing = seen.get(key);
+        if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
+          seen.set(key, stop);
+        }
+      }
+    } else {
+      // Standard search: deduplicate by BASE name
+      // "Karşıyaka İskeli" and "Karşıyaka İskelesi" become one entry
+      for (const stop of filtered) {
+        const key = getBaseName(stop.name);
+        const existing = seen.get(key);
+        if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
+          seen.set(key, stop);
+        }
       }
     }
 

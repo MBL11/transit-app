@@ -551,8 +551,8 @@ export async function findRoute(
     journeys.push(journey);
     logger.log(`[Routing] ✓ Added direct journey via ${route.shortName} (${fromActualStopId} → ${toActualStopId}, ${estimatedDuration}min), total=${journeys.length}`);
 
-    // Stop after finding 3 valid routes
-    if (journeys.length >= 3) break;
+    // Stop after finding 5 valid direct routes (increased from 3 for more diversity)
+    if (journeys.length >= 5) break;
   }
 
   // 4. ALWAYS search for transfer routes (even if direct routes exist)
@@ -567,7 +567,8 @@ export async function findRoute(
     const toRouteMap = new Map(toRoutes.map(r => [r.id, r]));
 
     // Single SQL query to find all transfer points between from-routes and to-routes
-    const transferPoints = db.findTransferStops(fromRouteIds, toRouteIdsArr, 15);
+    // Increased limit from 15 to 30 to find more diverse transfer options
+    const transferPoints = db.findTransferStops(fromRouteIds, toRouteIdsArr, 30);
     logger.log(`[Routing] Found ${transferPoints.length} transfer points in 1 query`);
 
     const transferJourneys: JourneyResult[] = [];
@@ -729,7 +730,7 @@ export async function findRoute(
           arrivalTime: new Date(actualDep1.getTime() + finalDuration * 60000),
         };
         transferJourneys.push(journey);
-        if (transferJourneys.length >= 5) break;
+        if (transferJourneys.length >= 8) break;
         continue; // Skip the regular transfer journey building
       }
 
@@ -753,11 +754,11 @@ export async function findRoute(
       };
 
       transferJourneys.push(journey);
-      if (transferJourneys.length >= 5) break;
+      if (transferJourneys.length >= 8) break;
     }
 
     transferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    journeys.push(...transferJourneys.slice(0, 3));
+    journeys.push(...transferJourneys.slice(0, 5));
   } // End of outer if (fromRoutes.length > 0 && toRoutes.length > 0)
 
   // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
@@ -1229,7 +1230,8 @@ export async function findRouteFromLocations(
         break;
       }
       // Early exit: if we already have enough diverse routes, stop searching
-      if (totalRoutesFound >= 5) {
+      // Increased from 5 to 10 to find more alternatives (transfers, multimodal)
+      if (totalRoutesFound >= 10) {
         logger.log(`[Routing] Found ${totalRoutesFound} routes, stopping early`);
         break;
       }
@@ -1334,9 +1336,9 @@ export async function findRouteFromLocations(
       throw new Error('NO_ROUTE_FOUND');
     }
 
-    // Sort by duration and return top 5
+    // Sort by duration and return top 8 (increased from 5 for more diversity)
     validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    const topJourneys = validJourneys.slice(0, 5);
+    const topJourneys = validJourneys.slice(0, 8);
 
     // Enrich final results with headsigns (deferred from findRoute for speed)
     await enrichWithHeadsigns(topJourneys);
@@ -1502,7 +1504,7 @@ export async function findRouteFromAddresses(
           logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
           break;
         }
-        if (addressRoutesFound >= 5) {
+        if (addressRoutesFound >= 10) {
           logger.log(`[Routing] Found ${addressRoutesFound} routes, stopping early`);
           break;
         }
@@ -1690,7 +1692,7 @@ export async function findRouteFromCoordinates(
         logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
         break;
       }
-      if (coordRoutesFound >= 5) break;
+      if (coordRoutesFound >= 10) break;
       try {
         const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
         routeResults.push({ fromStop, toStop, routes });
@@ -1827,6 +1829,28 @@ export async function findMultipleRoutes(
       return [buildWalkingJourney('no-transit-service')];
     }
 
+    // Helper to get route signature (unique key by transit lines used)
+    const getRouteSignature = (journey: JourneyResult): string => {
+      return journey.segments
+        .filter(s => s.type === 'transit')
+        .map(s => s.route?.shortName || s.route?.id || 'walk')
+        .join('→');
+    };
+
+    // Helper to filter routes by preferences
+    const filterByPreferences = (routes: JourneyResult[]): JourneyResult[] => {
+      return routes.filter((journey) => {
+        if (!meetsPreferences(journey, preferences)) return false;
+        const hasDisallowedMode = journey.segments.some((segment) => {
+          if (segment.type === 'transit' && segment.route) {
+            return !isRouteTypeAllowed(segment.route.type, preferences);
+          }
+          return false;
+        });
+        return !hasDisallowedMode;
+      });
+    };
+
     // 1. Get base routes using findRouteFromLocations
     let rawRoutes: JourneyResult[];
     try {
@@ -1861,58 +1885,84 @@ export async function findMultipleRoutes(
     const walkingOnlyRoutes = baseRoutes.filter((journey) =>
       journey.segments.every((seg) => seg.type === 'walk')
     );
-    const transitRoutes = baseRoutes.filter((journey) =>
+    let transitRoutes = baseRoutes.filter((journey) =>
       journey.segments.some((seg) => seg.type === 'transit')
     );
 
     // 3. Filter transit routes based on preferences
-    let filteredTransitRoutes = transitRoutes.filter((journey) => {
-      // Check if route meets basic preferences (transfers, walking distance)
-      if (!meetsPreferences(journey, preferences)) {
-        logger.log(`[Routing] Filtered out: walk=${journey.totalWalkDistance}m > max=${preferences.maxWalkingDistance}m, transfers=${journey.numberOfTransfers}`);
-        return false;
-      }
-
-      // Check if all transit segments use allowed modes
-      const hasDisallowedMode = journey.segments.some((segment) => {
-        if (segment.type === 'transit' && segment.route) {
-          const allowed = isRouteTypeAllowed(segment.route.type, preferences);
-          if (!allowed) {
-            logger.log(`[Routing] Filtered out: mode ${segment.route.shortName} (type=${segment.route.type}) not allowed`);
-          }
-          return !allowed;
-        }
-        return false;
-      });
-
-      return !hasDisallowedMode;
-    });
+    let filteredTransitRoutes = filterByPreferences(transitRoutes);
 
     logger.log(`[Routing] After filtering transit: ${filteredTransitRoutes.length} routes`);
 
-    // 4. Combine filtered transit routes with walking routes
-    // Always include walking option as it's a valid alternative
-    let allRoutes = [...filteredTransitRoutes];
+    // 4. If we have fewer than 3 unique transit route patterns, do a secondary search
+    //    with a shifted departure time (+15 min) to find additional alternatives
+    //    This helps find "next departure" options on different routes
+    const uniqueSignatures = new Set(filteredTransitRoutes.map(getRouteSignature));
+    if (uniqueSignatures.size < 3 && filteredTransitRoutes.length < maxRoutes) {
+      logger.log(`[Routing] Only ${uniqueSignatures.size} unique route patterns, searching +15min for alternatives...`);
+      try {
+        const laterTime = new Date(departureTime.getTime() + 15 * 60000);
+        const laterRawRoutes = await findRouteFromLocations(from, to, laterTime);
+        const laterSanitized = laterRawRoutes
+          .map(sanitizeJourney)
+          .filter((j): j is JourneyResult => j !== null);
+        const laterTransit = laterSanitized.filter(j => j.segments.some(s => s.type === 'transit'));
+        const laterFiltered = filterByPreferences(laterTransit);
 
-    // Add walking route if walking is allowed
-    if (preferences.allowedModes.walking && walkingOnlyRoutes.length > 0) {
-      allRoutes.push(walkingOnlyRoutes[0]);
+        for (const route of laterFiltered) {
+          const sig = getRouteSignature(route);
+          // Add if it's a new route pattern OR same pattern but different departure time (>5min apart)
+          const isDuplicate = filteredTransitRoutes.some(existing => {
+            const existingSig = getRouteSignature(existing);
+            if (existingSig !== sig) return false;
+            // Same pattern: check if departure times are close
+            return Math.abs(existing.departureTime.getTime() - route.departureTime.getTime()) < 5 * 60000;
+          });
+          if (!isDuplicate) {
+            filteredTransitRoutes.push(route);
+            uniqueSignatures.add(sig);
+            logger.log(`[Routing] Added later alternative: ${sig} at ${route.departureTime.toISOString()}`);
+          }
+          if (filteredTransitRoutes.length >= maxRoutes + 2) break;
+        }
+        logger.log(`[Routing] After secondary search: ${filteredTransitRoutes.length} transit routes (${uniqueSignatures.size} patterns)`);
+      } catch {
+        // Secondary search failed, continue with what we have
+        logger.log('[Routing] Secondary search failed, continuing with existing routes');
+      }
     }
 
-    // 5. If no routes after filtering, return the best base route anyway
+    // 5. Combine filtered transit routes with walking routes
+    let allRoutes = [...filteredTransitRoutes];
+
+    // Always generate a walking option if distance is reasonable (< 5km / ~60 min walk)
+    // even if findRouteFromLocations didn't return one
+    if (preferences.allowedModes.walking) {
+      if (walkingOnlyRoutes.length > 0) {
+        allRoutes.push(walkingOnlyRoutes[0]);
+      } else {
+        // Generate walking option if not already present
+        const walkJourney = buildWalkingJourney('walking');
+        if (walkJourney.totalDuration <= 60) { // Max 1 hour walk
+          allRoutes.push(walkJourney);
+        }
+      }
+    }
+
+    // 6. If no routes after filtering, return the best base route anyway
     if (allRoutes.length === 0) {
       logger.warn('[Routing] No routes meet preferences, returning best available route');
       return baseRoutes.slice(0, 1);
     }
 
-    // 6. Score routes based on optimization preference
+    // 7. Score routes based on optimization preference
     const scoredRoutes = allRoutes.map((journey) => ({
       journey,
       score: scoreJourney(journey, preferences),
       isWalkOnly: journey.segments.every((seg) => seg.type === 'walk'),
     }));
 
-    // 7. Sort by score (higher is better)
+    // 8. Sort by score (higher is better)
     // Walking-only routes go after transit routes unless they're the fastest
     scoredRoutes.sort((a, b) => {
       // If one is walk-only and the other isn't, walk-only goes last
@@ -1930,10 +1980,10 @@ export async function findMultipleRoutes(
       return b.score - a.score;
     });
 
-    // 8. Take top routes
+    // 9. Take top routes
     const topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
 
-    // 9. Add tags to routes
+    // 10. Add tags to routes
     const routesWithTags = topRoutes.map((journey) => ({
       ...journey,
       tags: getJourneyTags(journey, topRoutes),
