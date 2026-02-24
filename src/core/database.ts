@@ -966,6 +966,22 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
       return [];
     }
 
+    // DIAGNOSTIC: If this is a metro/tram stop, directly check if stop_times exist
+    if (stopId.startsWith('metro_') || stopId.startsWith('tram_')) {
+      const directCheck = db.getFirstSync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM stop_times WHERE stop_id = ?',
+        [stopId]
+      );
+      const tripCheck = db.getAllSync<{ route_id: string; trip_count: number }>(
+        `SELECT t.route_id, COUNT(*) as trip_count FROM stop_times st
+         JOIN trips t ON st.trip_id = t.id
+         WHERE st.stop_id = ?
+         GROUP BY t.route_id`,
+        [stopId]
+      );
+      logger.log(`[Database] DIAGNOSTIC ${stopId}: stop_times count=${directCheck?.count ?? 0}, routes=${tripCheck.map(r => `${r.route_id}(${r.trip_count}trips)`).join(', ') || 'NONE'}`);
+    }
+
     const isBusStop = stopId.startsWith('bus_');
     const excludeBus = !isBusStop && !includeBus;
 
@@ -1030,6 +1046,10 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
     if (stopIds.length === 0) {
       return [];
     }
+
+    // DIAGNOSTIC: Log the exact stop IDs being queried
+    const metroTramInList = stopIds.filter(s => s.startsWith('metro_') || s.startsWith('tram_'));
+    logger.log(`[Database] Query stopIds (${stopIds.length} total): metro/tram=[${metroTramInList.join(', ')}], bus=${stopIds.filter(s => s.startsWith('bus_')).length}`);
 
     // Get routes WITH their actual stop IDs
     const placeholders = stopIds.map(() => '?').join(', ');
