@@ -677,12 +677,30 @@ export function getActiveServiceIds(date: Date): Set<string> | null {
       }
     }
 
-    // DEBUG: Log all active services including tram/metro
-    const tramServices = Array.from(activeServiceIds).filter(s => s.includes('tram'));
-    const metroServices = Array.from(activeServiceIds).filter(s => s.includes('M1') || s.includes('metro'));
+    // DEBUG: Log ALL active services to diagnose missing metro/tram/izban
+    const allServices = Array.from(activeServiceIds);
+    const tramServices = allServices.filter(s => s.includes('tram'));
+    const metroServices = allServices.filter(s => s.includes('M1') || s.includes('metro'));
+    const izbanServices = allServices.filter(s => s.includes('rail') || s.includes('izban') || s.includes('IZBAN'));
     logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size} total`);
+    logger.log(`[Database] ALL active service IDs: ${allServices.join(', ')}`);
     logger.log(`[Database] Active TRAM services: ${tramServices.join(', ') || 'NONE'}`);
     logger.log(`[Database] Active METRO services: ${metroServices.join(', ') || 'NONE'}`);
+    logger.log(`[Database] Active İZBAN services: ${izbanServices.join(', ') || 'NONE'}`);
+
+    // Check if M1_DAILY exists in calendar but is not active today
+    const m1Calendar = db.getFirstSync<{ service_id: string; tuesday: number; start_date: string; end_date: string }>(
+      'SELECT service_id, ' + dayColumn + ' as today_flag, start_date, end_date FROM calendar WHERE service_id = ?',
+      ['M1_DAILY']
+    );
+    if (m1Calendar) {
+      logger.log(`[Database] M1_DAILY calendar entry: today_flag=${(m1Calendar as any).today_flag}, start=${m1Calendar.start_date}, end=${m1Calendar.end_date}`);
+    } else {
+      logger.warn(`[Database] ⚠️ M1_DAILY NOT FOUND in calendar table!`);
+      // Check if M1 trips exist at all
+      const m1Trips = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM trips WHERE service_id = ?', ['M1_DAILY']);
+      logger.warn(`[Database] M1_DAILY trips count: ${m1Trips?.count ?? 0}`);
+    }
 
     // If calendar data exists but no services match (likely expired dates),
     // return null to skip filtering rather than blocking all routes
