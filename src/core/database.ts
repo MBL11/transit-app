@@ -1661,7 +1661,7 @@ export function findTransferStops(
   if (fromRouteIds.length === 0 || toRouteIds.length === 0) return [];
 
   try {
-    // Query 1: Get unique (stop, route) pairs for fromRoutes
+    // Query 1: Get unique (stop, route) pairs for fromRoutes (includes route shortName for same-line filtering)
     const fromPlaceholders = fromRouteIds.map(() => '?').join(', ');
     const fromStops = db.getAllSync<{
       stop_id: string;
@@ -1669,17 +1669,19 @@ export function findTransferStops(
       lat: number;
       lon: number;
       route_id: string;
+      route_short_name: string;
     }>(
-      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id
+      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id, r.short_name AS route_short_name
        FROM trips t
        JOIN stop_times st ON t.id = st.trip_id
        JOIN stops s ON st.stop_id = s.id
+       JOIN routes r ON t.route_id = r.id
        WHERE t.route_id IN (${fromPlaceholders})
        GROUP BY s.id, t.route_id`,
       fromRouteIds
     );
 
-    // Query 2: Get unique (stop, route) pairs for toRoutes
+    // Query 2: Get unique (stop, route) pairs for toRoutes (includes route shortName for same-line filtering)
     const toPlaceholders = toRouteIds.map(() => '?').join(', ');
     const toStops = db.getAllSync<{
       stop_id: string;
@@ -1687,11 +1689,13 @@ export function findTransferStops(
       lat: number;
       lon: number;
       route_id: string;
+      route_short_name: string;
     }>(
-      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id
+      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id, r.short_name AS route_short_name
        FROM trips t
        JOIN stop_times st ON t.id = st.trip_id
        JOIN stops s ON st.stop_id = s.id
+       JOIN routes r ON t.route_id = r.id
        WHERE t.route_id IN (${toPlaceholders})
        GROUP BY s.id, t.route_id`,
       toRouteIds
@@ -1742,6 +1746,8 @@ export function findTransferStops(
       const nameMatches = toByName.get(nameKey) || [];
       for (const ts of nameMatches) {
         if (ts.route_id === fs.route_id) continue;
+        // Skip same-line transfers (e.g., M1→M1 with different route IDs)
+        if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
         const dedupKey = `${fs.route_id}-${ts.route_id}-${nameKey}`;
         if (seen.has(dedupKey)) continue;
         seen.add(dedupKey);
@@ -1768,6 +1774,7 @@ export function findTransferStops(
       const baseNameMatches = toByBaseName.get(fsBaseName) || [];
       for (const ts of baseNameMatches) {
         if (ts.route_id === fs.route_id) continue;
+        if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
         const dedupKey = `${fs.route_id}-${ts.route_id}-${fsBaseName}`;
         if (seen.has(dedupKey)) continue;
         seen.add(dedupKey);
@@ -1800,6 +1807,7 @@ export function findTransferStops(
           if (!nearStops) continue;
           for (const ts of nearStops) {
             if (ts.route_id === fs.route_id) continue;
+            if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
             if (Math.abs(ts.lat - fs.lat) >= 0.003 || Math.abs(ts.lon - fs.lon) >= 0.003) continue;
             const dedupKey = `${fs.route_id}-${ts.route_id}-${fs.stop_id}`;
             if (seen.has(dedupKey)) continue;

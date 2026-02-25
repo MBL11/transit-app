@@ -197,7 +197,9 @@
       "least-walking": "🚶 Menos caminata",
       "eco-friendly": "🌱 Ecológico",
       "no-transit-service": "🌙 Sin servicio",
-      "night-hours": "🌙 Servicio nocturno limitado (00:00-05:00)"
+      "night-hours": "🌙 Servicio nocturno limitado (00:00-05:00)",
+      "long-walk": "🚶 Caminata larga",
+      "night-bus": "🦉 Bus nocturno"
     },
     "transfers": "transbordo(s)",
     "availableRoutes": "{{count}} ruta disponible",

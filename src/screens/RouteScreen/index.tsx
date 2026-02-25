@@ -254,9 +254,17 @@ export function RouteScreen() {
       // Show interstitial ad if needed (every 3 route calculations)
       await showAdIfNeeded();
     } catch (err: any) {
-      logger.error('[RouteScreen] Error calculating route:', err);
-      captureException(err, { tags: { screen: 'route', action: 'calculate' } });
       const msg = err.message || '';
+      // Only log and report unexpected errors to Sentry
+      // NO_ROUTE_FOUND, ROUTE_TIMEOUT, NO_STOPS_NEAR are expected user-facing conditions
+      const isExpectedError = msg === 'NO_ROUTE_FOUND' || msg === 'ROUTE_TIMEOUT' ||
+        msg.startsWith('NO_STOPS_NEAR') || msg === 'NO_STOPS_NEAR_POSITION';
+      if (isExpectedError) {
+        logger.warn('[RouteScreen] Expected routing condition:', msg);
+      } else {
+        logger.error('[RouteScreen] Error calculating route:', err);
+        captureException(err, { tags: { screen: 'route', action: 'calculate' } });
+      }
       let userMessage = t('route.unableToCalculate');
       if (msg === 'ROUTE_TIMEOUT') {
         userMessage = t('route.searchTimeout', { defaultValue: 'La recherche a pris trop de temps. Essayez avec des arrêts plus proches.' });

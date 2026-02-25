@@ -222,9 +222,10 @@ function normalizeStopName(name: string): string {
 }
 
 /**
- * Sanitize journey by removing only truly absurd segments:
+ * Sanitize journey by removing truly absurd segments:
  * - Transit segments where from.name === to.name (same stop, e.g., "Mavişehir → Mavişehir")
  * - Walk segments of 0 distance
+ * - Consecutive same-line transit segments (e.g., M1 → walk → M1) are merged into one
  * Returns null only if journey becomes completely empty after sanitization
  */
 function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
@@ -260,6 +261,41 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
       if (fromName === toName && segment.distance !== undefined && segment.distance < 100) {
         logger.log(`[Routing] Removing trivial walk between same-name stops: ${segment.from.name} (${segment.distance}m)`);
         continue;
+      }
+    }
+
+    // Merge consecutive same-line transit segments (e.g., M1 → [walk] → M1)
+    // Find the last transit segment in sanitizedSegments
+    if (segment.type === 'transit' && segment.route?.shortName) {
+      const lastTransitIdx = sanitizedSegments.length - 1;
+      const prevSegment = lastTransitIdx >= 0 ? sanitizedSegments[lastTransitIdx] : null;
+
+      // Check if previous segment (or segment before a trivial walk) is same line
+      let mergeTarget: RouteSegment | null = null;
+      let removeWalkIdx = -1;
+
+      if (prevSegment?.type === 'transit' && prevSegment.route?.shortName === segment.route.shortName) {
+        mergeTarget = prevSegment;
+      } else if (prevSegment?.type === 'walk' && lastTransitIdx >= 1) {
+        // Check if there's a transit segment before the walk with same line
+        const beforeWalk = sanitizedSegments[lastTransitIdx - 1];
+        if (beforeWalk?.type === 'transit' && beforeWalk.route?.shortName === segment.route.shortName) {
+          mergeTarget = beforeWalk;
+          removeWalkIdx = lastTransitIdx; // Remove the intermediate walk
+        }
+      }
+
+      if (mergeTarget) {
+        logger.log(`[Routing] Merging same-line segments: ${mergeTarget.route?.shortName} ${mergeTarget.from.name}→${mergeTarget.to.name} + ${segment.from.name}→${segment.to.name}`);
+        // Merge: extend the previous transit segment to the new destination
+        mergeTarget.to = segment.to;
+        mergeTarget.arrivalTime = segment.arrivalTime;
+        mergeTarget.duration = (mergeTarget.duration || 0) + (segment.duration || 0);
+        // Remove intermediate walk if applicable
+        if (removeWalkIdx >= 0) {
+          sanitizedSegments.splice(removeWalkIdx, 1);
+        }
+        continue; // Don't add the current segment
       }
     }
 
@@ -583,6 +619,26 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
+      // Skip same-line transfers (e.g., M1→M1 with different route IDs for different trip patterns)
+      // This prevents nonsensical routes like "take M1, transfer, take M1 again"
+      if (fromRoute.shortName && toRoute.shortName && fromRoute.shortName === toRoute.shortName) {
+        logger.log(`[Routing] Skipping same-line transfer: ${fromRoute.shortName} (${fromRoute.id}) → ${toRoute.shortName} (${toRoute.id}) at ${tp.stopName}`);
+        continue;
+      }
+
+      // Validate ferry transfers: ferry routes (type 4) should only transfer at ferry stops
+      // This prevents invalid routes like "M1 → Ferry at Poligon" when Poligon has no ferry terminal
+      if (fromRoute.type === 4 || toRoute.type === 4) {
+        const isFerryStop = (stopId: string) => stopId.startsWith('ferry_');
+        const ferryRouteIsFrom = fromRoute.type === 4;
+        const transferStopId = ferryRouteIsFrom ? tp.stopId : tp.toStopId;
+        // The stop where ferry alights/boards must be a ferry stop
+        if (!isFerryStop(transferStopId)) {
+          logger.log(`[Routing] Skipping invalid ferry transfer: ${fromRoute.shortName}→${toRoute.shortName} at ${tp.stopName} (${transferStopId} is not a ferry stop)`);
+          continue;
+        }
+      }
+
       // Check if both transport modes are operating at the requested time
       const fromOperating = isTransitOperating(fromRoute.type, requestedTimeMinutes, fromRoute.shortName);
       const toOperating = isTransitOperating(toRoute.type, requestedTimeMinutes, toRoute.shortName);
@@ -764,8 +820,8 @@ export async function findRoute(
   // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
   //    Strategy: find routes that bridge from-routes to to-routes via an intermediate route
   //    Uses batch queries: fromRoutes → midRoutes (via transfer stops) → toRoutes (via transfer stops)
-  //    Only attempt if route sets are small enough to be tractable (skip for bus-heavy combos)
-  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0 && fromRoutes.length <= 6 && toRoutes.length <= 6) {
+  //    Use top rail/metro routes to keep search tractable even when there are many bus routes
+  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0) {
     logger.log('[Routing] No 1-transfer route, looking for 2-transfer connections...');
 
     const fromRouteIds = fromRoutes.map(r => r.id);
@@ -825,6 +881,19 @@ export async function findRoute(
       const midRoute = midEntry.route;
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
+
+      // Skip same-line transfers in 2-transfer routes
+      if ((fromRoute.shortName && midRoute.shortName && fromRoute.shortName === midRoute.shortName) ||
+          (midRoute.shortName && toRoute.shortName && midRoute.shortName === toRoute.shortName)) {
+        logger.log(`[Routing] Skipping 2-transfer same-line: ${fromRoute.shortName}→${midRoute.shortName}→${toRoute.shortName}`);
+        continue;
+      }
+
+      // Validate ferry transfers in 2-transfer routes
+      const isFerryStop = (id: string) => id.startsWith('ferry_');
+      if (fromRoute.type === 4 && !isFerryStop(midEntry.transferStop1.id)) continue;
+      if (midRoute.type === 4 && (!isFerryStop(midEntry.transferStop1.id) || !isFerryStop(tp.stopId))) continue;
+      if (toRoute.type === 4 && !isFerryStop(tp.toStopId || tp.stopId)) continue;
 
       // Check operating hours for all three legs
       const fromOperating = isTransitOperating(fromRoute.type, requestedTimeMinutes, fromRoute.shortName);
@@ -1004,10 +1073,12 @@ export async function findRoute(
     }
   }
 
-  // Si toujours pas de trajet, retourne un trajet à pied comme fallback (only if reasonable)
+  // Si toujours pas de trajet, retourne un trajet à pied comme fallback
+  // Allow longer walks (up to 2 hours / ~10km) as last resort when no transit is available
   if (validJourneys.length === 0) {
     const walkTime = walkingTime(directDistance);
-    if (Math.round(walkTime) <= MAX_WALKING_DURATION_MIN) {
+    const MAX_FALLBACK_WALK_MIN = 120; // 2 hours = ~10km
+    if (Math.round(walkTime) <= MAX_FALLBACK_WALK_MIN) {
       validJourneys.push({
         segments: [{
           type: 'walk',
@@ -1021,6 +1092,7 @@ export async function findRoute(
         numberOfTransfers: 0,
         departureTime: departureTime,
         arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
+        tags: Math.round(walkTime) > MAX_WALKING_DURATION_MIN ? ['long-walk'] : [],
       });
     } else {
       logger.warn(`[Routing] Walking fallback too long (${Math.round(walkTime)} min), distance=${Math.round(directDistance)}m — likely coordinate error`);
@@ -1333,7 +1405,30 @@ export async function findRouteFromLocations(
           logger.warn(`[Routing] Journey ${i}: ${routeNames}, duration=${j.totalDuration}min`);
         });
       }
-      throw new Error('NO_ROUTE_FOUND');
+
+      // Last resort: offer walking as fallback (up to 2 hours / ~10km)
+      const directDist = haversineDistance(fromLocation.lat, fromLocation.lon, toLocation.lat, toLocation.lon);
+      const walkTime = walkingTime(directDist);
+      if (Math.round(walkTime) <= 120) {
+        logger.log(`[Routing] No transit routes found, offering walking fallback: ${Math.round(walkTime)}min, ${Math.round(directDist)}m`);
+        validJourneys.push({
+          segments: [{
+            type: 'walk',
+            from: fromVirtualStop,
+            to: toVirtualStop,
+            duration: Math.round(walkTime),
+            distance: Math.round(directDist),
+          }],
+          totalDuration: Math.round(walkTime),
+          totalWalkDistance: Math.round(directDist),
+          numberOfTransfers: 0,
+          departureTime: departureTime,
+          arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
+          tags: ['long-walk'],
+        });
+      } else {
+        throw new Error('NO_ROUTE_FOUND');
+      }
     }
 
     // Sort by duration and return top 8 (increased from 5 for more diversity)
