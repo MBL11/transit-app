@@ -74,13 +74,51 @@ export function RouteScreenContent({
     return 4;                                    // Bus
   };
 
+  // Get transport mode prefix from stop ID
+  const getStopModePrefix = (stopId: string): string => {
+    if (stopId.startsWith('rail_')) return 'rail';
+    if (stopId.startsWith('ferry_')) return 'ferry';
+    if (stopId.startsWith('metro_')) return 'metro';
+    if (stopId.startsWith('tram_')) return 'tram';
+    return 'bus';
+  };
+
+  // Icon for each mode prefix
+  const modeToIcon: Record<string, string> = {
+    rail: '🚆',
+    ferry: '⛴️',
+    metro: 'Ⓜ️',
+    tram: '🚊',
+    bus: '🚌',
+  };
+
   // Get transport mode icon from stop ID prefix
   const getTransportIcon = (stopId: string): string => {
-    if (stopId.startsWith('rail_')) return '🚆';   // İZBAN
-    if (stopId.startsWith('ferry_')) return '⛴️';  // Ferry
-    if (stopId.startsWith('metro_')) return 'Ⓜ️';  // Metro
-    if (stopId.startsWith('tram_')) return '🚊';   // Tram
-    return '🚌';                                    // Bus
+    return modeToIcon[getStopModePrefix(stopId)] || '🚌';
+  };
+
+  // Pre-compute: for each base station name, collect all available transport modes
+  // This lets us show "Ⓜ️⛴️" for Karşıyaka (metro + ferry at same station)
+  const baseNameModes = React.useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const stop of state.stops) {
+      const base = getBaseName(stop.name);
+      if (!map.has(base)) map.set(base, new Set());
+      map.get(base)!.add(getStopModePrefix(stop.id));
+    }
+    return map;
+  }, [state.stops]);
+
+  // Get all transport mode icons for a station (multimodal display)
+  const getStationIcons = (stop: Stop): string => {
+    const base = getBaseName(stop.name);
+    const modes = baseNameModes.get(base);
+    if (!modes || modes.size <= 1) return getTransportIcon(stop.id);
+    // Sort by priority: rail, ferry, metro, tram, bus
+    const priority = ['rail', 'ferry', 'metro', 'tram', 'bus'];
+    const sorted = priority.filter(m => modes.has(m));
+    // Show max 3 icons to avoid clutter
+    return sorted.slice(0, 3).map(m => modeToIcon[m]).join('');
   };
 
   // Normalize text for search (Turkish char normalization + lowercase + Unicode decomposition)
@@ -569,7 +607,7 @@ export function RouteScreenContent({
                   }}
                 >
                   <View style={styles.stopItemContent}>
-                    <Text style={styles.transportIcon}>{getTransportIcon(item.id)}</Text>
+                    <Text style={styles.transportIcon}>{getStationIcons(item)}</Text>
                     {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
                     <Text style={[styles.stopItemText, state.fromStop?.id === item.id && styles.stopItemTextSelected]}>
                       {item.name}
@@ -636,7 +674,7 @@ export function RouteScreenContent({
                   }}
                 >
                   <View style={styles.stopItemContent}>
-                    <Text style={styles.transportIcon}>{getTransportIcon(item.id)}</Text>
+                    <Text style={styles.transportIcon}>{getStationIcons(item)}</Text>
                     {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
                     <Text style={[styles.stopItemText, state.toStop?.id === item.id && styles.stopItemTextSelected]}>
                       {item.name}
