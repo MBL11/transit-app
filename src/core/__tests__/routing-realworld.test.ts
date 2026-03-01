@@ -59,7 +59,7 @@ const UCKUYULAR_FERRY: Stop = { id: 'ferry_uckuyular', name: 'Üçkuyular', lat:
 const BOSTANLI_FERRY: Stop = { id: 'ferry_bostanli', name: 'Bostanlı', lat: 38.4610, lon: 27.0950, locationType: 0 };
 
 // Tram T1 (Karşıyaka side)
-const BOSTANLI_TRAM: Stop = { id: 'tram_bostanli', name: 'Bostanlı İskele', lat: 38.4615, lon: 27.0960, locationType: 0 };
+const BOSTANLI_TRAM: Stop = { id: 'tram_bostanli', name: 'Bostanlı Ferry', lat: 38.4615, lon: 27.0960, locationType: 0 };
 const MAVISEHIR_TRAM: Stop = { id: 'tram_mavisehir', name: 'Mavişehir', lat: 38.4710, lon: 27.0800, locationType: 0 };
 
 // Bus stops (Buca area — key for Route 1)

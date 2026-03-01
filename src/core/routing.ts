@@ -755,7 +755,7 @@ export async function findRoute(
       }
 
       // Check if transfer stop is essentially the destination (same stop or very close)
-      // This handles cases like: Ferry → Konak İskelesi → [walk] → Konak metro (destination)
+      // This handles cases like: Ferry → Konak Ferry → [walk] → Konak metro (destination)
       // where we shouldn't add a redundant metro segment
       const transferToDestDistance = haversineDistance(
         transferStopTo.lat, transferStopTo.lon,

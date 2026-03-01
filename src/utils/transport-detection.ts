@@ -22,7 +22,7 @@ const METRO_KEYWORDS = [
 
 // Tram-specific keywords and terminus names
 // T1 Karşıyaka: Alaybey ↔ Ataşehir (via Mavişehir)
-// T2 Konak: Fahrettin Altay ↔ Halkapınar (via Konak İskele)
+// T2 Konak: Fahrettin Altay ↔ Halkapınar (via Konak Ferry)
 // T3 Çiğli: Ring line (Flamingo ↔ İAOSB ↔ Flamingo)
 const TRAM_KEYWORDS = [
   // T1 stations
@@ -31,7 +31,7 @@ const TRAM_KEYWORDS = [
   'KARŞIYAKA TRAM', 'KARSIYAKA TRAM',
   // T2 stations
   'KONAK TRAM', 'KARANTINA', 'KARATAŞ', 'KARATAS',
-  'KONAK İSKELE', 'KONAK ISKELE', 'ALSANCAK GAR',
+  'KONAK FERRY', 'KONAK İSKELE', 'KONAK ISKELE', 'ALSANCAK GAR',
   // T3 stations (Çiğli Ring)
   'FLAMINGO', 'ÇİĞLİ', 'CIGLI', 'ÇIĞLI RING',
   'SEMRA AKSU', 'ESKİ HAVAALANI', 'ESKI HAVAALANI',

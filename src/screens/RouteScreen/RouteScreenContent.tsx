@@ -51,7 +51,8 @@ export function RouteScreenContent({
     // Suffixes that indicate a distinct physical location (ferry terminal, train station)
     // These should NOT be stripped - "Konak İskele" is a different place from "Konak" metro
     const DISTINCT_LOCATION_SUFFIXES = [
-      'iskele', 'iskelesi', 'iskeli', // Ferry terminals
+      'iskele', 'iskelesi', 'iskeli', // Ferry terminals (Turkish)
+      'ferry',                         // Ferry terminals (English)
       'gar', 'gari',                   // Train stations
     ];
     // Generic mode suffixes that can be safely stripped for deduplication
@@ -147,7 +148,7 @@ export function RouteScreenContent({
 
   // Mode suffixes used for deduplication decisions
   const MODE_SUFFIX_WORDS = [
-    'iskele', 'iskelesi', 'iskeli', 'metro', 'istasyon', 'istasyonu',
+    'iskele', 'iskelesi', 'iskeli', 'ferry', 'metro', 'istasyon', 'istasyonu',
     'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
     'tramvay', 'otobus', 'vapur', 'feribot'
   ];

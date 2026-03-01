@@ -221,9 +221,9 @@ export async function findBestNearbyStops(
 /**
  * Normalize station name for deduplication
  * - Normalizes Turkish characters (ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c, İ→i)
- * - Removes generic mode suffixes (Metro, İstasyon, etc.) but keeps location-specific ones (İskele, Gar)
+ * - Removes generic mode suffixes (Metro, İstasyon, etc.) but keeps location-specific ones (Ferry, İskele, Gar)
  * - "Karşıyaka Metro" → "karsiyaka" (generic suffix stripped)
- * - "Karşıyaka İskele" → "karsiyaka iskele" (distinct location, kept)
+ * - "Karşıyaka Ferry" → "karsiyaka ferry" (distinct location, kept)
  */
 function normalizeStationName(name: string): string {
   let normalized = name
@@ -250,9 +250,10 @@ function normalizeStationName(name: string): string {
     .trim();
 
   // Suffixes that indicate a DISTINCT physical location - keep these
-  // "Konak İskele" (ferry/tram terminal) ≠ "Konak" (metro station)
+  // "Konak Ferry" (ferry/tram terminal) ≠ "Konak" (metro station)
   const DISTINCT_LOCATION_SUFFIXES = [
-    'iskele', 'iskelesi', 'iskeli', // Ferry terminals
+    'iskele', 'iskelesi', 'iskeli', // Ferry terminals (Turkish)
+    'ferry',                         // Ferry terminals (English)
     'gar', 'gari',                   // Train stations
   ];
 

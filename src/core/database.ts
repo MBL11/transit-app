@@ -803,7 +803,7 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
     const excludeBus = !isBusStop && !includeBus;
 
     // Search by NORMALIZED name to handle Turkish suffix variations:
-    // "Konak İskelesi" should match "Konak İskele" (possessive suffix)
+    // "Konak İskelesi" should match "Konak Ferry" (ferry terminal variations)
     // "Fahrettin Altay" should match across metro, tram, bus stops
     const normalizedStopName = normalizeStopName(stop.name);
     const baseStationName = extractBaseStationName(normalizedStopName);
@@ -826,7 +826,7 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
     const sameStationStops = candidateStops.filter(s => {
       const candidateNormalized = normalizeStopName(s.name);
       const candidateBase = extractBaseStationName(candidateNormalized);
-      // Match by base name (e.g., "konak" matches both "Konak İskele" and "Konak İskelesi")
+      // Match by base name (e.g., "konak ferry" matches "Konak Ferry" tram stops)
       return candidateBase === baseStationName;
     });
 
@@ -886,7 +886,7 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
       }
 
       // Additional ferry keyword fallback
-      const FERRY_KEYWORDS = ['İSKELE', 'ISKELE', 'İSKELİ', 'ISKELI', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
+      const FERRY_KEYWORDS = ['FERRY', 'İSKELE', 'ISKELE', 'İSKELİ', 'ISKELI', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
       const upperName = (stop.name || '').toUpperCase();
       if (FERRY_KEYWORDS.some((kw: string) => upperName.includes(kw))) {
         logger.log(`[Database] Ferry fallback: "${stop.name}" has ferry keyword, loading all ferry routes`);
@@ -1180,7 +1180,7 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
       }
     }
 
-    // 2. Find stops starting with the same base name (e.g., "Konak" finds "Konak İskele")
+    // 2. Find stops starting with the same base name (e.g., "Konak" finds "Konak Ferry")
     // Note: SQLite LIKE doesn't handle Turkish character normalization (ı≠i, ş≠s, etc.)
     // So we fetch a broader set and filter in JavaScript
     const baseRows = db.getAllSync<any>(
@@ -1223,7 +1223,8 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
         const rowBaseName = extractBaseStationName(rowNormalized);
 
         // Add if: ferry/transit keywords OR same base name
-        const hasFerryKeyword = rowName.includes('ISKELE') || rowName.includes('İSKELE') ||
+        const hasFerryKeyword = rowName.includes('FERRY') ||
+                                rowName.includes('ISKELE') || rowName.includes('İSKELE') ||
                                 rowName.includes('ISKELI') || rowName.includes('İSKELİ') ||
                                 rowName.includes('VAPUR') || rowName.includes('FERİBOT');
         const hasTransitKeyword = rowName.includes('GAR') || rowName.includes('ISTASYON') ||
@@ -1254,15 +1255,16 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
 
 /**
  * Extract the base station name from a full stop name
- * "Konak İskele" → "konak"
- * "Halkapınar Metro" → "halkapinar"
+ * "Konak Ferry" → "konak ferry" (distinct location, kept)
+ * "Halkapınar Metro" → "halkapinar" (generic suffix stripped)
  * "Karşıyaka" → "karsiyaka"
  */
 function extractBaseStationName(normalizedName: string): string {
   // Suffixes that indicate a DISTINCT physical location (ferry terminal, train station).
   // These should NOT be stripped: "Konak İskele" (tram/ferry terminal) ≠ "Konak" (metro station)
   const DISTINCT_LOCATION_SUFFIXES = [
-    'iskele', 'iskelesi', 'iskeli', // Ferry terminals
+    'iskele', 'iskelesi', 'iskeli', // Ferry terminals (Turkish)
+    'ferry',                         // Ferry terminals (English)
     'gar', 'gari',                   // Train stations
   ];
 
@@ -1295,7 +1297,7 @@ function extractBaseStationName(normalizedName: string): string {
 
 /**
  * Normalize stop name for comparison
- * Handles Turkish characters and suffixes like İskele/İskelesi (same station)
+ * Handles Turkish characters and suffixes like İskele/İskelesi/Ferry (same station)
  */
 export function normalizeStopName(name: string): string {
   let normalized = name
@@ -1550,7 +1552,8 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
         logger.log(`[Database] Ferry fallback: no stops via stop_times for route ${routeId}, loading ferry stops by name`);
         const ferryRows = db.getAllSync<any>(
           `SELECT * FROM stops
-           WHERE UPPER(name) LIKE '%ISKELE%'
+           WHERE UPPER(name) LIKE '%FERRY%'
+              OR UPPER(name) LIKE '%ISKELE%'
               OR UPPER(name) LIKE '%İSKELE%'
               OR UPPER(name) LIKE '%VAPUR%'
               OR UPPER(name) LIKE '%FERIBOT%'

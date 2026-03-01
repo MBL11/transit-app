@@ -273,8 +273,8 @@ export const izmirMultimodalHubs: Record<string, { modes: number[]; transferTime
   'çiğli': { modes: [2, 0], transferTime: 4 },                  // İZBAN + Tram
   'alaybey': { modes: [2, 0], transferTime: 4 },                // İZBAN + Tram
   'mavişehir': { modes: [2, 0], transferTime: 4 },              // İZBAN + Tram
-  'karşıyaka iskele': { modes: [0, 4], transferTime: 3 },       // Tram + Ferry
-  'bostanlı iskele': { modes: [0, 4], transferTime: 3 },        // Tram + Ferry
+  'karşıyaka': { modes: [0, 4], transferTime: 3 },               // Tram + Ferry (waterfront area)
+  'bostanlı': { modes: [0, 4], transferTime: 3 },               // Tram + Ferry (waterfront area)
   'fahrettin altay': { modes: [1, 0], transferTime: 4 },        // Metro + Tram (T2 terminus)
   'üçyol': { modes: [1, 3], transferTime: 3 },                  // Metro + Bus hub
   'bornova': { modes: [1, 3], transferTime: 3 },                // Metro + Bus hub
@@ -291,7 +291,7 @@ export function isMultimodalHub(stopName: string): boolean {
     .replace(/ü/g, 'u')
     .replace(/ö/g, 'o')
     .replace(/ç/g, 'c')
-    .replace(/\s+(metro|iskele|istasyonu|tram|vapur|feribot)$/g, '')
+    .replace(/\s+(metro|iskele|ferry|istasyonu|tram|vapur|feribot)$/g, '')
     .trim();
 
   return Object.keys(izmirMultimodalHubs).some(hub => normalized.includes(hub));

@@ -198,7 +198,7 @@ export function MapScreen({ navigation }: Props) {
           setUnderConstructionStops(constructionStopIds);
 
           // Secondary fallback: detect ferry stops by name keywords (for any stops still missed)
-          const FERRY_STOP_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
+          const FERRY_STOP_KEYWORDS = ['FERRY', 'İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
           for (const stop of nonBusStops) {
             if (!routeTypesMap.has(stop.id)) {
               const upperName = stop.name.toUpperCase();
