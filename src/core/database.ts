@@ -1259,20 +1259,31 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
  * "Karşıyaka" → "karsiyaka"
  */
 function extractBaseStationName(normalizedName: string): string {
-  // Common suffixes that indicate mode/type, not part of the base name
-  const MODE_SUFFIXES = [
-    'iskele', 'iskelesi', 'iskeli', // Ferry terminal variants (iskeli is sometimes used in GTFS data)
+  // Suffixes that indicate a DISTINCT physical location (ferry terminal, train station).
+  // These should NOT be stripped: "Konak İskele" (tram/ferry terminal) ≠ "Konak" (metro station)
+  const DISTINCT_LOCATION_SUFFIXES = [
+    'iskele', 'iskelesi', 'iskeli', // Ferry terminals
+    'gar', 'gari',                   // Train stations
+  ];
+
+  // Generic mode suffixes that can be safely stripped for deduplication
+  const GENERIC_MODE_SUFFIXES = [
     'metro', 'istasyon', 'istasyonu',
-    'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+    'durak', 'duragi', 'tren', 'izban',
     'tramvay', 'otobus', 'vapur', 'feribot'
   ];
 
   const words = normalizedName.split(/\s+/);
 
-  // Remove trailing mode suffixes
+  // If name ends with a distinct location suffix, keep it (these are different physical locations)
+  if (words.length > 1 && DISTINCT_LOCATION_SUFFIXES.includes(words[words.length - 1])) {
+    return words.join(' ');
+  }
+
+  // Remove trailing generic mode suffixes only
   while (words.length > 1) {
     const lastWord = words[words.length - 1];
-    if (MODE_SUFFIXES.includes(lastWord)) {
+    if (GENERIC_MODE_SUFFIXES.includes(lastWord)) {
       words.pop();
     } else {
       break;

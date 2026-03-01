@@ -48,10 +48,16 @@ export function RouteScreenContent({
 
   // Extract base station name (removes suffixes like İskelesi, İskeli, Metro, etc.)
   const getBaseName = (name: string): string => {
-    const MODE_SUFFIXES = [
-      'iskele', 'iskelesi', 'iskeli',
+    // Suffixes that indicate a distinct physical location (ferry terminal, train station)
+    // These should NOT be stripped - "Konak İskele" is a different place from "Konak" metro
+    const DISTINCT_LOCATION_SUFFIXES = [
+      'iskele', 'iskelesi', 'iskeli', // Ferry terminals
+      'gar', 'gari',                   // Train stations
+    ];
+    // Generic mode suffixes that can be safely stripped for deduplication
+    const GENERIC_SUFFIXES = [
       'metro', 'istasyon', 'istasyonu',
-      'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+      'durak', 'duragi', 'tren', 'izban',
       'tramvay', 'otobus', 'vapur', 'feribot'
     ];
     const normalized = name.toLowerCase()
@@ -59,7 +65,12 @@ export function RouteScreenContent({
       .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
       .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c');
     const words = normalized.trim().split(/\s+/);
-    while (words.length > 1 && MODE_SUFFIXES.includes(words[words.length - 1])) {
+    // Check if name ends with a distinct location suffix - if so, keep it
+    if (words.length > 1 && DISTINCT_LOCATION_SUFFIXES.includes(words[words.length - 1])) {
+      return words.join(' ');
+    }
+    // Strip generic mode suffixes
+    while (words.length > 1 && GENERIC_SUFFIXES.includes(words[words.length - 1])) {
       words.pop();
     }
     return words.join(' ');
