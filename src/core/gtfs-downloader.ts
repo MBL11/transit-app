@@ -364,6 +364,24 @@ export async function downloadAndImportAllIzmir(
         parsedData.calendarDates.forEach(cd => { cd.serviceId = prefix + cd.serviceId; });
       }
 
+      // Rename "İskele" / "İskelesi" stops to "Ferry" for better user comprehension
+      // Applies to all sources but mainly affects İzdeniz ferry terminal names
+      if (sourceInfo.type === 'ferry') {
+        let renamedCount = 0;
+        parsedData.stops.forEach(s => {
+          const original = s.name;
+          s.name = s.name
+            .replace(/\bİskelesi\b/gi, 'Ferry')
+            .replace(/\biskelesi\b/gi, 'Ferry')
+            .replace(/\bİskele\b/gi, 'Ferry')
+            .replace(/\biskele\b/gi, 'Ferry');
+          if (s.name !== original) renamedCount++;
+        });
+        if (renamedCount > 0) {
+          logger.log(`[GTFSDownloader] Renamed ${renamedCount} İskele→Ferry stops in ${sourceInfo.name}`);
+        }
+      }
+
       // Validate data
       const validation = validateGTFSData(parsedData);
       if (!validation.isValid) {
@@ -436,44 +454,26 @@ export async function downloadAndImportAllIzmir(
       logger.log('[GTFSDownloader] Importing M1 Metro manual data...');
       onProgress?.('importing', 0.83, 'M1 Metro');
 
-      // First, clean up official GTFS metro data that conflicts with manual M1 data.
-      // The official GTFS metro uses different stop IDs/numbering which creates
-      // ghost routes with wrong station names (e.g., showing "Narlıdere Sahil" instead of "Konak").
-      // Remove all official metro routes/trips/stop_times EXCEPT metro_m1 (our manual data).
+      // Clean up ALL metro data before importing manual M1.
+      // The official GTFS metro may create a route that becomes 'metro_m1' after prefixing
+      // (if original route ID is 'm1'), causing conflicting trips/stop_times with wrong station names.
+      // Delete everything metro-related and let manual M1 be the single source of truth.
       const database = db.openDatabase();
       try {
-        const officialMetroRoutes = database.getAllSync<{ id: string }>(
-          `SELECT id FROM routes WHERE id LIKE 'metro_%' AND id != 'metro_m1'`
+        // Delete ALL metro stop_times, trips, and routes (including metro_m1 if it exists from official data)
+        database.runSync(
+          `DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id LIKE 'metro_%')`
         );
-        if (officialMetroRoutes.length > 0) {
-          const routeIds = officialMetroRoutes.map(r => r.id);
-          logger.log(`[GTFSDownloader] Cleaning up ${routeIds.length} official metro routes: ${routeIds.join(', ')}`);
-          const placeholders = routeIds.map(() => '?').join(', ');
-          // Delete stop_times for official metro trips
-          database.runSync(
-            `DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id IN (${placeholders}))`,
-            routeIds
-          );
-          // Delete official metro trips
-          database.runSync(
-            `DELETE FROM trips WHERE route_id IN (${placeholders})`,
-            routeIds
-          );
-          // Delete official metro routes
-          database.runSync(
-            `DELETE FROM routes WHERE id IN (${placeholders})`,
-            routeIds
-          );
-          // Delete official metro stops that aren't used by manual M1 data
-          // (stops metro_1 through metro_20 are used by manual M1, keep those)
-          const m1StopIds = Array.from({ length: 20 }, (_, i) => `metro_${i + 1}`);
-          const m1Placeholders = m1StopIds.map(() => '?').join(', ');
-          const deleted = database.runSync(
-            `DELETE FROM stops WHERE id LIKE 'metro_%' AND id NOT IN (${m1Placeholders})`,
-            m1StopIds
-          );
-          logger.log(`[GTFSDownloader] Cleaned up official metro data: ${routeIds.length} routes, ${deleted.changes} orphaned stops removed`);
-        }
+        database.runSync(`DELETE FROM trips WHERE route_id LIKE 'metro_%'`);
+        database.runSync(`DELETE FROM routes WHERE id LIKE 'metro_%'`);
+        // Delete official metro stops that aren't used by manual M1 data
+        const m1StopIds = Array.from({ length: 20 }, (_, i) => `metro_${i + 1}`);
+        const m1Placeholders = m1StopIds.map(() => '?').join(', ');
+        const deleted = database.runSync(
+          `DELETE FROM stops WHERE id LIKE 'metro_%' AND id NOT IN (${m1Placeholders})`,
+          m1StopIds
+        );
+        logger.log(`[GTFSDownloader] Cleaned up ALL metro data before M1 import (${deleted.changes} orphaned stops removed)`);
       } catch (cleanupError) {
         logger.warn('[GTFSDownloader] Metro cleanup failed (non-fatal):', cleanupError);
       }
@@ -707,23 +707,16 @@ export async function ensureManualTransitData(): Promise<{ imported: string[] }>
     if (!db.hasStopTimesForRoute('metro_m1')) {
       logger.log('[GTFSDownloader] ⚠️ M1 Metro data missing, importing...');
 
-      // Clean up official GTFS metro data that conflicts with manual M1 data
+      // Clean up ALL metro data before importing manual M1
       try {
         const database = db.openDatabase();
-        const officialMetroRoutes = database.getAllSync<{ id: string }>(
-          `SELECT id FROM routes WHERE id LIKE 'metro_%' AND id != 'metro_m1'`
-        );
-        if (officialMetroRoutes.length > 0) {
-          const routeIds = officialMetroRoutes.map(r => r.id);
-          const placeholders = routeIds.map(() => '?').join(', ');
-          database.runSync(`DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id IN (${placeholders}))`, routeIds);
-          database.runSync(`DELETE FROM trips WHERE route_id IN (${placeholders})`, routeIds);
-          database.runSync(`DELETE FROM routes WHERE id IN (${placeholders})`, routeIds);
-          const m1StopIds = Array.from({ length: 20 }, (_, i) => `metro_${i + 1}`);
-          const m1Placeholders = m1StopIds.map(() => '?').join(', ');
-          database.runSync(`DELETE FROM stops WHERE id LIKE 'metro_%' AND id NOT IN (${m1Placeholders})`, m1StopIds);
-          logger.log(`[GTFSDownloader] Cleaned up ${routeIds.length} official metro routes`);
-        }
+        database.runSync(`DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id LIKE 'metro_%')`);
+        database.runSync(`DELETE FROM trips WHERE route_id LIKE 'metro_%'`);
+        database.runSync(`DELETE FROM routes WHERE id LIKE 'metro_%'`);
+        const m1StopIds = Array.from({ length: 20 }, (_, i) => `metro_${i + 1}`);
+        const m1Placeholders = m1StopIds.map(() => '?').join(', ');
+        database.runSync(`DELETE FROM stops WHERE id LIKE 'metro_%' AND id NOT IN (${m1Placeholders})`, m1StopIds);
+        logger.log(`[GTFSDownloader] Cleaned up ALL metro data before M1 import`);
       } catch (cleanupError) {
         logger.warn('[GTFSDownloader] Metro cleanup failed (non-fatal):', cleanupError);
       }

@@ -222,6 +222,30 @@ function normalizeStopName(name: string): string {
 }
 
 /**
+ * Extract base station name for comparing stops at the same physical station.
+ * "Konak Ferry" → "konak", "Halkapınar Metro" → "halkapinar", "Konak" → "konak"
+ */
+function getBaseStationName(name: string): string {
+  const normalized = name.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
+    .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    .replace(/[-–—]/g, ' ').replace(/\s+/g, ' ');
+  const SUFFIXES_TO_STRIP = [
+    'iskele', 'iskelesi', 'iskeli', 'ferry',
+    'gar', 'gari',
+    'metro', 'istasyon', 'istasyonu',
+    'durak', 'duragi', 'tren', 'izban',
+    'tramvay', 'otobus', 'vapur', 'feribot'
+  ];
+  const words = normalized.split(/\s+/);
+  while (words.length > 1 && SUFFIXES_TO_STRIP.includes(words[words.length - 1])) {
+    words.pop();
+  }
+  return words.join(' ');
+}
+
+/**
  * Sanitize journey by removing truly absurd segments:
  * - Transit segments where from.name === to.name (same stop, e.g., "Mavişehir → Mavişehir")
  * - Walk segments of 0 distance
@@ -234,14 +258,16 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
   for (let i = 0; i < journey.segments.length; i++) {
     const segment = journey.segments[i];
 
-    // For transit segments: check if from/to have same name (absurd - same stop to same stop)
+    // For transit segments: check if from/to are at the same station (same stop or same base name)
+    // This catches segments like "Konak → Konak Ferry" on T2 (0 meaningful stops between them)
     if (segment.type === 'transit' && segment.from && segment.to) {
       const fromName = normalizeStopName(segment.from.name);
       const toName = normalizeStopName(segment.to.name);
+      const fromBase = getBaseStationName(segment.from.name);
+      const toBase = getBaseStationName(segment.to.name);
 
-      if (fromName === toName) {
-        // Same stop to same stop - skip this segment entirely
-        logger.log(`[Routing] Removing absurd transit segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
+      if (fromName === toName || fromBase === toBase) {
+        logger.log(`[Routing] Removing same-station transit segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
         continue;
       }
     }
@@ -254,12 +280,12 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
         continue;
       }
 
-      const fromName = normalizeStopName(segment.from.name);
-      const toName = normalizeStopName(segment.to.name);
+      const fromBase = getBaseStationName(segment.from.name);
+      const toBase = getBaseStationName(segment.to.name);
 
-      // Skip walk if from and to have exactly same normalized name AND distance is trivial (<100m)
-      if (fromName === toName && segment.distance !== undefined && segment.distance < 100) {
-        logger.log(`[Routing] Removing trivial walk between same-name stops: ${segment.from.name} (${segment.distance}m)`);
+      // Skip walk if from and to are at same station AND distance is trivial (<200m)
+      if (fromBase === toBase && segment.distance !== undefined && segment.distance < 200) {
+        logger.log(`[Routing] Removing trivial walk between same-station stops: ${segment.from.name} → ${segment.to.name} (${segment.distance}m)`);
         continue;
       }
     }
@@ -912,6 +938,15 @@ export async function findRoute(
         lon: tp.lon,
         locationType: 0,
       };
+
+      // Skip if transfer stops are at the same base station (e.g., "Konak" → "Konak Ferry")
+      // This would create a meaningless middle segment with 0 real stops
+      const ts1Base = getBaseStationName(transferStop1.name);
+      const ts2Base = getBaseStationName(transferStop2.name);
+      if (ts1Base === ts2Base) {
+        logger.log(`[Routing] Skipping 2-transfer with same-station middle: ${transferStop1.name} → ${transferStop2.name}`);
+        continue;
+      }
 
       // Calculate 3-segment durations - try GTFS times, fall back to distance estimates
       // IMPORTANT: Use actualStopId for routes that may serve different physical stops at multimodal stations

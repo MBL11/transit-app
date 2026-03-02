@@ -1026,9 +1026,42 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
       actualStopId: row.actual_stop_id,
     }));
 
+    // Deduplicate: if same route appears with multiple actualStopIds,
+    // keep the one whose physical stop is closest to the user's selected stop.
+    // This prevents wrong stop names (e.g., "Bölge" instead of "Fahrettin Altay" on M1)
+    // when stale or conflicting stop_times exist in the database.
+    const bestByRoute = new Map<string, RouteWithStopId>();
+    for (const rws of routesWithStops) {
+      const existing = bestByRoute.get(rws.id);
+      if (!existing) {
+        bestByRoute.set(rws.id, rws);
+      } else {
+        // Prefer the actualStopId that matches the user's selected stop exactly
+        if (rws.actualStopId === stopId) {
+          bestByRoute.set(rws.id, rws);
+        } else if (existing.actualStopId !== stopId) {
+          // Neither matches exactly - prefer the one closest geographically
+          const existingStop = db.getFirstSync<{ lat: number; lon: number }>(
+            'SELECT lat, lon FROM stops WHERE id = ?', [existing.actualStopId]
+          );
+          const candidateStop = db.getFirstSync<{ lat: number; lon: number }>(
+            'SELECT lat, lon FROM stops WHERE id = ?', [rws.actualStopId]
+          );
+          if (existingStop && candidateStop) {
+            const existingDist = Math.abs(existingStop.lat - stop.lat) + Math.abs(existingStop.lon - stop.lon);
+            const candidateDist = Math.abs(candidateStop.lat - stop.lat) + Math.abs(candidateStop.lon - stop.lon);
+            if (candidateDist < existingDist) {
+              bestByRoute.set(rws.id, rws);
+            }
+          }
+        }
+      }
+    }
+    const deduped = Array.from(bestByRoute.values());
+
     // DEBUG: Log routes found
-    logger.log(`[Database] Found ${routesWithStops.length} route-stop pairs for station "${stop.name}": ${routesWithStops.map(r => `${r.shortName}(${r.actualStopId})`).join(', ') || 'NONE'}`);
-    return routesWithStops;
+    logger.log(`[Database] Found ${deduped.length} routes for station "${stop.name}": ${deduped.map(r => `${r.shortName}(${r.actualStopId})`).join(', ') || 'NONE'}`);
+    return deduped;
   } catch (error) {
     logger.error('[Database] ❌ Failed to get routes with stop IDs:', error);
     throw error;

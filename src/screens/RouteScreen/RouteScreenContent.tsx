@@ -216,13 +216,17 @@ export function RouteScreenContent({
       }
     }
 
-    // Sort by name for better UX, but put recent stops first if they match
+    // Sort: recent stops first, then by transport priority (rail > ferry > metro > tram > bus), then alphabetical
     const recentIds = new Set(recentStops.map(s => s.id));
     const unique = Array.from(seen.values()).sort((a, b) => {
       const aRecent = recentIds.has(a.id);
       const bRecent = recentIds.has(b.id);
       if (aRecent && !bRecent) return -1;
       if (!aRecent && bRecent) return 1;
+      // Sort by transport priority: rail/metro/tram/ferry before bus
+      const aPriority = getStopPriority(a.id);
+      const bPriority = getStopPriority(b.id);
+      if (aPriority !== bPriority) return aPriority - bPriority;
       return a.name.localeCompare(b.name);
     });
 
