@@ -1613,6 +1613,41 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
 }
 
 /**
+ * Find nearby ferry/rail/tram stops for multimodal transfer discovery.
+ * Used in 2-transfer routing to find intermediate routes at multimodal hubs
+ * (e.g., metro_10 "Konak" → nearby ferry_xxx "Konak Ferry").
+ * Only returns stops with rail/ferry/tram prefixes to keep results focused.
+ */
+export function getNearbyMultimodalStops(lat: number, lon: number, radiusMeters: number = 600): Stop[] {
+  const database = openDatabase();
+
+  try {
+    const latDelta = radiusMeters / 111000;
+    const lonDelta = radiusMeters / (111000 * Math.cos((lat * Math.PI) / 180));
+
+    const rows = database.getAllSync<any>(
+      `SELECT id, name, lat, lon, location_type FROM stops
+       WHERE lat BETWEEN ? AND ?
+       AND lon BETWEEN ? AND ?
+       AND (id LIKE 'ferry_%' OR id LIKE 'rail_%' OR id LIKE 'tram_%' OR id LIKE 'metro_%')
+       AND location_type = 0`,
+      [lat - latDelta, lat + latDelta, lon - lonDelta, lon + lonDelta]
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      lat: row.lat,
+      lon: row.lon,
+      locationType: row.location_type,
+    }));
+  } catch (error) {
+    logger.warn('[Database] Failed to get nearby multimodal stops:', error);
+    return [];
+  }
+}
+
+/**
  * Get trip info (headsign) for a route going FROM origin TO destination
  * This ensures we get the correct direction by checking stop sequence
  */
@@ -1752,8 +1787,27 @@ export function findTransferStops(
     // Use NORMALIZED BASE NAME for matching (e.g., "Halkapınar Metro" → "halkapinar")
     // This allows multimodal transfers between stops with similar names
     const toByName = new Map<string, typeof toStops>();
-    const toByBaseName = new Map<string, typeof toStops>(); // NEW: index by base name
+    const toByBaseName = new Map<string, typeof toStops>(); // index by base name
+    const toByCoreName = new Map<string, typeof toStops>(); // index by core name (strips ALL suffixes incl. ferry/iskele)
     const toByGrid = new Map<string, typeof toStops>();
+
+    // Core name: strips ALL suffixes including ferry/iskele/gar
+    // This enables matching "Konak" (metro) with "Konak Ferry" (ferry terminal)
+    const ALL_SUFFIXES = [
+      'iskele', 'iskelesi', 'iskeli', 'ferry',
+      'gar', 'gari',
+      'metro', 'istasyon', 'istasyonu',
+      'durak', 'duragi', 'tren', 'izban',
+      'tramvay', 'otobus', 'vapur', 'feribot'
+    ];
+    const extractCoreName = (name: string): string => {
+      const normalized = normalizeStopName(name);
+      const words = normalized.split(/\s+/);
+      while (words.length > 1 && ALL_SUFFIXES.includes(words[words.length - 1])) {
+        words.pop();
+      }
+      return words.join(' ');
+    };
 
     for (const ts of toStops) {
       // Exact name match index
@@ -1766,6 +1820,11 @@ export function findTransferStops(
       const baseName = extractBaseStationName(normalized);
       if (!toByBaseName.has(baseName)) toByBaseName.set(baseName, []);
       toByBaseName.get(baseName)!.push(ts);
+
+      // Core name index (strips ALL suffixes for ferry↔metro matching)
+      const coreName = extractCoreName(ts.stop_name);
+      if (!toByCoreName.has(coreName)) toByCoreName.set(coreName, []);
+      toByCoreName.get(coreName)!.push(ts);
 
       const gridKey = `${Math.round(ts.lat / 0.003)}_${Math.round(ts.lon / 0.003)}`;
       if (!toByGrid.has(gridKey)) toByGrid.set(gridKey, []);
@@ -1828,6 +1887,36 @@ export function findTransferStops(
         const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
         // Only accept base name matches within 500m (same station area)
         if (walkDist > 500) continue;
+        results.push({
+          stopId: fs.stop_id,
+          stopName: fs.stop_name,
+          lat: fs.lat,
+          lon: fs.lon,
+          fromRouteId: fs.route_id,
+          toRouteId: ts.route_id,
+          toStopId: ts.stop_id,
+          toStopLat: ts.lat,
+          toStopLon: ts.lon,
+          walkDistance: Math.round(walkDist),
+        });
+        if (results.length >= limit) break;
+      }
+      if (results.length >= limit) break;
+
+      // 1c. Core name match (ferry↔metro/tram: "Konak" ↔ "Konak Ferry"/"Konak İskelesi")
+      //     Strips ALL suffixes including ferry/iskele, then matches within 800m
+      //     This enables multimodal transfer discovery at ferry terminals
+      const fsCoreName = extractCoreName(fs.stop_name);
+      const coreNameMatches = toByCoreName.get(fsCoreName) || [];
+      for (const ts of coreNameMatches) {
+        if (ts.route_id === fs.route_id) continue;
+        if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
+        const dedupKey = `${fs.route_id}-${ts.route_id}-core-${fsCoreName}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+        const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
+        // Accept core name matches within 800m (ferry terminals can be 500-800m from metro)
+        if (walkDist > 800) continue;
         results.push({
           stopId: fs.stop_id,
           stopName: fs.stop_name,

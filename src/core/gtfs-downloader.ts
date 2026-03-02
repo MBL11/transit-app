@@ -365,16 +365,21 @@ export async function downloadAndImportAllIzmir(
       }
 
       // Rename "İskele" / "İskelesi" stops to "Ferry" for better user comprehension
-      // Applies to all sources but mainly affects İzdeniz ferry terminal names
-      if (sourceInfo.type === 'ferry') {
+      // Applied to ALL sources (not just ferry) because ferry terminal names may appear
+      // in bus/tram GTFS as transfer points.
+      // NOTE: JavaScript \b word boundary does NOT work with Turkish characters (İ, ş, etc.)
+      // because \w only includes [a-zA-Z0-9_]. Use explicit patterns instead.
+      {
         let renamedCount = 0;
         parsedData.stops.forEach(s => {
           const original = s.name;
           s.name = s.name
-            .replace(/\bİskelesi\b/gi, 'Ferry')
-            .replace(/\biskelesi\b/gi, 'Ferry')
-            .replace(/\bİskele\b/gi, 'Ferry')
-            .replace(/\biskele\b/gi, 'Ferry');
+            .replace(/İskelesi/g, 'Ferry')
+            .replace(/iskelesi/g, 'Ferry')
+            .replace(/İSKELESİ/g, 'Ferry')
+            .replace(/İskele(?=\s|$)/g, 'Ferry')
+            .replace(/iskele(?=\s|$)/g, 'Ferry')
+            .replace(/İSKELE(?=\s|$)/g, 'Ferry');
           if (s.name !== original) renamedCount++;
         });
         if (renamedCount > 0) {
@@ -625,6 +630,24 @@ export async function downloadAndImportAllIzmir(
       logger.warn('[GTFSDownloader] ⚠️ Failed to add manual calendar entries (non-fatal):', calendarError);
     }
 
+    // Final pass: rename any remaining İskelesi/İskele stops to Ferry in the database
+    // This catches stops from non-ferry sources (bus transfers, etc.) that weren't renamed above
+    try {
+      const database = db.openDatabase();
+      const r1 = database.runSync(`UPDATE stops SET name = REPLACE(name, 'İskelesi', 'Ferry') WHERE name LIKE '%İskelesi%'`);
+      const r2 = database.runSync(`UPDATE stops SET name = REPLACE(name, 'iskelesi', 'Ferry') WHERE name LIKE '%iskelesi%'`);
+      const r3 = database.runSync(`UPDATE stops SET name = REPLACE(name, 'İSKELESİ', 'Ferry') WHERE name LIKE '%İSKELESİ%'`);
+      // Only rename standalone İskele (not İskelesi which was already handled)
+      const r4 = database.runSync(`UPDATE stops SET name = REPLACE(name, ' İskele', ' Ferry') WHERE name LIKE '% İskele'`);
+      const r5 = database.runSync(`UPDATE stops SET name = REPLACE(name, ' iskele', ' Ferry') WHERE name LIKE '% iskele'`);
+      const totalRenamed = (r1.changes || 0) + (r2.changes || 0) + (r3.changes || 0) + (r4.changes || 0) + (r5.changes || 0);
+      if (totalRenamed > 0) {
+        logger.log(`[GTFSDownloader] Final İskele→Ferry rename: ${totalRenamed} stops updated in database`);
+      }
+    } catch (renameError) {
+      logger.warn('[GTFSDownloader] ⚠️ Final İskele→Ferry rename failed (non-fatal):', renameError);
+    }
+
     const result = {
       stops: totalStops,
       routes: totalRoutes,
@@ -770,6 +793,18 @@ export async function ensureManualTransitData(): Promise<{ imported: string[] }>
       // Also ensure calendar entries exist for the imported services
       await db.ensureManualServiceCalendars();
       logger.log(`[GTFSDownloader] ✅ Auto-repaired missing transit data: ${imported.join(', ')}`);
+    }
+
+    // Ensure all İskelesi/İskele stops are renamed to Ferry in the database
+    try {
+      const database = db.openDatabase();
+      database.runSync(`UPDATE stops SET name = REPLACE(name, 'İskelesi', 'Ferry') WHERE name LIKE '%İskelesi%'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, 'iskelesi', 'Ferry') WHERE name LIKE '%iskelesi%'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, 'İSKELESİ', 'Ferry') WHERE name LIKE '%İSKELESİ%'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, ' İskele', ' Ferry') WHERE name LIKE '% İskele'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, ' iskele', ' Ferry') WHERE name LIKE '% iskele'`);
+    } catch (renameError) {
+      logger.warn('[GTFSDownloader] ⚠️ İskele→Ferry rename in ensureManualTransitData failed:', renameError);
     }
   } catch (error) {
     logger.warn('[GTFSDownloader] Failed to ensure manual transit data:', error);

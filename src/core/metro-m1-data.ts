@@ -7,11 +7,17 @@
  * M1 Line: Fahrettin Altay (Narlıdere) ↔ Evka 3 (Bornova)
  * Extended to Narlıdere in February 2024
  *
- * Total: 24 stations
+ * Total: 20 stations
  *
  * Schedule:
  * - Weekdays: 06:00 - 00:20, every 4-5 min (peak), 6-8 min (off-peak)
  * - Weekends: 06:00 - 00:20, every 6-8 min
+ *
+ * Timing:
+ * - Per-station cumulative times based on actual inter-station distances
+ * - Running speed: ~38 km/h + 30s dwell per stop
+ * - Total end-to-end: ~40 min (Kaymakamlık → Evka 3)
+ * - Key durations: F.Altay→Konak ~12 min, F.Altay→Halkapınar ~20 min
  *
  * Sources:
  * - Station coordinates: OpenStreetMap (verified Jan 2026)
@@ -22,32 +28,34 @@ import type { Stop, Route, Trip, StopTime } from './types/models';
 
 // M1 stations from SW (Fahrettin Altay/Narlıdere) to NE (Evka 3)
 // Coordinates from OpenStreetMap
+// cumTime: cumulative travel time from Kaymakamlık in minutes,
+//   computed from actual inter-station distances at 38 km/h running speed + 30s dwell per stop
 const M1_STATIONS = [
   // Narlıdere Extension (Feb 2024)
-  { id: 1, name: 'Kaymakamlık', lat: 38.3850, lon: 27.0545 },
-  { id: 2, name: 'Narlıdere Sahil', lat: 38.3890, lon: 27.0590 },
-  { id: 3, name: 'Narlıdere', lat: 38.3920, lon: 27.0640 },
-  { id: 4, name: 'Fahrettin Altay', lat: 38.3954, lon: 27.0730 },
+  { id: 1, name: 'Kaymakamlık', lat: 38.3850, lon: 27.0545, cumTime: 0 },
+  { id: 2, name: 'Narlıdere Sahil', lat: 38.3890, lon: 27.0590, cumTime: 1.5 },
+  { id: 3, name: 'Narlıdere', lat: 38.3920, lon: 27.0640, cumTime: 2.8 },
+  { id: 4, name: 'Fahrettin Altay', lat: 38.3954, lon: 27.0730, cumTime: 4.7 },
   // Original M1 Line
-  { id: 5, name: 'Poligon', lat: 38.3985, lon: 27.0850 },
-  { id: 6, name: 'Üçyol-Bahçelievler', lat: 38.4000, lon: 27.0950 },
-  { id: 7, name: 'Hatay', lat: 38.4050, lon: 27.1020 },
-  { id: 8, name: 'Eşrefpaşa', lat: 38.4080, lon: 27.1090 },
-  { id: 9, name: 'Üçyol', lat: 38.4085, lon: 27.1130 },
-  { id: 10, name: 'Konak', lat: 38.4189, lon: 27.1287 },
-  { id: 11, name: 'Çankaya', lat: 38.4220, lon: 27.1370 },
-  { id: 12, name: 'Basmane', lat: 38.4260, lon: 27.1430 },
-  { id: 13, name: 'İzmir Hilal', lat: 38.4300, lon: 27.1520 },
-  { id: 14, name: 'Halkapınar', lat: 38.4340, lon: 27.1670 },
-  { id: 15, name: 'Stadyum', lat: 38.4420, lon: 27.1800 },
-  { id: 16, name: 'Sanayi', lat: 38.4480, lon: 27.1900 },
-  { id: 17, name: 'Bölge', lat: 38.4530, lon: 27.1980 },
-  { id: 18, name: 'Bornova', lat: 38.4620, lon: 27.2150 },
-  { id: 19, name: 'Ege Üniversitesi', lat: 38.4680, lon: 27.2250 },
-  { id: 20, name: 'Evka 3', lat: 38.4750, lon: 27.2350 },
+  { id: 5, name: 'Poligon', lat: 38.3985, lon: 27.0850, cumTime: 6.9 },
+  { id: 6, name: 'Üçyol-Bahçelievler', lat: 38.4000, lon: 27.0950, cumTime: 8.8 },
+  { id: 7, name: 'Hatay', lat: 38.4050, lon: 27.1020, cumTime: 10.6 },
+  { id: 8, name: 'Eşrefpaşa', lat: 38.4080, lon: 27.1090, cumTime: 12.2 },
+  { id: 9, name: 'Üçyol', lat: 38.4085, lon: 27.1130, cumTime: 13.3 },
+  { id: 10, name: 'Konak', lat: 38.4189, lon: 27.1287, cumTime: 16.6 },
+  { id: 11, name: 'Çankaya', lat: 38.4220, lon: 27.1370, cumTime: 18.4 },
+  { id: 12, name: 'Basmane', lat: 38.4260, lon: 27.1430, cumTime: 20.0 },
+  { id: 13, name: 'İzmir Hilal', lat: 38.4300, lon: 27.1520, cumTime: 21.9 },
+  { id: 14, name: 'Halkapınar', lat: 38.4340, lon: 27.1670, cumTime: 24.6 },
+  { id: 15, name: 'Stadyum', lat: 38.4420, lon: 27.1800, cumTime: 27.4 },
+  { id: 16, name: 'Sanayi', lat: 38.4480, lon: 27.1900, cumTime: 29.6 },
+  { id: 17, name: 'Bölge', lat: 38.4530, lon: 27.1980, cumTime: 31.5 },
+  { id: 18, name: 'Bornova', lat: 38.4620, lon: 27.2150, cumTime: 34.8 },
+  { id: 19, name: 'Ege Üniversitesi', lat: 38.4680, lon: 27.2250, cumTime: 37.0 },
+  { id: 20, name: 'Evka 3', lat: 38.4750, lon: 27.2350, cumTime: 39.4 },
 ] as const;
 
-const TRIP_DURATION_MINUTES = 35; // Full line from Kaymakamlık to Evka 3
+const TOTAL_TRIP_DURATION = M1_STATIONS[M1_STATIONS.length - 1].cumTime; // ~39.4 min
 const SERVICE_START = 6 * 60; // 06:00
 const SERVICE_END = 24 * 60 + 20; // 00:20 next day
 
@@ -68,21 +76,22 @@ function formatTime(totalMinutes: number): string {
 }
 
 /**
- * Generate trips and stop_times for M1 metro line
+ * Generate trips and stop_times for M1 metro line.
+ * Uses per-station cumulative times for realistic inter-station durations
+ * (e.g., Üçyol→Konak ~3.3 min vs Eşrefpaşa→Üçyol ~1.1 min).
  */
 function generateTripsForDirection(
   routeId: string,
-  stations: readonly { id: number; name: string; lat: number; lon: number }[],
+  stations: readonly { id: number; name: string; lat: number; lon: number; cumTime: number }[],
   directionId: number,
   headsign: string,
   frequency: number,
+  isReversed: boolean,
 ): { trips: Trip[]; stopTimes: StopTime[] } {
   const trips: Trip[] = [];
   const stopTimes: StopTime[] = [];
 
   let tripIndex = 0;
-  const numSegments = stations.length - 1;
-  const timePerSegment = TRIP_DURATION_MINUTES / numSegments;
 
   let departureMinutes = SERVICE_START;
   while (departureMinutes <= SERVICE_END) {
@@ -98,7 +107,12 @@ function generateTripsForDirection(
 
     for (let seq = 0; seq < stations.length; seq++) {
       const station = stations[seq];
-      const time = departureMinutes + seq * timePerSegment;
+      // For reversed direction, mirror cumulative times:
+      // first station = 0 min, last station = TOTAL_TRIP_DURATION
+      const stationTime = isReversed
+        ? TOTAL_TRIP_DURATION - station.cumTime
+        : station.cumTime;
+      const time = departureMinutes + stationTime;
       const timeStr = formatTime(time);
       stopTimes.push({
         tripId,
@@ -155,6 +169,7 @@ export function generateM1MetroData(): {
     0,
     'Evka 3',
     WEEKDAY_OFFPEAK_FREQUENCY,
+    false,
   );
 
   // Direction 1: Evka 3 → Kaymakamlık (reversed stations)
@@ -165,6 +180,7 @@ export function generateM1MetroData(): {
     1,
     'Kaymakamlık',
     WEEKDAY_OFFPEAK_FREQUENCY,
+    true,
   );
 
   const trips = [...dir0.trips, ...dir1.trips];

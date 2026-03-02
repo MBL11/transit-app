@@ -843,12 +843,14 @@ export async function findRoute(
     journeys.push(...transferJourneys.slice(0, 5));
   } // End of outer if (fromRoutes.length > 0 && toRoutes.length > 0)
 
-  // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
+  // 5. Search for 2-transfer routes (A → B → C → D) to find multimodal alternatives
   //    Strategy: find routes that bridge from-routes to to-routes via an intermediate route
   //    Uses batch queries: fromRoutes → midRoutes (via transfer stops) → toRoutes (via transfer stops)
   //    Use top rail/metro routes to keep search tractable even when there are many bus routes
-  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0) {
-    logger.log('[Routing] No 1-transfer route, looking for 2-transfer connections...');
+  //    Always search (not just when 0 routes found) to find M1+Ferry+T1 type routes
+  //    that may be better alternatives to bus-only solutions
+  if (journeys.length < 5 && fromRoutes.length > 0 && toRoutes.length > 0) {
+    logger.log(`[Routing] Looking for 2-transfer connections (${journeys.length} routes so far)...`);
 
     const fromRouteIds = fromRoutes.map(r => r.id);
     const toRouteIdsArr = toRoutes.map(r => r.id);
@@ -867,6 +869,37 @@ export async function findRoute(
       const stopIds = stops.filter(s => s.id !== fromStopId).map(s => s.id);
       if (stopIds.length === 0) continue;
       const routesByStop = await db.getRoutesByStopIds(stopIds);
+
+      // Also find nearby ferry/rail/tram stops for multimodal hub transfers
+      // This enables M1→Ferry→T1 routes where metro_10 (Konak) is near ferry_xxx (Konak Ferry)
+      const nearbyMultimodalStopIds: string[] = [];
+      const nearbyStopToFromStop = new Map<string, Stop>(); // maps nearby stop ID → the from-route's stop
+      for (const stop of stops) {
+        if (stop.id === fromStopId) continue;
+        const nearbyStops = db.getNearbyMultimodalStops(stop.lat, stop.lon, 600);
+        for (const nearby of nearbyStops) {
+          if (!stopIds.includes(nearby.id) && !nearbyMultimodalStopIds.includes(nearby.id)) {
+            nearbyMultimodalStopIds.push(nearby.id);
+            nearbyStopToFromStop.set(nearby.id, stop);
+          }
+        }
+      }
+      if (nearbyMultimodalStopIds.length > 0) {
+        const nearbyRoutesByStop = await db.getRoutesByStopIds(nearbyMultimodalStopIds);
+        for (const [nearbyStopId, routes] of nearbyRoutesByStop) {
+          for (const route of routes) {
+            if (allFromRouteIds.has(route.id) || allToRouteIds.has(route.id)) continue;
+            const parentStop = nearbyStopToFromStop.get(nearbyStopId);
+            if (parentStop && !midRouteSet.has(`${fromRoute.id}-${route.id}`)) {
+              midRouteSet.set(`${fromRoute.id}-${route.id}`, {
+                route,
+                transferStop1: parentStop,
+                fromRouteId: fromRoute.id,
+              });
+            }
+          }
+        }
+      }
 
       for (const [stopId, routes] of routesByStop) {
         for (const route of routes) {
@@ -916,9 +949,14 @@ export async function findRoute(
       }
 
       // Validate ferry transfers in 2-transfer routes
+      // Ferry routes only have stops at actual ferry terminals (ferry_* IDs),
+      // so we only need to validate when a non-ferry route connects AT a ferry terminal.
+      // Note: midEntry.transferStop1 is the FROM route's stop, not the ferry's stop,
+      // so checking it for ferry_ prefix is wrong when midRoute is ferry and fromRoute is not.
       const isFerryStop = (id: string) => id.startsWith('ferry_');
       if (fromRoute.type === 4 && !isFerryStop(midEntry.transferStop1.id)) continue;
-      if (midRoute.type === 4 && (!isFerryStop(midEntry.transferStop1.id) || !isFerryStop(tp.stopId))) continue;
+      // When midRoute is ferry: tp.stopId is the ferry's OWN stop (always ferry_*) - trust it
+      // Only validate that the second transfer makes sense
       if (toRoute.type === 4 && !isFerryStop(tp.toStopId || tp.stopId)) continue;
 
       // Check operating hours for all three legs
