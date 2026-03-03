@@ -1616,31 +1616,69 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
  * Find nearby ferry/rail/tram stops for multimodal transfer discovery.
  * Used in 2-transfer routing to find intermediate routes at multimodal hubs
  * (e.g., metro_10 "Konak" → nearby ferry_xxx "Konak Ferry").
- * Only returns stops with rail/ferry/tram prefixes to keep results focused.
+ * Searches both regular stops (location_type=0) and parent stations (location_type=1),
+ * expanding parent stations to include their child stops for route matching.
  */
-export function getNearbyMultimodalStops(lat: number, lon: number, radiusMeters: number = 600): Stop[] {
+export function getNearbyMultimodalStops(lat: number, lon: number, radiusMeters: number = 1000): Stop[] {
   const database = openDatabase();
 
   try {
     const latDelta = radiusMeters / 111000;
     const lonDelta = radiusMeters / (111000 * Math.cos((lat * Math.PI) / 180));
 
+    // Search for both regular stops and parent stations (ferry terminals are often location_type=1)
     const rows = database.getAllSync<any>(
-      `SELECT id, name, lat, lon, location_type FROM stops
+      `SELECT id, name, lat, lon, location_type, parent_station FROM stops
        WHERE lat BETWEEN ? AND ?
        AND lon BETWEEN ? AND ?
        AND (id LIKE 'ferry_%' OR id LIKE 'rail_%' OR id LIKE 'tram_%' OR id LIKE 'metro_%')
-       AND location_type = 0`,
+       AND location_type IN (0, 1)`,
       [lat - latDelta, lat + latDelta, lon - lonDelta, lon + lonDelta]
     );
 
-    return rows.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      lat: row.lat,
-      lon: row.lon,
-      locationType: row.location_type,
-    }));
+    const stops: Stop[] = [];
+    const parentIds: string[] = [];
+
+    for (const row of rows) {
+      stops.push({
+        id: row.id,
+        name: row.name,
+        lat: row.lat,
+        lon: row.lon,
+        locationType: row.location_type,
+        parentStation: row.parent_station,
+      });
+      // Track parent stations so we can find their child stops
+      if (row.location_type === 1) {
+        parentIds.push(row.id);
+      }
+    }
+
+    // Expand parent stations: find child stops that have routes/stop_times
+    if (parentIds.length > 0) {
+      const placeholders = parentIds.map(() => '?').join(',');
+      const childRows = database.getAllSync<any>(
+        `SELECT id, name, lat, lon, location_type, parent_station FROM stops
+         WHERE parent_station IN (${placeholders})
+         AND location_type = 0`,
+        parentIds
+      );
+      const existingIds = new Set(stops.map(s => s.id));
+      for (const row of childRows) {
+        if (!existingIds.has(row.id)) {
+          stops.push({
+            id: row.id,
+            name: row.name,
+            lat: row.lat,
+            lon: row.lon,
+            locationType: row.location_type,
+            parentStation: row.parent_station,
+          });
+        }
+      }
+    }
+
+    return stops;
   } catch (error) {
     logger.warn('[Database] Failed to get nearby multimodal stops:', error);
     return [];

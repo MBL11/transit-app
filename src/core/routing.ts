@@ -876,7 +876,7 @@ export async function findRoute(
       const nearbyStopToFromStop = new Map<string, Stop>(); // maps nearby stop ID → the from-route's stop
       for (const stop of stops) {
         if (stop.id === fromStopId) continue;
-        const nearbyStops = db.getNearbyMultimodalStops(stop.lat, stop.lon, 600);
+        const nearbyStops = db.getNearbyMultimodalStops(stop.lat, stop.lon, 1000);
         for (const nearby of nearbyStops) {
           if (!stopIds.includes(nearby.id) && !nearbyMultimodalStopIds.includes(nearby.id)) {
             nearbyMultimodalStopIds.push(nearby.id);
@@ -939,7 +939,7 @@ export async function findRoute(
     const midToTransfers = db.findTransferStops(midRouteIds.slice(0, 15), toRouteIdsArr, 20);
 
     for (const tp of midToTransfers) {
-      if (twoTransferJourneys.length >= 3) break;
+      if (twoTransferJourneys.length >= 6) break;
 
       // Find which fromRoute→midRoute entry matches
       const midEntry = Array.from(midRouteSet.values()).find(
