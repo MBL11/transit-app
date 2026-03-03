@@ -888,9 +888,8 @@ export async function findRoute(
         const nearbyRoutesByStop = await db.getRoutesByStopIds(nearbyMultimodalStopIds);
         for (const [nearbyStopId, routes] of nearbyRoutesByStop) {
           for (const route of routes) {
-            // Only exclude fromRoutes (to avoid A→A transfers on first leg).
-            // Do NOT exclude toRoutes: a route can serve the destination AND be a valid mid-route
-            // (e.g., ferry serves Bostanlı AND is needed as M1→Ferry→T1 mid-leg via Konak)
+            // Only exclude fromRoutes (avoid A→A on first leg).
+            // Allow toRoutes as mid-routes: ferry can serve destination AND be a valid mid-leg
             if (allFromRouteIds.has(route.id)) continue;
             const parentStop = nearbyStopToFromStop.get(nearbyStopId);
             if (parentStop && !midRouteSet.has(`${fromRoute.id}-${route.id}`)) {
@@ -906,8 +905,7 @@ export async function findRoute(
 
       for (const [stopId, routes] of routesByStop) {
         for (const route of routes) {
-          // Only exclude fromRoutes (to avoid A→A transfers on first leg).
-          // Do NOT exclude toRoutes: a route can serve the destination AND be a valid mid-route
+          // Only exclude fromRoutes. Allow toRoutes as mid-routes for multimodal discovery
           if (allFromRouteIds.has(route.id)) continue;
           if (!midRouteSet.has(`${fromRoute.id}-${route.id}`)) {
             const stop = stops.find(s => s.id === stopId);
@@ -953,6 +951,12 @@ export async function findRoute(
       const midRoute = midEntry.route;
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
+
+      // Skip degenerate routes where midRoute IS the toRoute (same route used twice)
+      if (midRoute.id === toRoute.id) {
+        logger.log(`[Routing] Skipping degenerate 2-transfer: mid and to are same route ${midRoute.shortName}`);
+        continue;
+      }
 
       // Skip same-line transfers in 2-transfer routes
       if ((fromRoute.shortName && midRoute.shortName && fromRoute.shortName === midRoute.shortName) ||
@@ -2174,7 +2178,22 @@ export async function findMultipleRoutes(
     });
 
     // 9. Take top routes
-    const topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
+    let topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
+
+    // 9b. If the best route is direct (0 transfers) and shortest, limit to 1 alternative
+    // This avoids cluttering results with inferior multi-transfer options when a direct route exists
+    if (topRoutes.length > 2) {
+      const best = topRoutes[0];
+      const bestIsDirectOrLowTransfer = best.numberOfTransfers <= 1;
+      const bestIsShortest = topRoutes.every(r => r.totalDuration >= best.totalDuration);
+      if (bestIsDirectOrLowTransfer && bestIsShortest) {
+        // Keep best + 1 alternative (preferably a different route pattern)
+        const bestSig = getRouteSignature(best);
+        const alternative = topRoutes.slice(1).find(r => getRouteSignature(r) !== bestSig) || topRoutes[1];
+        topRoutes = alternative ? [best, alternative] : [best];
+        logger.log(`[Routing] Direct/simple route is fastest, limiting to 2 results`);
+      }
+    }
 
     // 10. Add tags to routes
     const routesWithTags = topRoutes.map((journey) => ({
