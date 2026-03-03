@@ -1381,16 +1381,20 @@ export async function findRouteFromLocations(
     const routeResults: { fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }[] = [];
     let totalRoutesFound = 0;
 
+    // Track unique route signatures seen so far (for smarter early exit)
+    const earlyExitSignatures = new Set<string>();
+
     for (const { fromStop, toStop } of combinations) {
       // Check time budget
       if (Date.now() - startTime > TIME_BUDGET_MS) {
         logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
         break;
       }
-      // Early exit: if we already have enough diverse routes, stop searching
-      // Increased from 5 to 10 to find more alternatives (transfers, multimodal)
-      if (totalRoutesFound >= 10) {
-        logger.log(`[Routing] Found ${totalRoutesFound} routes, stopping early`);
+      // Early exit: require BOTH enough total routes AND enough unique route patterns
+      // This prevents stopping too early when rail combos generate many routes
+      // that later get deduped, leaving only a few unique patterns
+      if (totalRoutesFound >= 20 && earlyExitSignatures.size >= 6) {
+        logger.log(`[Routing] Found ${totalRoutesFound} routes (${earlyExitSignatures.size} unique), stopping early`);
         break;
       }
 
@@ -1398,6 +1402,14 @@ export async function findRouteFromLocations(
         const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
         routeResults.push({ fromStop, toStop, routes });
         totalRoutesFound += routes.length;
+        // Track unique signatures for early exit decision
+        for (const route of routes) {
+          const sig = route.segments
+            .filter(s => s.type === 'transit')
+            .map(s => s.route?.shortName || s.route?.id || 'walk')
+            .join('→');
+          earlyExitSignatures.add(sig);
+        }
       } catch {
         routeResults.push({ fromStop, toStop, routes: [] });
       }
@@ -2075,11 +2087,11 @@ export async function findMultipleRoutes(
 
     logger.log(`[Routing] After filtering transit: ${filteredTransitRoutes.length} routes`);
 
-    // 4. If we have fewer than 3 unique transit route patterns, do a secondary search
+    // 4. If we have fewer unique transit route patterns than requested, do a secondary search
     //    with a shifted departure time (+15 min) to find additional alternatives
     //    This helps find "next departure" options on different routes
     const uniqueSignatures = new Set(filteredTransitRoutes.map(getRouteSignature));
-    if (uniqueSignatures.size < 3 && filteredTransitRoutes.length < maxRoutes) {
+    if (filteredTransitRoutes.length < maxRoutes) {
       logger.log(`[Routing] Only ${uniqueSignatures.size} unique route patterns, searching +15min for alternatives...`);
       try {
         const laterTime = new Date(departureTime.getTime() + 15 * 60000);
