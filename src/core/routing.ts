@@ -496,11 +496,8 @@ async function buildHubBasedRoutes(
 
         if (hub1Stops.length === 0 || hub2Stops.length === 0 ||
             hub1MidStops.length === 0 || hub2MidStops.length === 0) {
-          logger.log(`[Routing] Hub ${hub1Name}→${hub2Name} (mid=${getModeLabel(midMode)}): missing stops - hub1=${hub1Stops.length}, hub2=${hub2Stops.length}, mid1=${hub1MidStops.length}, mid2=${hub2MidStops.length}`);
           continue;
         }
-
-        logger.log(`[Routing] Hub candidate: ${firstRoute.shortName}@${hub1Name}(${hub1Stops[0].name}) → ${getModeLabel(midMode)}(${hub1MidStops[0].name}→${hub2MidStops[0].name}) → ${lastRoute.shortName}@${hub2Name}(${hub2Stops[0].name})`);
 
         // Estimate durations for each leg using GTFS data or distance
         const fromActualId = (firstRoute as RouteWithStopId).actualStopId || fromStopId;
@@ -510,11 +507,9 @@ async function buildHubBasedRoutes(
         const dur3 = db.estimateTravelTime(lastRoute.id, hub2Stops[0].id, toActualId, activeServiceIds);
 
         if (dur1 === null || dur2Mid === null || dur3 === null) {
-          logger.log(`[Routing] Hub ${hub1Name}→${hub2Name}: duration estimation failed - dur1=${dur1}, dur2=${dur2Mid}, dur3=${dur3}`);
           continue;
         }
         if (dur1 <= 0 || dur2Mid <= 0 || dur3 <= 0) {
-          logger.log(`[Routing] Hub ${hub1Name}→${hub2Name}: zero/negative duration - dur1=${dur1}, dur2=${dur2Mid}, dur3=${dur3}`);
           continue;
         }
 
@@ -590,7 +585,6 @@ async function buildHubBasedRoutes(
         };
 
         results.push(journey);
-        logger.log(`[Routing] Hub route: ${firstRoute.shortName}(${hub1Name})→${getModeLabel(midMode)}(${hub2Name})→${lastRoute.shortName} = ${Math.round(totalDuration)}min`);
 
         if (results.length >= 3) break;
       }
@@ -1134,10 +1128,6 @@ export async function findRoute(
     const midRouteEntries = Array.from(midRouteSet.values());
     midRouteEntries.sort((a, b) => routeTypePriority(a.route.type) - routeTypePriority(b.route.type));
     const midRouteIds = Array.from(new Set(midRouteEntries.map(m => m.route.id)));
-    logger.log(`[Routing] Mid-route candidates (top 15): ${midRouteIds.slice(0, 15).map(id => {
-      const entry = midRouteEntries.find(e => e.route.id === id);
-      return entry ? `${entry.route.shortName || id}(type=${entry.route.type})` : id;
-    }).join(', ')}`);
 
     // Batch query: find transfer points between mid routes and to routes
     const midToTransfers = db.findTransferStops(midRouteIds.slice(0, 15), toRouteIdsArr, 20);

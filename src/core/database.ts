@@ -1727,7 +1727,6 @@ export function findStopsByNamePattern(hubName: string, routeType: number): Stop
       );
 
       if (rows.length > 0) {
-        logger.log(`[Database] findStopsByNamePattern("${hubName}", type=${routeType}): found ${rows.length} stops: ${rows.map((r: any) => r.name).join(', ')}`);
         return rows.map((row: any) => ({
           id: row.id,
           name: row.name,
@@ -1751,7 +1750,6 @@ export function findStopsByNamePattern(hubName: string, routeType: number): Stop
        LIMIT 5`,
       [routeType, `%${hubName.toLowerCase()}%`, `%${normalized}%`]
     );
-    logger.log(`[Database] findStopsByNamePattern("${hubName}", type=${routeType}) strategy2: ${rows.length} stops`);
 
     return rows.map((row: any) => ({
       id: row.id,
