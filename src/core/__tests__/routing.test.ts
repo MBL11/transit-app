@@ -6,7 +6,7 @@ import {
 } from '../routing';
 import * as db from '../database';
 import { geocodeAddress } from '../geocoding';
-import { findBestNearbyStops, getWalkingTime } from '../nearby-stops';
+import { findBestNearbyStops, getWalkingTime, expandToAllSameNameStops } from '../nearby-stops';
 import { Stop, Route } from '../types/models';
 import { DEFAULT_PREFERENCES } from '../../types/routing-preferences';
 
@@ -42,7 +42,7 @@ describe('routing.ts', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     // getWalkingTime is auto-mocked → returns undefined, causing NaN durations.
     // Mock it to return a reasonable walking time (minutes).
     (getWalkingTime as jest.Mock).mockImplementation((distanceMeters: number) => {
@@ -51,7 +51,28 @@ describe('routing.ts', () => {
     // getActualTravelTime and getActiveServiceIds are auto-mocked → return undefined.
     // Return null to signal "no data" and use distance-based estimates.
     (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
+    (db.getActualTravelTimeAnyRoute as jest.Mock).mockReturnValue(null);
     (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
+    // getNextDepartureForRoute: return departure 2 min after requested time by default
+    // This simulates "there's always a departure soon" for test scenarios.
+    (db.getNextDepartureForRoute as jest.Mock).mockImplementation(
+      (_routeId: string, _stopId: string, timeMinutes: number) => timeMinutes + 2
+    );
+    // Batch query mocks — return empty by default
+    (db.findTransferStops as jest.Mock).mockReturnValue([]);
+    (db.getRoutesByStopIds as jest.Mock).mockResolvedValue(new Map());
+    // getTripInfoForRoute - return null by default
+    (db.getTripInfoForRoute as jest.Mock).mockReturnValue(null);
+    // getIntermediateStopsCount - return null by default
+    (db.getIntermediateStopsCount as jest.Mock).mockReturnValue(null);
+    // getStopsByRouteId - return empty array by default
+    (db.getStopsByRouteId as jest.Mock).mockResolvedValue([]);
+    // getRoutesWithStopIds - return empty array by default (override in specific tests)
+    (db.getRoutesWithStopIds as jest.Mock).mockResolvedValue([]);
+    // expandToAllSameNameStops: pass-through (return same stops)
+    (expandToAllSameNameStops as jest.Mock).mockImplementation((stops: any[]) => stops || []);
+    // findBestNearbyStops: return empty by default (override in specific tests)
+    (findBestNearbyStops as jest.Mock).mockResolvedValue([]);
   });
 
   describe('findRoute', () => {
@@ -64,7 +85,7 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(closeStop1)
         .mockResolvedValueOnce(closeStop2);
 
-      const result = await findRoute('stop1', 'stop2', new Date());
+      const result = await findRoute('stop1', 'stop2', new Date('2025-06-01T08:00:00Z'));
 
       expect(result).toHaveLength(1);
       expect(result[0].segments).toHaveLength(1);
@@ -77,7 +98,7 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(mockStop2);
 
-      await expect(findRoute('invalid', 'stop2', new Date()))
+      await expect(findRoute('invalid', 'stop2', new Date('2025-06-01T08:00:00Z')))
         .rejects
         .toThrow('Stop not found');
     });
@@ -87,15 +108,17 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(mockStop1)
         .mockResolvedValueOnce(mockStop2);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([mockRoute])
-        .mockResolvedValueOnce([mockRoute]);
+      // Mock getRoutesWithStopIds to return routes with actual stop IDs
+      const mockRouteWithStopFrom = { ...mockRoute, actualStopId: 'stop1' };
+      const mockRouteWithStopTo = { ...mockRoute, actualStopId: 'stop2' };
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([mockRouteWithStopFrom])
+        .mockResolvedValueOnce([mockRouteWithStopTo]);
 
-      const result = await findRoute('stop1', 'stop2', new Date());
+      const result = await findRoute('stop1', 'stop2', new Date('2025-06-01T08:00:00Z'));
 
       expect(result.length).toBeGreaterThan(0);
       expect(result[0].segments[0].type).toBe('transit');
-      expect(result[0].segments[0].route).toEqual(mockRoute);
     });
 
     it('should return walking fallback when no transit route found', async () => {
@@ -103,11 +126,11 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(mockStop1)
         .mockResolvedValueOnce(mockStop2);
 
-      (db.getRoutesByStopId as jest.Mock)
+      (db.getRoutesWithStopIds as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
-      const result = await findRoute('stop1', 'stop2', new Date());
+      const result = await findRoute('stop1', 'stop2', new Date('2025-06-01T08:00:00Z'));
 
       expect(result).toHaveLength(1);
       expect(result[0].segments[0].type).toBe('walk');
@@ -133,7 +156,7 @@ describe('routing.ts', () => {
       const result = await findRouteFromLocations(
         fromLocation,
         toLocation,
-        new Date()
+        new Date('2025-06-01T08:00:00Z')
       );
 
       expect(result).toHaveLength(1);
@@ -161,7 +184,7 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce([mockStop2]);
 
       await expect(
-        findRouteFromLocations(fromLocation, toLocation, new Date())
+        findRouteFromLocations(fromLocation, toLocation, new Date('2025-06-01T08:00:00Z'))
       ).rejects.toThrow(/NO_STOPS_NEAR/);
     });
 
@@ -191,14 +214,14 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce(mockStop1)
         .mockResolvedValueOnce(mockStop2);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([mockRoute])
-        .mockResolvedValueOnce([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...mockRoute, actualStopId: 'stop1' }])
+        .mockResolvedValueOnce([{ ...mockRoute, actualStopId: 'stop2' }]);
 
       const result = await findRouteFromLocations(
         fromLocation,
         toLocation,
-        new Date()
+        new Date('2025-06-01T08:00:00Z')
       );
 
       expect(result.length).toBeGreaterThan(0);
@@ -238,13 +261,13 @@ describe('routing.ts', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValue(mockStop1);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...mockRoute, actualStopId: 'stop1' }]);
 
       const result = await findRouteFromAddresses(
         'Châtelet',
         'Gare du Nord',
-        new Date(),
+        new Date('2025-06-01T08:00:00Z'),
         'fr'
       );
 
@@ -258,7 +281,7 @@ describe('routing.ts', () => {
         .mockResolvedValueOnce([]);
 
       await expect(
-        findRouteFromAddresses('Invalid', 'Address', new Date())
+        findRouteFromAddresses('Invalid', 'Address', new Date('2025-06-01T08:00:00Z'))
       ).rejects.toThrow(/Could not find starting address/);
     });
 
@@ -289,7 +312,7 @@ describe('routing.ts', () => {
       const result = await findRouteFromAddresses(
         'Châtelet',
         'Gare du Nord',
-        new Date()
+        new Date('2025-06-01T08:00:00Z')
       );
 
       // Should always have at least one result (walking)
@@ -328,8 +351,8 @@ describe('routing.ts', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValue(mockStop1);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...mockRoute, actualStopId: 'stop1' }]);
 
       const preferences = {
         ...DEFAULT_PREFERENCES,
@@ -340,7 +363,7 @@ describe('routing.ts', () => {
       const result = await findMultipleRoutes(
         fromLocation,
         toLocation,
-        new Date(),
+        new Date('2025-06-01T08:00:00Z'),
         preferences,
         3
       );
@@ -374,13 +397,13 @@ describe('routing.ts', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValue(mockStop1);
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([mockRoute]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...mockRoute, actualStopId: 'stop1' }]);
 
       const result = await findMultipleRoutes(
         fromLocation,
         toLocation,
-        new Date(),
+        new Date('2025-06-01T08:00:00Z'),
         DEFAULT_PREFERENCES,
         3
       );

@@ -221,8 +221,9 @@ export async function findBestNearbyStops(
 /**
  * Normalize station name for deduplication
  * - Normalizes Turkish characters (ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c, İ→i)
- * - Removes mode suffixes (İskele, Metro, İstasyon, Gar, etc.)
- * - This ensures "Karşıyaka İskele" and "Karşıyaka" map to same base: "karsiyaka"
+ * - Removes generic mode suffixes (Metro, İstasyon, etc.) but keeps location-specific ones (Ferry, İskele, Gar)
+ * - "Karşıyaka Metro" → "karsiyaka" (generic suffix stripped)
+ * - "Karşıyaka Ferry" → "karsiyaka ferry" (distinct location, kept)
  */
 function normalizeStationName(name: string): string {
   let normalized = name
@@ -248,20 +249,33 @@ function normalizeStationName(name: string): string {
     .toLowerCase()
     .trim();
 
-  // Remove mode suffixes to get base station name
-  // This ensures "Konak İskele" and "Konak Metro" map to same base: "konak"
-  const MODE_SUFFIXES = [
-    'iskelesi', 'iskele', 'iskeli',  // Ferry terminal variants
+  // Suffixes that indicate a DISTINCT physical location - keep these
+  // "Konak Ferry" (ferry/tram terminal) ≠ "Konak" (metro station)
+  const DISTINCT_LOCATION_SUFFIXES = [
+    'iskele', 'iskelesi', 'iskeli', // Ferry terminals (Turkish)
+    'ferry',                         // Ferry terminals (English)
+    'gar', 'gari',                   // Train stations
+  ];
+
+  // Generic mode suffixes that can be safely stripped for deduplication
+  const GENERIC_SUFFIXES = [
     'metro', 'istasyonu', 'istasyon',
-    'gari', 'gar', 'duragi', 'durak',
+    'duragi', 'durak',
     'tren', 'izban', 'tramvay',
     'otobus', 'vapur', 'feribot'
   ];
 
   const words = normalized.split(/\s+/);
+
+  // If name ends with a distinct location suffix, keep it
+  if (words.length > 1 && DISTINCT_LOCATION_SUFFIXES.includes(words[words.length - 1])) {
+    return words.join(' ');
+  }
+
+  // Remove trailing generic mode suffixes only
   while (words.length > 1) {
     const lastWord = words[words.length - 1];
-    if (MODE_SUFFIXES.includes(lastWord)) {
+    if (GENERIC_SUFFIXES.includes(lastWord)) {
       words.pop();
     } else {
       break;
@@ -327,7 +341,7 @@ export function expandToAllSameNameStops(stops: NearbyStop[]): NearbyStop[] {
   for (const stop of stops) {
     // Get all stops with the same name AND nearby ferry/transit stops
     // Pass coordinates for geographic proximity search
-    const sameNameStops = getAllStopsWithSameName(stop.name, stop.lat, stop.lon);
+    const sameNameStops = getAllStopsWithSameName(stop.name, stop.lat, stop.lon) || [];
 
     for (const sameStop of sameNameStops) {
       if (seenIds.has(sameStop.id)) continue;

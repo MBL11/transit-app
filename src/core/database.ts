@@ -281,6 +281,106 @@ export async function clearAllData(): Promise<void> {
   }
 }
 
+/**
+ * Ensure calendar entries exist for manually generated services (T1, T2, T3, M1, ESHOT).
+ * These services use _DAILY service IDs but didn't have calendar entries,
+ * causing them to be filtered out when calendar data exists from GTFS sources.
+ * Called automatically at app startup - no user action required.
+ */
+export async function ensureManualServiceCalendars(): Promise<void> {
+  const database = openDatabase();
+
+  const manualServiceIds = [
+    'tram_t1_DAILY',
+    'tram_t2_DAILY',
+    'T3_DAILY',
+    'M1_DAILY',
+    'ESHOT_DAILY',
+  ];
+
+  try {
+    // Check if any trips exist (database has data)
+    const tripCount = database.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM trips');
+    if (!tripCount || tripCount.count === 0) return; // No data yet, skip
+
+    // Check which manual services are missing from calendar
+    const missing: string[] = [];
+    for (const serviceId of manualServiceIds) {
+      const exists = database.getFirstSync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM calendar WHERE service_id = ?',
+        [serviceId]
+      );
+      if (!exists || exists.count === 0) {
+        // Only add if trips actually use this service_id
+        const tripExists = database.getFirstSync<{ count: number }>(
+          'SELECT COUNT(*) as count FROM trips WHERE service_id = ?',
+          [serviceId]
+        );
+        if (tripExists && tripExists.count > 0) {
+          missing.push(serviceId);
+        }
+      }
+    }
+
+    if (missing.length === 0) return; // All calendars already exist
+
+    logger.log(`[Database] Adding missing calendar entries for: ${missing.join(', ')}`);
+
+    const calendarEntries = missing.map(serviceId => ({
+      serviceId,
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: true,
+      sunday: true,
+      startDate: '20240101',
+      endDate: '20301231',
+    }));
+
+    await insertCalendar(calendarEntries);
+    logger.log(`[Database] ✅ Auto-added ${missing.length} calendar entries`);
+  } catch (error) {
+    logger.warn('[Database] Failed to ensure manual service calendars:', error);
+  }
+}
+
+/**
+ * Check if a specific route has stop_times data in the database
+ * Used to detect missing manual transit data (M1 metro, T1/T2 trams, etc.)
+ */
+export function hasStopTimesForRoute(routeId: string): boolean {
+  const database = openDatabase();
+  try {
+    const result = database.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM stop_times st
+       JOIN trips t ON st.trip_id = t.id
+       WHERE t.route_id = ?`,
+      [routeId]
+    );
+    return (result?.count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a specific route exists in the database
+ */
+export function hasRoute(routeId: string): boolean {
+  const database = openDatabase();
+  try {
+    const result = database.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM routes WHERE id = ?',
+      [routeId]
+    );
+    return (result?.count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================================
 // CRUD OPERATIONS
 // ============================================================================
@@ -577,7 +677,7 @@ export function getActiveServiceIds(date: Date): Set<string> | null {
       }
     }
 
-    logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size}`);
+    logger.log(`[Database] Active services for ${dateStr} (${dayColumn}): ${activeServiceIds.size} total`);
 
     // If calendar data exists but no services match (likely expired dates),
     // return null to skip filtering rather than blocking all routes
@@ -693,28 +793,42 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
       return [];
     }
 
-    // Find all stop IDs with the same name within 100m (same station, different lines)
-    // This handles cases like Konak which has metro_konak, tram_konak, etc.
+    // Find all stop IDs with the same name (same station, different transport modes)
+    // This handles multimodal stations like "Fahrettin Altay" which has metro AND tram stops
+    // that may be up to 500m apart physically but are the same logical station.
     // IMPORTANT: Exclude bus stops when the clicked stop is non-bus to avoid
     // showing 100+ bus route numbers on metro/tram/ferry stop details.
     // When includeBus is true (used by routing engine), include all stops.
     const isBusStop = stopId.startsWith('bus_');
     const excludeBus = !isBusStop && !includeBus;
-    const radiusDegrees = 100 / 111000; // ~100 meters in degrees
-    const sameStationStops = db.getAllSync<{ id: string }>(
-      `SELECT id FROM stops
-       WHERE name = ?
-       AND lat BETWEEN ? AND ?
-       AND lon BETWEEN ? AND ?
+
+    // Search by NORMALIZED name to handle Turkish suffix variations:
+    // "Konak İskelesi" should match "Konak Ferry" (ferry terminal variations)
+    // "Fahrettin Altay" should match across metro, tram, bus stops
+    const normalizedStopName = normalizeStopName(stop.name);
+    const baseStationName = extractBaseStationName(normalizedStopName);
+
+    // Strategy: Use SQL LIKE with first few chars of base name, then filter in JS
+    // This is much faster than loading ALL stops
+    const searchPattern = baseStationName.length >= 3
+      ? `%${baseStationName.slice(0, 5)}%`  // First 5 chars for LIKE
+      : `%${baseStationName}%`;
+
+    const candidateStops = db.getAllSync<{ id: string; name: string }>(
+      `SELECT id, name FROM stops
+       WHERE location_type = 0
+       AND (LOWER(name) LIKE ? OR LOWER(name) = ?)
        ${excludeBus ? "AND id NOT LIKE 'bus_%'" : ''}`,
-      [
-        stop.name,
-        stop.lat - radiusDegrees,
-        stop.lat + radiusDegrees,
-        stop.lon - radiusDegrees,
-        stop.lon + radiusDegrees,
-      ]
+      [searchPattern, stop.name.toLowerCase().trim()]
     );
+
+    // Filter to stops with matching normalized base name
+    const sameStationStops = candidateStops.filter(s => {
+      const candidateNormalized = normalizeStopName(s.name);
+      const candidateBase = extractBaseStationName(candidateNormalized);
+      // Match by base name (e.g., "konak ferry" matches "Konak Ferry" tram stops)
+      return candidateBase === baseStationName;
+    });
 
     const stopIds = sameStationStops.map(s => s.id);
     logger.log(`[Database] Found ${stopIds.length} stops for station "${stop.name}":`, stopIds);
@@ -772,7 +886,7 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
       }
 
       // Additional ferry keyword fallback
-      const FERRY_KEYWORDS = ['İSKELE', 'ISKELE', 'İSKELİ', 'ISKELI', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
+      const FERRY_KEYWORDS = ['FERRY', 'İSKELE', 'ISKELE', 'İSKELİ', 'ISKELI', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
       const upperName = (stop.name || '').toUpperCase();
       if (FERRY_KEYWORDS.some((kw: string) => upperName.includes(kw))) {
         logger.log(`[Database] Ferry fallback: "${stop.name}" has ferry keyword, loading all ferry routes`);
@@ -795,6 +909,161 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
     return routes;
   } catch (error) {
     logger.error('[Database] ❌ Failed to get routes by stop ID:', error);
+    throw error;
+  }
+}
+
+/**
+ * Route with associated stop ID (for multimodal routing)
+ */
+export interface RouteWithStopId extends Route {
+  actualStopId: string;  // The stop ID that actually serves this route
+}
+
+/**
+ * Get routes serving a station, WITH the actual stop IDs that serve each route.
+ * Essential for multimodal routing where the user selects "Fahrettin Altay" (metro_4)
+ * but we need to find T2 tram which uses a different stop ID (tram_t2_1).
+ *
+ * @param stopId - The selected stop ID
+ * @param includeBus - Whether to include bus routes
+ * @returns Routes with their actual serving stop IDs
+ */
+export async function getRoutesWithStopIds(stopId: string, includeBus: boolean = false): Promise<RouteWithStopId[]> {
+  const db = openDatabase();
+
+  try {
+    const stop = db.getFirstSync<any>(
+      'SELECT name, lat, lon FROM stops WHERE id = ?',
+      [stopId]
+    );
+
+    if (!stop) {
+      logger.warn(`[Database] Stop not found: ${stopId}`);
+      return [];
+    }
+
+    const isBusStop = stopId.startsWith('bus_');
+    const excludeBus = !isBusStop && !includeBus;
+
+    // Find all stops at this station (normalized name matching)
+    const normalizedStopName = normalizeStopName(stop.name);
+    const baseStationName = extractBaseStationName(normalizedStopName);
+
+    logger.log(`[Database] getRoutesWithStopIds: stopId=${stopId}, name="${stop.name}", base="${baseStationName}"`);
+
+    const searchPattern = baseStationName.length >= 3
+      ? `%${baseStationName.slice(0, 5)}%`
+      : `%${baseStationName}%`;
+
+    const candidateStops = db.getAllSync<{ id: string; name: string }>(
+      `SELECT id, name FROM stops
+       WHERE location_type = 0
+       AND (LOWER(name) LIKE ? OR LOWER(name) = ?)
+       ${excludeBus ? "AND id NOT LIKE 'bus_%'" : ''}`,
+      [searchPattern, stop.name.toLowerCase().trim()]
+    );
+
+    // DEBUG: Log candidates found
+    const sameStationStops = candidateStops.filter(s => {
+      const candidateNormalized = normalizeStopName(s.name);
+      const candidateBase = extractBaseStationName(candidateNormalized);
+      return candidateBase === baseStationName;
+    });
+
+    const stopIds = sameStationStops.map(s => s.id);
+
+    // Also add nearby rail/metro/tram/ferry stops by geographic proximity (within 400m)
+    // This ensures multimodal routing works even when stop names don't match exactly
+    // Example: bus stop "FAHRETTİN ALTAY CD." might not match metro stop "Fahrettin Altay"
+    if (stop.lat && stop.lon) {
+      const proximityRadius = 400; // meters
+      const latDelta = proximityRadius / 111000;
+      const lonDelta = proximityRadius / (111000 * Math.cos((stop.lat * Math.PI) / 180));
+
+      const nearbyRailStops = db.getAllSync<{ id: string; name: string }>(
+        `SELECT id, name FROM stops
+         WHERE location_type = 0
+         AND lat BETWEEN ? AND ?
+         AND lon BETWEEN ? AND ?
+         AND (id LIKE 'metro_%' OR id LIKE 'rail_%' OR id LIKE 'tram_%' OR id LIKE 'ferry_%' OR id LIKE 'm1_%')`,
+        [stop.lat - latDelta, stop.lat + latDelta, stop.lon - lonDelta, stop.lon + lonDelta]
+      );
+
+      for (const nearbyStop of nearbyRailStops) {
+        if (!stopIds.includes(nearbyStop.id)) {
+          stopIds.push(nearbyStop.id);
+          logger.log(`[Database] Added nearby rail stop by proximity: ${nearbyStop.id} (${nearbyStop.name})`);
+        }
+      }
+    }
+
+    if (stopIds.length === 0) {
+      return [];
+    }
+
+    // Get routes WITH their actual stop IDs
+    const placeholders = stopIds.map(() => '?').join(', ');
+    const rows = db.getAllSync<any>(
+      `SELECT DISTINCT
+         routes.id, routes.short_name, routes.long_name, routes.type, routes.color, routes.text_color,
+         stop_times.stop_id as actual_stop_id
+       FROM routes
+       JOIN trips ON routes.id = trips.route_id
+       JOIN stop_times ON trips.id = stop_times.trip_id
+       WHERE stop_times.stop_id IN (${placeholders})
+       GROUP BY routes.id, stop_times.stop_id`,
+      stopIds
+    );
+
+    const routesWithStops: RouteWithStopId[] = rows.map((row) => ({
+      id: row.id,
+      shortName: row.short_name,
+      longName: row.long_name,
+      type: row.type,
+      color: row.color,
+      textColor: row.text_color,
+      actualStopId: row.actual_stop_id,
+    }));
+
+    // Deduplicate: if same route appears with multiple actualStopIds,
+    // keep the one whose physical stop is closest to the user's selected stop.
+    // This prevents wrong stop names (e.g., "Bölge" instead of "Fahrettin Altay" on M1)
+    // when stale or conflicting stop_times exist in the database.
+    const bestByRoute = new Map<string, RouteWithStopId>();
+    for (const rws of routesWithStops) {
+      const existing = bestByRoute.get(rws.id);
+      if (!existing) {
+        bestByRoute.set(rws.id, rws);
+      } else {
+        // Prefer the actualStopId that matches the user's selected stop exactly
+        if (rws.actualStopId === stopId) {
+          bestByRoute.set(rws.id, rws);
+        } else if (existing.actualStopId !== stopId) {
+          // Neither matches exactly - prefer the one closest geographically
+          const existingStop = db.getFirstSync<{ lat: number; lon: number }>(
+            'SELECT lat, lon FROM stops WHERE id = ?', [existing.actualStopId]
+          );
+          const candidateStop = db.getFirstSync<{ lat: number; lon: number }>(
+            'SELECT lat, lon FROM stops WHERE id = ?', [rws.actualStopId]
+          );
+          if (existingStop && candidateStop) {
+            const existingDist = Math.abs(existingStop.lat - stop.lat) + Math.abs(existingStop.lon - stop.lon);
+            const candidateDist = Math.abs(candidateStop.lat - stop.lat) + Math.abs(candidateStop.lon - stop.lon);
+            if (candidateDist < existingDist) {
+              bestByRoute.set(rws.id, rws);
+            }
+          }
+        }
+      }
+    }
+    const deduped = Array.from(bestByRoute.values());
+
+    // DEBUG: Log routes found
+    logger.log(`[Database] Found ${deduped.length} routes for station "${stop.name}": ${deduped.map(r => `${r.shortName}(${r.actualStopId})`).join(', ') || 'NONE'}`);
+    return deduped;
+  } catch (error) {
+    logger.error('[Database] ❌ Failed to get routes with stop IDs:', error);
     throw error;
   }
 }
@@ -944,7 +1213,7 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
       }
     }
 
-    // 2. Find stops starting with the same base name (e.g., "Konak" finds "Konak İskele")
+    // 2. Find stops starting with the same base name (e.g., "Konak" finds "Konak Ferry")
     // Note: SQLite LIKE doesn't handle Turkish character normalization (ı≠i, ş≠s, etc.)
     // So we fetch a broader set and filter in JavaScript
     const baseRows = db.getAllSync<any>(
@@ -987,7 +1256,8 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
         const rowBaseName = extractBaseStationName(rowNormalized);
 
         // Add if: ferry/transit keywords OR same base name
-        const hasFerryKeyword = rowName.includes('ISKELE') || rowName.includes('İSKELE') ||
+        const hasFerryKeyword = rowName.includes('FERRY') ||
+                                rowName.includes('ISKELE') || rowName.includes('İSKELE') ||
                                 rowName.includes('ISKELI') || rowName.includes('İSKELİ') ||
                                 rowName.includes('VAPUR') || rowName.includes('FERİBOT');
         const hasTransitKeyword = rowName.includes('GAR') || rowName.includes('ISTASYON') ||
@@ -1018,25 +1288,37 @@ export function getAllStopsWithSameName(stopName: string, stopLat?: number, stop
 
 /**
  * Extract the base station name from a full stop name
- * "Konak İskele" → "konak"
- * "Halkapınar Metro" → "halkapinar"
+ * "Konak Ferry" → "konak ferry" (distinct location, kept)
+ * "Halkapınar Metro" → "halkapinar" (generic suffix stripped)
  * "Karşıyaka" → "karsiyaka"
  */
 function extractBaseStationName(normalizedName: string): string {
-  // Common suffixes that indicate mode/type, not part of the base name
-  const MODE_SUFFIXES = [
-    'iskele', 'iskelesi', 'iskeli', // Ferry terminal variants (iskeli is sometimes used in GTFS data)
+  // Suffixes that indicate a DISTINCT physical location (ferry terminal, train station).
+  // These should NOT be stripped: "Konak İskele" (tram/ferry terminal) ≠ "Konak" (metro station)
+  const DISTINCT_LOCATION_SUFFIXES = [
+    'iskele', 'iskelesi', 'iskeli', // Ferry terminals (Turkish)
+    'ferry',                         // Ferry terminals (English)
+    'gar', 'gari',                   // Train stations
+  ];
+
+  // Generic mode suffixes that can be safely stripped for deduplication
+  const GENERIC_MODE_SUFFIXES = [
     'metro', 'istasyon', 'istasyonu',
-    'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+    'durak', 'duragi', 'tren', 'izban',
     'tramvay', 'otobus', 'vapur', 'feribot'
   ];
 
   const words = normalizedName.split(/\s+/);
 
-  // Remove trailing mode suffixes
+  // If name ends with a distinct location suffix, keep it (these are different physical locations)
+  if (words.length > 1 && DISTINCT_LOCATION_SUFFIXES.includes(words[words.length - 1])) {
+    return words.join(' ');
+  }
+
+  // Remove trailing generic mode suffixes only
   while (words.length > 1) {
     const lastWord = words[words.length - 1];
-    if (MODE_SUFFIXES.includes(lastWord)) {
+    if (GENERIC_MODE_SUFFIXES.includes(lastWord)) {
       words.pop();
     } else {
       break;
@@ -1048,7 +1330,7 @@ function extractBaseStationName(normalizedName: string): string {
 
 /**
  * Normalize stop name for comparison
- * Handles Turkish characters and suffixes like İskele/İskelesi (same station)
+ * Handles Turkish characters and suffixes like İskele/İskelesi/Ferry (same station)
  */
 export function normalizeStopName(name: string): string {
   let normalized = name
@@ -1068,6 +1350,9 @@ export function normalizeStopName(name: string): string {
     .replace(/Ö/g, 'o')
     .replace(/ç/g, 'c')  // c-cedilla
     .replace(/Ç/g, 'c')
+    // Normalize hyphens/dashes to spaces (e.g., "Üçyol-Bahçelievler" → "ucyol bahcelievler")
+    .replace(/[-–—]/g, ' ')
+    .replace(/\s+/g, ' ')  // Collapse multiple spaces
     .toLowerCase()
     .trim();
 
@@ -1136,8 +1421,8 @@ export async function searchStops(query: string): Promise<Stop[]> {
     });
 
     // Deduplicate by exact name (case-insensitive)
-    // IMPORTANT: Prioritize rail/metro/tram/ferry over bus stops
-    // This ensures metro_konak is shown instead of bus_konak when both exist
+    // Keep the highest priority stop for display (metro > rail > tram > ferry > bus)
+    // The routing engine will find ALL routes for this station name via getAllStopIdsForName()
     const getStopPriority = (stopId: string): number => {
       if (stopId.startsWith('metro_')) return 0;  // Metro - highest priority
       if (stopId.startsWith('rail_')) return 1;   // İZBAN
@@ -1161,7 +1446,7 @@ export async function searchStops(query: string): Promise<Stop[]> {
       }
     }
 
-    // Sort alphabetically by name and limit to 50
+    // Sort alphabetically by name
     const sortedRows = Array.from(seen.values()).sort((a: any, b: any) =>
       a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' })
     );
@@ -1300,7 +1585,8 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
         logger.log(`[Database] Ferry fallback: no stops via stop_times for route ${routeId}, loading ferry stops by name`);
         const ferryRows = db.getAllSync<any>(
           `SELECT * FROM stops
-           WHERE UPPER(name) LIKE '%ISKELE%'
+           WHERE UPPER(name) LIKE '%FERRY%'
+              OR UPPER(name) LIKE '%ISKELE%'
               OR UPPER(name) LIKE '%İSKELE%'
               OR UPPER(name) LIKE '%VAPUR%'
               OR UPPER(name) LIKE '%FERIBOT%'
@@ -1323,6 +1609,291 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
   } catch (error) {
     logger.error('[Database] ❌ Failed to get stops by route ID:', error);
     throw error;
+  }
+}
+
+/**
+ * Find nearby ferry/rail/tram stops for multimodal transfer discovery.
+ * Used in 2-transfer routing to find intermediate routes at multimodal hubs
+ * (e.g., metro_10 "Konak" → nearby ferry_xxx "Konak Ferry").
+ * Searches both regular stops (location_type=0) and parent stations (location_type=1),
+ * expanding parent stations to include their child stops for route matching.
+ */
+export function getNearbyMultimodalStops(lat: number, lon: number, radiusMeters: number = 1000): Stop[] {
+  const database = openDatabase();
+
+  try {
+    const latDelta = radiusMeters / 111000;
+    const lonDelta = radiusMeters / (111000 * Math.cos((lat * Math.PI) / 180));
+
+    // Search for both regular stops and parent stations (ferry terminals are often location_type=1)
+    const rows = database.getAllSync<any>(
+      `SELECT id, name, lat, lon, location_type, parent_station FROM stops
+       WHERE lat BETWEEN ? AND ?
+       AND lon BETWEEN ? AND ?
+       AND (id LIKE 'ferry_%' OR id LIKE 'rail_%' OR id LIKE 'tram_%' OR id LIKE 'metro_%')
+       AND location_type IN (0, 1)`,
+      [lat - latDelta, lat + latDelta, lon - lonDelta, lon + lonDelta]
+    );
+
+    const stops: Stop[] = [];
+    const parentIds: string[] = [];
+
+    for (const row of rows) {
+      stops.push({
+        id: row.id,
+        name: row.name,
+        lat: row.lat,
+        lon: row.lon,
+        locationType: row.location_type,
+        parentStation: row.parent_station,
+      });
+      // Track parent stations so we can find their child stops
+      if (row.location_type === 1) {
+        parentIds.push(row.id);
+      }
+    }
+
+    // Expand parent stations: find child stops that have routes/stop_times
+    if (parentIds.length > 0) {
+      const placeholders = parentIds.map(() => '?').join(',');
+      const childRows = database.getAllSync<any>(
+        `SELECT id, name, lat, lon, location_type, parent_station FROM stops
+         WHERE parent_station IN (${placeholders})
+         AND location_type = 0`,
+        parentIds
+      );
+      const existingIds = new Set(stops.map(s => s.id));
+      for (const row of childRows) {
+        if (!existingIds.has(row.id)) {
+          stops.push({
+            id: row.id,
+            name: row.name,
+            lat: row.lat,
+            lon: row.lon,
+            locationType: row.location_type,
+            parentStation: row.parent_station,
+          });
+        }
+      }
+    }
+
+    return stops;
+  } catch (error) {
+    logger.warn('[Database] Failed to get nearby multimodal stops:', error);
+    return [];
+  }
+}
+
+/**
+ * Find stops matching a hub name pattern for a specific route type.
+ * Used by hub-based routing to find stops like "Konak" for metro (type=1).
+ * Returns stops that serve routes of the given type.
+ */
+export function findStopsByNamePattern(hubName: string, routeType: number): Stop[] {
+  const database = openDatabase();
+
+  try {
+    // Map route type to stop ID prefix
+    const prefixMap: Record<number, string> = {
+      0: 'tram_',    // Tram
+      1: 'metro_',   // Metro
+      2: 'rail_',    // İZBAN
+      4: 'ferry_',   // Ferry
+    };
+    const prefix = prefixMap[routeType];
+
+    // Normalize hub name for Turkish character matching
+    const normalized = hubName.toLowerCase()
+      .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
+
+    // Strategy 1: search by ID prefix + name pattern in SQL
+    // Must filter by name in SQL (not just JS) because LIMIT 10 without name filter
+    // would miss stops like "Konak Ferry" if there are >10 ferry stops
+    if (prefix) {
+      // Build multiple LIKE patterns to match Turkish variations
+      const namePatterns = [
+        `%${hubName}%`,           // Original (e.g., %karşıyaka%)
+        `%${normalized}%`,        // Normalized (e.g., %karsiyaka%)
+      ];
+      const rows = database.getAllSync<any>(
+        `SELECT s.id, s.name, s.lat, s.lon, s.location_type, s.parent_station FROM stops s
+         WHERE s.id LIKE ?
+         AND s.location_type IN (0, 1)
+         AND (LOWER(s.name) LIKE ? OR LOWER(s.name) LIKE ?)
+         LIMIT 10`,
+        [`${prefix}%`, namePatterns[0].toLowerCase(), namePatterns[1]]
+      );
+
+      if (rows.length > 0) {
+        return rows.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          lat: row.lat,
+          lon: row.lon,
+          locationType: row.location_type,
+          parentStation: row.parent_station,
+        }));
+      }
+    }
+
+    // Strategy 2: search by name pattern with route type join (no prefix filter)
+    const rows = database.getAllSync<any>(
+      `SELECT DISTINCT s.id, s.name, s.lat, s.lon, s.location_type, s.parent_station FROM stops s
+       JOIN stop_times st ON st.stop_id = s.id
+       JOIN trips t ON st.trip_id = t.id
+       JOIN routes r ON t.route_id = r.id
+       WHERE r.type = ?
+       AND s.location_type IN (0, 1)
+       AND (LOWER(s.name) LIKE ? OR LOWER(s.name) LIKE ?)
+       LIMIT 5`,
+      [routeType, `%${hubName.toLowerCase()}%`, `%${normalized}%`]
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      lat: row.lat,
+      lon: row.lon,
+      locationType: row.location_type,
+      parentStation: row.parent_station,
+    }));
+  } catch (error) {
+    logger.warn(`[Database] Failed to find stops for hub "${hubName}" type ${routeType}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Estimate travel time between two stops on a given route (or route type).
+ * Uses GTFS stop_times when available, falls back to distance-based estimate.
+ * Returns minutes, or null if estimation impossible.
+ */
+export function estimateTravelTime(
+  routeId: string | null,
+  fromStopId: string,
+  toStopId: string,
+  activeServiceIds: string[],
+  routeType?: number,
+): number | null {
+  const database = openDatabase();
+
+  try {
+    // Try GTFS-based estimate first
+    if (routeId && activeServiceIds.length > 0) {
+      const placeholders = activeServiceIds.map(() => '?').join(',');
+      const row = database.getFirstSync<any>(
+        `SELECT
+           MIN(ABS(st2.departure_time - st1.departure_time)) / 60 as travel_min
+         FROM stop_times st1
+         JOIN stop_times st2 ON st1.trip_id = st2.trip_id
+         JOIN trips t ON st1.trip_id = t.id
+         WHERE t.route_id = ?
+         AND t.service_id IN (${placeholders})
+         AND st1.stop_id = ?
+         AND st2.stop_id = ?
+         AND st2.stop_sequence > st1.stop_sequence`,
+        [routeId, ...activeServiceIds, fromStopId, toStopId]
+      );
+
+      if (row?.travel_min && row.travel_min > 0 && row.travel_min < 180) {
+        return Math.round(row.travel_min);
+      }
+    }
+
+    // Try by route type (for mid-routes where we don't know exact route ID)
+    if (routeType !== undefined && activeServiceIds.length > 0) {
+      const placeholders = activeServiceIds.map(() => '?').join(',');
+      const row = database.getFirstSync<any>(
+        `SELECT
+           MIN(ABS(st2.departure_time - st1.departure_time)) / 60 as travel_min
+         FROM stop_times st1
+         JOIN stop_times st2 ON st1.trip_id = st2.trip_id
+         JOIN trips t ON st1.trip_id = t.id
+         JOIN routes r ON t.route_id = r.id
+         WHERE r.type = ?
+         AND t.service_id IN (${placeholders})
+         AND st1.stop_id = ?
+         AND st2.stop_id = ?
+         AND st2.stop_sequence > st1.stop_sequence`,
+        [routeType, ...activeServiceIds, fromStopId, toStopId]
+      );
+
+      if (row?.travel_min && row.travel_min > 0 && row.travel_min < 180) {
+        return Math.round(row.travel_min);
+      }
+    }
+
+    // Fall back to distance-based estimate
+    const fromStop = database.getFirstSync<any>(
+      'SELECT lat, lon FROM stops WHERE id = ?', [fromStopId]
+    );
+    const toStop = database.getFirstSync<any>(
+      'SELECT lat, lon FROM stops WHERE id = ?', [toStopId]
+    );
+
+    if (fromStop && toStop) {
+      const R = 6371000;
+      const dLat = (toStop.lat - fromStop.lat) * Math.PI / 180;
+      const dLon = (toStop.lon - fromStop.lon) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(fromStop.lat * Math.PI / 180) * Math.cos(toStop.lat * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      // Speed by mode (m/min)
+      const speeds: Record<number, number> = {
+        1: 600,   // Metro: 36 km/h
+        2: 700,   // İZBAN: 42 km/h
+        0: 350,   // Tram: 21 km/h
+        4: 400,   // Ferry: 24 km/h (incl. docking)
+        3: 300,   // Bus: 18 km/h
+      };
+      const speed = speeds[routeType ?? 3] || 300;
+      const estimate = dist / speed;
+      return estimate > 0 ? Math.round(Math.max(estimate, 2)) : null;
+    }
+
+    return null;
+  } catch (error) {
+    logger.warn('[Database] Failed to estimate travel time:', error);
+    return null;
+  }
+}
+
+/**
+ * Find the first route of a given type that serves a specific stop.
+ * Used to get the actual route object (with name, color) for hub-based mid-routes.
+ */
+export function findRouteByTypeAtStop(stopId: string, routeType: number): Route | null {
+  const database = openDatabase();
+
+  try {
+    const row = database.getFirstSync<any>(
+      `SELECT DISTINCT r.id, r.short_name, r.long_name, r.type, r.color, r.text_color
+       FROM routes r
+       JOIN trips t ON t.route_id = r.id
+       JOIN stop_times st ON st.trip_id = t.id
+       WHERE st.stop_id = ?
+       AND r.type = ?
+       LIMIT 1`,
+      [stopId, routeType]
+    );
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      shortName: row.short_name || '',
+      longName: row.long_name || '',
+      type: row.type,
+      color: row.color || '',
+      textColor: row.text_color || '',
+    };
+  } catch (error) {
+    logger.warn(`[Database] Failed to find route type ${routeType} at stop ${stopId}:`, error);
+    return null;
   }
 }
 
@@ -1422,7 +1993,7 @@ export function findTransferStops(
   if (fromRouteIds.length === 0 || toRouteIds.length === 0) return [];
 
   try {
-    // Query 1: Get unique (stop, route) pairs for fromRoutes
+    // Query 1: Get unique (stop, route) pairs for fromRoutes (includes route shortName for same-line filtering)
     const fromPlaceholders = fromRouteIds.map(() => '?').join(', ');
     const fromStops = db.getAllSync<{
       stop_id: string;
@@ -1430,17 +2001,19 @@ export function findTransferStops(
       lat: number;
       lon: number;
       route_id: string;
+      route_short_name: string;
     }>(
-      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id
+      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id, r.short_name AS route_short_name
        FROM trips t
        JOIN stop_times st ON t.id = st.trip_id
        JOIN stops s ON st.stop_id = s.id
+       JOIN routes r ON t.route_id = r.id
        WHERE t.route_id IN (${fromPlaceholders})
        GROUP BY s.id, t.route_id`,
       fromRouteIds
     );
 
-    // Query 2: Get unique (stop, route) pairs for toRoutes
+    // Query 2: Get unique (stop, route) pairs for toRoutes (includes route shortName for same-line filtering)
     const toPlaceholders = toRouteIds.map(() => '?').join(', ');
     const toStops = db.getAllSync<{
       stop_id: string;
@@ -1448,11 +2021,13 @@ export function findTransferStops(
       lat: number;
       lon: number;
       route_id: string;
+      route_short_name: string;
     }>(
-      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id
+      `SELECT s.id AS stop_id, s.name AS stop_name, s.lat, s.lon, t.route_id, r.short_name AS route_short_name
        FROM trips t
        JOIN stop_times st ON t.id = st.trip_id
        JOIN stops s ON st.stop_id = s.id
+       JOIN routes r ON t.route_id = r.id
        WHERE t.route_id IN (${toPlaceholders})
        GROUP BY s.id, t.route_id`,
       toRouteIds
@@ -1462,8 +2037,27 @@ export function findTransferStops(
     // Use NORMALIZED BASE NAME for matching (e.g., "Halkapınar Metro" → "halkapinar")
     // This allows multimodal transfers between stops with similar names
     const toByName = new Map<string, typeof toStops>();
-    const toByBaseName = new Map<string, typeof toStops>(); // NEW: index by base name
+    const toByBaseName = new Map<string, typeof toStops>(); // index by base name
+    const toByCoreName = new Map<string, typeof toStops>(); // index by core name (strips ALL suffixes incl. ferry/iskele)
     const toByGrid = new Map<string, typeof toStops>();
+
+    // Core name: strips ALL suffixes including ferry/iskele/gar
+    // This enables matching "Konak" (metro) with "Konak Ferry" (ferry terminal)
+    const ALL_SUFFIXES = [
+      'iskele', 'iskelesi', 'iskeli', 'ferry',
+      'gar', 'gari',
+      'metro', 'istasyon', 'istasyonu',
+      'durak', 'duragi', 'tren', 'izban',
+      'tramvay', 'otobus', 'vapur', 'feribot'
+    ];
+    const extractCoreName = (name: string): string => {
+      const normalized = normalizeStopName(name);
+      const words = normalized.split(/\s+/);
+      while (words.length > 1 && ALL_SUFFIXES.includes(words[words.length - 1])) {
+        words.pop();
+      }
+      return words.join(' ');
+    };
 
     for (const ts of toStops) {
       // Exact name match index
@@ -1476,6 +2070,11 @@ export function findTransferStops(
       const baseName = extractBaseStationName(normalized);
       if (!toByBaseName.has(baseName)) toByBaseName.set(baseName, []);
       toByBaseName.get(baseName)!.push(ts);
+
+      // Core name index (strips ALL suffixes for ferry↔metro matching)
+      const coreName = extractCoreName(ts.stop_name);
+      if (!toByCoreName.has(coreName)) toByCoreName.set(coreName, []);
+      toByCoreName.get(coreName)!.push(ts);
 
       const gridKey = `${Math.round(ts.lat / 0.003)}_${Math.round(ts.lon / 0.003)}`;
       if (!toByGrid.has(gridKey)) toByGrid.set(gridKey, []);
@@ -1503,6 +2102,8 @@ export function findTransferStops(
       const nameMatches = toByName.get(nameKey) || [];
       for (const ts of nameMatches) {
         if (ts.route_id === fs.route_id) continue;
+        // Skip same-line transfers (e.g., M1→M1 with different route IDs)
+        if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
         const dedupKey = `${fs.route_id}-${ts.route_id}-${nameKey}`;
         if (seen.has(dedupKey)) continue;
         seen.add(dedupKey);
@@ -1529,12 +2130,43 @@ export function findTransferStops(
       const baseNameMatches = toByBaseName.get(fsBaseName) || [];
       for (const ts of baseNameMatches) {
         if (ts.route_id === fs.route_id) continue;
+        if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
         const dedupKey = `${fs.route_id}-${ts.route_id}-${fsBaseName}`;
         if (seen.has(dedupKey)) continue;
         seen.add(dedupKey);
         const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
         // Only accept base name matches within 500m (same station area)
         if (walkDist > 500) continue;
+        results.push({
+          stopId: fs.stop_id,
+          stopName: fs.stop_name,
+          lat: fs.lat,
+          lon: fs.lon,
+          fromRouteId: fs.route_id,
+          toRouteId: ts.route_id,
+          toStopId: ts.stop_id,
+          toStopLat: ts.lat,
+          toStopLon: ts.lon,
+          walkDistance: Math.round(walkDist),
+        });
+        if (results.length >= limit) break;
+      }
+      if (results.length >= limit) break;
+
+      // 1c. Core name match (ferry↔metro/tram: "Konak" ↔ "Konak Ferry"/"Konak İskelesi")
+      //     Strips ALL suffixes including ferry/iskele, then matches within 800m
+      //     This enables multimodal transfer discovery at ferry terminals
+      const fsCoreName = extractCoreName(fs.stop_name);
+      const coreNameMatches = toByCoreName.get(fsCoreName) || [];
+      for (const ts of coreNameMatches) {
+        if (ts.route_id === fs.route_id) continue;
+        if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
+        const dedupKey = `${fs.route_id}-${ts.route_id}-core-${fsCoreName}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+        const walkDist = dist(fs.lat, fs.lon, ts.lat, ts.lon);
+        // Accept core name matches within 800m (ferry terminals can be 500-800m from metro)
+        if (walkDist > 800) continue;
         results.push({
           stopId: fs.stop_id,
           stopName: fs.stop_name,
@@ -1561,6 +2193,7 @@ export function findTransferStops(
           if (!nearStops) continue;
           for (const ts of nearStops) {
             if (ts.route_id === fs.route_id) continue;
+            if (fs.route_short_name && ts.route_short_name && fs.route_short_name === ts.route_short_name) continue;
             if (Math.abs(ts.lat - fs.lat) >= 0.003 || Math.abs(ts.lon - fs.lon) >= 0.003) continue;
             const dedupKey = `${fs.route_id}-${ts.route_id}-${fs.stop_id}`;
             if (seen.has(dedupKey)) continue;
@@ -1877,6 +2510,13 @@ export function getNextDepartureForRoute(
     const minTime = timeMinutes;
     const maxTime = timeMinutes + windowMinutes;
 
+    // DEBUG: Log what we're looking for
+    const isTramOrMetro = routeId.includes('tram') || routeId.includes('metro');
+    if (isTramOrMetro) {
+      const servicesStr = activeServiceIds ? Array.from(activeServiceIds).filter(s => s.includes('tram') || s.includes('M1')).join(', ') : 'null';
+      logger.log(`[Database] getNextDepartureForRoute: route=${routeId}, stop=${stopId}, time=${Math.floor(timeMinutes/60)}:${(timeMinutes%60).toString().padStart(2,'0')}, services=${servicesStr}`);
+    }
+
     // Format times as HH:MM:SS for comparison
     const minTimeStr = `${Math.floor(minTime / 60).toString().padStart(2, '0')}:${(minTime % 60).toString().padStart(2, '0')}:00`;
     const maxTimeStr = `${Math.floor(maxTime / 60).toString().padStart(2, '0')}:${(maxTime % 60).toString().padStart(2, '0')}:00`;
@@ -1915,7 +2555,18 @@ export function getNextDepartureForRoute(
       );
     }
 
-    if (!row) return null;
+    if (!row) {
+      // DEBUG: Log when no departure found for tram/metro
+      if (isTramOrMetro) {
+        logger.log(`[Database] ❌ No departure found for ${routeId} at ${stopId}`);
+      }
+      return null;
+    }
+
+    // DEBUG: Log success for tram/metro
+    if (isTramOrMetro) {
+      logger.log(`[Database] ✓ Found departure for ${routeId}: ${row.departure_time}`);
+    }
     return parseTimeToMinutes(row.departure_time);
   } catch (error) {
     logger.warn('[Database] Failed to get next departure for route:', error);

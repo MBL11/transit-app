@@ -1,5 +1,6 @@
 import Heap from 'heap-js';
 import * as db from './database';
+import { RouteWithStopId } from './database';
 import { Stop, Route } from './types/models';
 import { JourneyResult, RouteSegment } from './types/routing';
 import { geocodeAddress, GeocodingResult } from './geocoding';
@@ -19,6 +20,7 @@ import {
   isTransitOperating,
   izmirOperatingHours,
   IZMIR_NIGHT_BUS_LINES,
+  izmirMultimodalHubs,
 } from '../adapters/izmir/config';
 
 // Calcule la distance entre 2 points GPS (en mètres)
@@ -178,10 +180,11 @@ const TRANSFER_SEARCH_RADIUS_M = 500;
 interface RoutingCache {
   stops: Map<string, Stop | null>;
   routes: Map<string, Route[]>;
+  routesWithStops: Map<string, RouteWithStopId[]>;
 }
 
 function createRoutingCache(): RoutingCache {
-  return { stops: new Map(), routes: new Map() };
+  return { stops: new Map(), routes: new Map(), routesWithStops: new Map() };
 }
 
 async function getCachedStop(id: string, cache?: RoutingCache): Promise<Stop | null> {
@@ -199,6 +202,18 @@ async function getCachedRoutes(stopId: string, cache?: RoutingCache): Promise<Ro
 }
 
 /**
+ * Get routes with their actual serving stop IDs (for multimodal routing)
+ * This is essential when the user selects "Fahrettin Altay" (metro_4)
+ * but we need to find T2 tram routes which use tram_t2_1 as their stop ID.
+ */
+async function getCachedRoutesWithStops(stopId: string, cache?: RoutingCache): Promise<RouteWithStopId[]> {
+  if (cache?.routesWithStops.has(stopId)) return cache.routesWithStops.get(stopId)!;
+  const routes = await db.getRoutesWithStopIds(stopId, true);
+  if (cache) cache.routesWithStops.set(stopId, routes);
+  return routes;
+}
+
+/**
  * Normalize stop name for comparison (remove prefixes like metro_1, tram_1, etc.)
  */
 function normalizeStopName(name: string): string {
@@ -208,9 +223,34 @@ function normalizeStopName(name: string): string {
 }
 
 /**
- * Sanitize journey by removing only truly absurd segments:
+ * Extract base station name for comparing stops at the same physical station.
+ * "Konak Ferry" → "konak", "Halkapınar Metro" → "halkapinar", "Konak" → "konak"
+ */
+function getBaseStationName(name: string): string {
+  const normalized = name.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
+    .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    .replace(/[-–—]/g, ' ').replace(/\s+/g, ' ');
+  const SUFFIXES_TO_STRIP = [
+    'iskele', 'iskelesi', 'iskeli', 'ferry',
+    'gar', 'gari',
+    'metro', 'istasyon', 'istasyonu',
+    'durak', 'duragi', 'tren', 'izban',
+    'tramvay', 'otobus', 'vapur', 'feribot'
+  ];
+  const words = normalized.split(/\s+/);
+  while (words.length > 1 && SUFFIXES_TO_STRIP.includes(words[words.length - 1])) {
+    words.pop();
+  }
+  return words.join(' ');
+}
+
+/**
+ * Sanitize journey by removing truly absurd segments:
  * - Transit segments where from.name === to.name (same stop, e.g., "Mavişehir → Mavişehir")
  * - Walk segments of 0 distance
+ * - Consecutive same-line transit segments (e.g., M1 → walk → M1) are merged into one
  * Returns null only if journey becomes completely empty after sanitization
  */
 function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
@@ -219,14 +259,16 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
   for (let i = 0; i < journey.segments.length; i++) {
     const segment = journey.segments[i];
 
-    // For transit segments: check if from/to have same name (absurd - same stop to same stop)
+    // For transit segments: check if from/to are at the same station (same stop or same base name)
+    // This catches segments like "Konak → Konak Ferry" on T2 (0 meaningful stops between them)
     if (segment.type === 'transit' && segment.from && segment.to) {
       const fromName = normalizeStopName(segment.from.name);
       const toName = normalizeStopName(segment.to.name);
+      const fromBase = getBaseStationName(segment.from.name);
+      const toBase = getBaseStationName(segment.to.name);
 
-      if (fromName === toName) {
-        // Same stop to same stop - skip this segment entirely
-        logger.log(`[Routing] Removing absurd transit segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
+      if (fromName === toName || fromBase === toBase) {
+        logger.log(`[Routing] Removing same-station transit segment: ${segment.from.name} → ${segment.to.name} on ${segment.route?.shortName}`);
         continue;
       }
     }
@@ -239,13 +281,48 @@ function sanitizeJourney(journey: JourneyResult): JourneyResult | null {
         continue;
       }
 
-      const fromName = normalizeStopName(segment.from.name);
-      const toName = normalizeStopName(segment.to.name);
+      const fromBase = getBaseStationName(segment.from.name);
+      const toBase = getBaseStationName(segment.to.name);
 
-      // Skip walk if from and to have exactly same normalized name AND distance is trivial (<100m)
-      if (fromName === toName && segment.distance !== undefined && segment.distance < 100) {
-        logger.log(`[Routing] Removing trivial walk between same-name stops: ${segment.from.name} (${segment.distance}m)`);
+      // Skip walk if from and to are at same station AND distance is trivial (<200m)
+      if (fromBase === toBase && segment.distance !== undefined && segment.distance < 200) {
+        logger.log(`[Routing] Removing trivial walk between same-station stops: ${segment.from.name} → ${segment.to.name} (${segment.distance}m)`);
         continue;
+      }
+    }
+
+    // Merge consecutive same-line transit segments (e.g., M1 → [walk] → M1)
+    // Find the last transit segment in sanitizedSegments
+    if (segment.type === 'transit' && segment.route?.shortName) {
+      const lastTransitIdx = sanitizedSegments.length - 1;
+      const prevSegment = lastTransitIdx >= 0 ? sanitizedSegments[lastTransitIdx] : null;
+
+      // Check if previous segment (or segment before a trivial walk) is same line
+      let mergeTarget: RouteSegment | null = null;
+      let removeWalkIdx = -1;
+
+      if (prevSegment?.type === 'transit' && prevSegment.route?.shortName === segment.route.shortName) {
+        mergeTarget = prevSegment;
+      } else if (prevSegment?.type === 'walk' && lastTransitIdx >= 1) {
+        // Check if there's a transit segment before the walk with same line
+        const beforeWalk = sanitizedSegments[lastTransitIdx - 1];
+        if (beforeWalk?.type === 'transit' && beforeWalk.route?.shortName === segment.route.shortName) {
+          mergeTarget = beforeWalk;
+          removeWalkIdx = lastTransitIdx; // Remove the intermediate walk
+        }
+      }
+
+      if (mergeTarget) {
+        logger.log(`[Routing] Merging same-line segments: ${mergeTarget.route?.shortName} ${mergeTarget.from.name}→${mergeTarget.to.name} + ${segment.from.name}→${segment.to.name}`);
+        // Merge: extend the previous transit segment to the new destination
+        mergeTarget.to = segment.to;
+        mergeTarget.arrivalTime = segment.arrivalTime;
+        mergeTarget.duration = (mergeTarget.duration || 0) + (segment.duration || 0);
+        // Remove intermediate walk if applicable
+        if (removeWalkIdx >= 0) {
+          sanitizedSegments.splice(removeWalkIdx, 1);
+        }
+        continue; // Don't add the current segment
       }
     }
 
@@ -327,11 +404,208 @@ async function enrichWithHeadsigns(journeys: JourneyResult[]): Promise<void> {
           segment.from.id,
           segment.to.id
         );
-        if (stopsCount !== null) {
+        if (stopsCount != null) {
           segment.intermediateStopsCount = stopsCount;
         }
       }
     }
+  }
+}
+
+/** Get a signature string for a journey based on transit route names (e.g., "M1→Ferry→T1") */
+function getRouteSignature(journey: JourneyResult): string {
+  return journey.segments
+    .filter(s => s.type === 'transit')
+    .map(s => s.route?.shortName || s.route?.id || 'walk')
+    .join('→');
+}
+
+/**
+ * Build routes through known İzmir multimodal hubs.
+ * Uses the izmirMultimodalHubs config to find 2-transfer routes like M1→Ferry→T1
+ * where geographic proximity discovery may fail due to coordinate gaps.
+ */
+async function buildHubBasedRoutes(
+  fromStopId: string,
+  toStopId: string,
+  fromRoutes: Route[],
+  toRoutes: Route[],
+  departureTime: Date,
+  requestedTimeMinutes: number,
+  activeServiceIds: string[],
+): Promise<JourneyResult[]> {
+  const results: JourneyResult[] = [];
+
+  // Get mode types available at from and to
+  const fromModes = new Set(fromRoutes.map(r => r.type));
+  const toModes = new Set(toRoutes.map(r => r.type));
+
+  // Normalize hub name for matching
+  const normalizeForHub = (name: string): string =>
+    name.toLowerCase()
+      .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+      .replace(/\s+(metro|iskele|ferry|istasyonu|tram|vapur|feribot)$/g, '')
+      .trim();
+
+  // Find hub pairs: hub1 reachable from origin, hub2 reachable from destination,
+  // with an intermediate mode connecting hub1→hub2
+  for (const [hub1Name, hub1Info] of Object.entries(izmirMultimodalHubs)) {
+    for (const [hub2Name, hub2Info] of Object.entries(izmirMultimodalHubs)) {
+      if (hub1Name === hub2Name) continue;
+
+      // Find a mode shared between hub1 and hub2 that can serve as mid-route
+      // This mode should NOT be the same as origin or destination modes
+      const sharedMidModes = hub1Info.modes.filter(m => hub2Info.modes.includes(m));
+      if (sharedMidModes.length === 0) continue;
+
+      for (const midMode of sharedMidModes) {
+        // Check: origin has a route type that hub1 supports (for first leg)
+        const firstLegModes = hub1Info.modes.filter(m => m !== midMode && fromModes.has(m));
+        // Check: destination has a route type that hub2 supports (for last leg)
+        const lastLegModes = hub2Info.modes.filter(m => m !== midMode && toModes.has(m));
+
+        if (firstLegModes.length === 0 || lastLegModes.length === 0) continue;
+
+        // Prioritize rail/metro for first/last legs (lower type = higher priority: tram=0, metro=1, rail=2, bus=3, ferry=4)
+        const modePriority = (t: number) => t === 1 ? 0 : t === 2 ? 1 : t === 0 ? 2 : t === 4 ? 3 : 4;
+        const firstLegMode = firstLegModes.sort((a, b) => modePriority(a) - modePriority(b))[0];
+        const lastLegMode = lastLegModes.sort((a, b) => modePriority(a) - modePriority(b))[0];
+
+        // Skip all-bus combinations (not interesting as hub-based routes)
+        if (firstLegMode === 3 && midMode === 3 && lastLegMode === 3) continue;
+        // Skip if mid-mode is bus (we want rail/ferry/tram as connectors)
+        if (midMode === 3) continue;
+
+        // Find actual routes for each leg
+        const firstRoute = fromRoutes.find(r => r.type === firstLegMode);
+        const lastRoute = toRoutes.find(r => r.type === lastLegMode);
+        if (!firstRoute || !lastRoute) continue;
+
+        // Check operating hours
+        const firstOp = isTransitOperating(firstLegMode, requestedTimeMinutes, firstRoute.shortName);
+        const midOp = isTransitOperating(midMode, requestedTimeMinutes);
+        const lastOp = isTransitOperating(lastLegMode, requestedTimeMinutes, lastRoute.shortName);
+        if (!firstOp || !midOp || !lastOp) continue;
+
+        // Find stops at hub1 and hub2 matching the modes
+        const hub1Stops = await db.findStopsByNamePattern(hub1Name, firstLegMode);
+        const hub2Stops = await db.findStopsByNamePattern(hub2Name, lastLegMode);
+        const hub1MidStops = await db.findStopsByNamePattern(hub1Name, midMode);
+        const hub2MidStops = await db.findStopsByNamePattern(hub2Name, midMode);
+
+        if (hub1Stops.length === 0 || hub2Stops.length === 0 ||
+            hub1MidStops.length === 0 || hub2MidStops.length === 0) {
+          continue;
+        }
+
+        // Estimate durations for each leg using GTFS data or distance
+        const fromActualId = (firstRoute as RouteWithStopId).actualStopId || fromStopId;
+        const dur1 = db.estimateTravelTime(firstRoute.id, fromActualId, hub1Stops[0].id, activeServiceIds);
+        const dur2Mid = db.estimateTravelTime(null, hub1MidStops[0].id, hub2MidStops[0].id, activeServiceIds, midMode);
+        const toActualId = (lastRoute as RouteWithStopId).actualStopId || toStopId;
+        const dur3 = db.estimateTravelTime(lastRoute.id, hub2Stops[0].id, toActualId, activeServiceIds);
+
+        if (dur1 === null || dur2Mid === null || dur3 === null) {
+          continue;
+        }
+        if (dur1 <= 0 || dur2Mid <= 0 || dur3 <= 0) {
+          continue;
+        }
+
+        const transfer1Time = hub1Info.transferTime;
+        const transfer2Time = hub2Info.transferTime;
+        const waitMid = getAverageWaitTime(midMode);
+        const waitLast = getAverageWaitTime(lastLegMode);
+        const totalDuration = dur1 + transfer1Time + waitMid + dur2Mid + transfer2Time + waitLast + dur3;
+
+        if (totalDuration > MAX_JOURNEY_DURATION_MIN || totalDuration <= 0) continue;
+
+        // Build the journey - fetch actual stop data for origin and destination
+        const hub1Stop = hub1Stops[0];
+        const hub2Stop = hub2Stops[0];
+        const fromStop = await db.getStopById(fromStopId);
+        const toStop = await db.getStopById(toStopId);
+        const fromStopData: Stop = fromStop || { id: fromStopId, name: fromStopId, lat: 0, lon: 0, locationType: 0 };
+        const toStopData: Stop = toStop || { id: toStopId, name: toStopId, lat: 0, lon: 0, locationType: 0 };
+
+        // Find the actual mid-route for better display (instead of generic "Ferry"/"İZBAN")
+        const midRouteActual = db.findRouteByTypeAtStop(hub1MidStops[0].id, midMode);
+
+        const journey: JourneyResult = {
+          segments: [
+            {
+              type: 'transit',
+              from: fromStopData,
+              to: hub1Stop,
+              route: firstRoute,
+              departureTime: departureTime,
+              arrivalTime: new Date(departureTime.getTime() + dur1 * 60000),
+              duration: dur1,
+            },
+            {
+              type: 'walk',
+              from: hub1Stop,
+              to: hub1MidStops[0],
+              duration: transfer1Time,
+              distance: transfer1Time * 60, // rough: 1m/s walking
+            },
+            {
+              type: 'transit',
+              from: hub1MidStops[0],
+              to: hub2MidStops[0],
+              route: midRouteActual || { id: `hub_mid_${midMode}`, shortName: getModeLabel(midMode), type: midMode, longName: '', color: '', textColor: '' },
+              departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid) * 60000),
+              arrivalTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid + dur2Mid) * 60000),
+              duration: dur2Mid,
+            },
+            {
+              type: 'walk',
+              from: hub2MidStops[0],
+              to: hub2Stop,
+              duration: transfer2Time,
+              distance: transfer2Time * 60,
+            },
+            {
+              type: 'transit',
+              from: hub2Stop,
+              to: toStopData,
+              route: lastRoute,
+              departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid + dur2Mid + transfer2Time + waitLast) * 60000),
+              arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+              duration: dur3,
+            },
+          ],
+          totalDuration: Math.round(totalDuration),
+          totalWalkDistance: (transfer1Time + transfer2Time) * 60,
+          numberOfTransfers: 2,
+          departureTime: departureTime,
+          arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+          tags: [],
+        };
+
+        results.push(journey);
+
+        if (results.length >= 3) break;
+      }
+      if (results.length >= 3) break;
+    }
+    if (results.length >= 3) break;
+  }
+
+  // Sort by duration
+  results.sort((a, b) => a.totalDuration - b.totalDuration);
+  return results.slice(0, 2);
+}
+
+/** Get a human label for a route type */
+function getModeLabel(type: number): string {
+  switch (type) {
+    case 0: return 'Tram';
+    case 1: return 'Metro';
+    case 2: return 'İZBAN';
+    case 4: return 'Ferry';
+    default: return 'Bus';
   }
 }
 
@@ -389,24 +663,62 @@ export async function findRoute(
     }
   }
 
-  // Récupère les routes qui passent par les deux arrêts (using cache)
-  // Cap at 10 routes per stop to prevent huge transfer queries
-  const MAX_ROUTES_PER_STOP = 10;
-  const fromRoutesRaw = await getCachedRoutes(fromStopId, cache);
-  const toRoutesRaw = await getCachedRoutes(toStopId, cache);
-  const fromRoutes = fromRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
-  const toRoutes = toRoutesRaw.slice(0, MAX_ROUTES_PER_STOP);
+  // Récupère les routes qui passent par les deux arrêts avec leurs stop IDs réels
+  // IMPORTANT: Use getRoutesWithStopIds to get the ACTUAL stop IDs for each route
+  // This is essential for multimodal stations where metro_4 and tram_t2_1 are both "Fahrettin Altay"
+  const MAX_ROUTES_PER_STOP = 15;
+  const fromRoutesWithStops = await getCachedRoutesWithStops(fromStopId, cache);
+  const toRoutesWithStops = await getCachedRoutesWithStops(toStopId, cache);
+
+  // Sort routes to prioritize rail/metro/tram over bus, then apply limit.
+  // This ensures Metro M1, İZBAN, Tram routes aren't cut off by MAX_ROUTES_PER_STOP
+  // when there are many bus routes at the same station.
+  const routeTypePriority = (type: number): number => {
+    switch (type) {
+      case 1: return 0;  // Metro
+      case 2: return 1;  // İZBAN
+      case 0: return 2;  // Tram
+      case 4: return 3;  // Ferry
+      case 3: return 4;  // Bus
+      default: return 5;
+    }
+  };
+  const sortByPriority = (a: RouteWithStopId, b: RouteWithStopId) =>
+    routeTypePriority(a.type) - routeTypePriority(b.type);
+
+  const fromRoutes = [...fromRoutesWithStops].sort(sortByPriority).slice(0, MAX_ROUTES_PER_STOP);
+  const toRoutes = [...toRoutesWithStops].sort(sortByPriority).slice(0, MAX_ROUTES_PER_STOP);
 
   // Debug: log routes found for each stop
-  logger.log(`[Routing] Routes for FROM stop "${fromStop.name}" (${fromStopId}): ${fromRoutes.map(r => `${r.shortName}(type=${r.type})`).join(', ') || 'NONE'}`);
-  logger.log(`[Routing] Routes for TO stop "${toStop.name}" (${toStopId}): ${toRoutes.map(r => `${r.shortName}(type=${r.type})`).join(', ') || 'NONE'}`);
+  logger.log(`[Routing] Routes for FROM stop "${fromStop.name}" (${fromStopId}): ${fromRoutes.map(r => `${r.shortName}(${r.actualStopId})`).join(', ') || 'NONE'}`);
+  logger.log(`[Routing] Routes for TO stop "${toStop.name}" (${toStopId}): ${toRoutes.map(r => `${r.shortName}(${r.actualStopId})`).join(', ') || 'NONE'}`);
 
-  // Trouve les routes communes (trajet direct)
-  const fromRouteIds = new Set(fromRoutes.map(r => r.id));
-  const directRoutes = toRoutes.filter(r => fromRouteIds.has(r.id));
+  // Trouve les routes communes (trajet direct) - match by route ID
+  // Keep track of which stop IDs to use for each route
+  const fromRouteMap = new Map<string, RouteWithStopId>(); // routeId -> RouteWithStopId
+  for (const r of fromRoutes) {
+    if (!fromRouteMap.has(r.id)) {
+      fromRouteMap.set(r.id, r);
+    }
+  }
+
+  const toRouteMap = new Map<string, RouteWithStopId>();
+  for (const r of toRoutes) {
+    if (!toRouteMap.has(r.id)) {
+      toRouteMap.set(r.id, r);
+    }
+  }
+
+  // Find direct routes: routes that serve BOTH stations
+  const directRouteIds = Array.from(fromRouteMap.keys()).filter(id => toRouteMap.has(id));
+  const directRoutes = directRouteIds.map(id => ({
+    route: fromRouteMap.get(id)!,
+    fromActualStopId: fromRouteMap.get(id)!.actualStopId,
+    toActualStopId: toRouteMap.get(id)!.actualStopId,
+  }));
 
   if (directRoutes.length > 0) {
-    logger.log(`[Routing] Direct route found: ${directRoutes.map(r => r.shortName).join(', ')} (${fromStop.name} → ${toStop.name})`);
+    logger.log(`[Routing] Direct route found: ${directRoutes.map(r => r.route.shortName).join(', ')} (${fromStop.name} → ${toStop.name})`);
   } else {
     logger.log(`[Routing] No direct route between ${fromStop.name} and ${toStop.name}`);
   }
@@ -415,7 +727,7 @@ export async function findRoute(
   const timeStr = `${Math.floor(requestedTimeMinutes/60)}:${(requestedTimeMinutes%60).toString().padStart(2,'0')}`;
   logger.log(`[Routing] 🕐 Requested time: ${timeStr} (${requestedTimeMinutes} min)`);
 
-  for (const route of directRoutes.slice(0, 5)) { // Check more routes since some may have no service
+  for (const { route, fromActualStopId, toActualStopId } of directRoutes.slice(0, 5)) {
     // Check if this transport mode is operating at the requested time
     const isOperating = isTransitOperating(route.type, requestedTimeMinutes, route.shortName);
     if (!isOperating) {
@@ -425,60 +737,65 @@ export async function findRoute(
       continue;
     }
 
-    // Check if this route has a departure around the requested time (60 min for night buses)
+    // Check if this route has a departure using the ACTUAL stop ID (not the selected one!)
     const nextDepartureMin = db.getNextDepartureForRoute(
       route.id,
-      fromStopId,
+      fromActualStopId,  // Use the actual stop ID that serves this route
       requestedTimeMinutes,
       activeServiceIds,
       60 // 60 min window to catch less frequent night buses
     );
 
-    if (nextDepartureMin === null) {
+    if (nextDepartureMin == null) {
       // No departures for this route at this time
-      logger.log(`[Routing] Skipping ${route.shortName}: no service at ${Math.floor(requestedTimeMinutes / 60)}:${(requestedTimeMinutes % 60).toString().padStart(2, '0')}`);
+      logger.log(`[Routing] Skipping ${route.shortName}: no service from ${fromActualStopId} at ${Math.floor(requestedTimeMinutes / 60)}:${(requestedTimeMinutes % 60).toString().padStart(2, '0')}`);
       continue;
     }
 
-    // Calculate actual departure time from İzmir minutes since midnight
-    // Use izmirMinutesToDate to correctly create Date from İzmir local time
-    // Handle midnight wrap: if nextDepartureMin < requestedTimeMinutes, it's the next day
+    // Calculate actual departure time
     const adjustedMinutes = nextDepartureMin < requestedTimeMinutes
-      ? nextDepartureMin + 24 * 60  // Add a day if we crossed midnight
+      ? nextDepartureMin + 24 * 60
       : nextDepartureMin;
     const actualDepartureTime = izmirMinutesToDate(departureTime, adjustedMinutes);
 
-    // Try to get actual travel time from GTFS stop_times first
-    // This also verifies that fromStop comes BEFORE toStop in the route sequence
-    let actualTime = db.getActualTravelTime(route.id, fromStopId, toStopId);
+    // Get travel time using ACTUAL stop IDs
+    let actualTime = db.getActualTravelTime(route.id, fromActualStopId, toActualStopId);
 
     // If no data for this specific route, try to get time from ANY route between these stops
     // This helps when some İZBAN routes (1793, 1884) don't have stop_times but others (2010) do
-    if (actualTime === null) {
-      actualTime = db.getActualTravelTimeAnyRoute(fromStopId, toStopId);
+    if (actualTime == null) {
+      actualTime = db.getActualTravelTimeAnyRoute(fromActualStopId, toActualStopId);
     }
 
     let estimatedDuration: number;
 
-    if (actualTime !== null) {
+    if (actualTime != null) {
       // Use actual GTFS data
       estimatedDuration = Math.max(3, actualTime);
     } else {
-      // Fallback: Use distance-based estimate for routes with incomplete GTFS data
-      // (This is common for ferry, İZBAN, and newly opened metro extensions)
-      const distanceKm = haversineDistance(fromStop.lat, fromStop.lon, toStop.lat, toStop.lon) / 1000;
+      // Get actual stop coordinates for distance calculation
+      const fromActualStop = await getCachedStop(fromActualStopId, cache);
+      const toActualStop = await getCachedStop(toActualStopId, cache);
+      const lat1 = fromActualStop?.lat ?? fromStop.lat;
+      const lon1 = fromActualStop?.lon ?? fromStop.lon;
+      const lat2 = toActualStop?.lat ?? toStop.lat;
+      const lon2 = toActualStop?.lon ?? toStop.lon;
+
+      const distanceKm = haversineDistance(lat1, lon1, lat2, lon2) / 1000;
       const minPerKm = getTransitMinPerKm(route.type);
       estimatedDuration = Math.max(3, Math.round(distanceKm * minPerKm));
       logger.log(`[Routing] Using distance estimate for ${route.shortName}: ${distanceKm.toFixed(1)}km × ${minPerKm} min/km = ${estimatedDuration}min (no GTFS data)`);
     }
 
-    // Headsign lookup deferred to enrichWithHeadsigns() for performance
+    // Get actual stop objects for the journey
+    const actualFromStop = await getCachedStop(fromActualStopId, cache) || fromStop;
+    const actualToStop = await getCachedStop(toActualStopId, cache) || toStop;
 
     const journey: JourneyResult = {
       segments: [{
         type: 'transit',
-        from: fromStop,
-        to: toStop,
+        from: actualFromStop,
+        to: actualToStop,
         route: route,
         departureTime: actualDepartureTime,
         arrivalTime: new Date(actualDepartureTime.getTime() + estimatedDuration * 60000),
@@ -492,26 +809,17 @@ export async function findRoute(
     };
 
     journeys.push(journey);
-    logger.log(`[Routing] ✓ Added direct journey via ${route.shortName} (${estimatedDuration}min), total=${journeys.length}`);
+    logger.log(`[Routing] ✓ Added direct journey via ${route.shortName} (${fromActualStopId} → ${toActualStopId}, ${estimatedDuration}min), total=${journeys.length}`);
 
-    // Stop after finding 3 valid routes
-    if (journeys.length >= 3) break;
+    // Stop after finding 5 valid direct routes (increased from 3 for more diversity)
+    if (journeys.length >= 5) break;
   }
 
   // 4. ALWAYS search for transfer routes (even if direct routes exist)
-  //    This ensures we find faster rail options vs slower direct bus routes
-  //    Example: Metro+İZBAN transfer at Halkapınar might be faster than 3 direct buses
+  //    This ensures we find alternative options (e.g., Metro+İZBAN vs direct Tram)
+  //    Users always get at least 2-3 route options to compare duration/transfers
   if (fromRoutes.length > 0 && toRoutes.length > 0) {
-    // Check if we already have fast rail options (Metro/İZBAN/Tram)
-    const hasRailDirect = journeys.some(j =>
-      j.segments.some(s => s.type === 'transit' && s.route && [0, 1, 2].includes(s.route.type))
-    );
-
-    // Always search for transfers if:
-    // - No direct routes found, OR
-    // - No rail direct routes found (might find faster rail+transfer)
-    if (journeys.length === 0 || !hasRailDirect) {
-      logger.log(`[Routing] Looking for transfer connections (direct routes: ${journeys.length}, hasRailDirect: ${hasRailDirect})...`);
+      logger.log(`[Routing] Looking for transfer connections (direct routes found: ${journeys.length})...`);
 
     const fromRouteIds = fromRoutes.map(r => r.id);
     const toRouteIdsArr = toRoutes.map(r => r.id);
@@ -519,7 +827,8 @@ export async function findRoute(
     const toRouteMap = new Map(toRoutes.map(r => [r.id, r]));
 
     // Single SQL query to find all transfer points between from-routes and to-routes
-    const transferPoints = db.findTransferStops(fromRouteIds, toRouteIdsArr, 15);
+    // Increased limit from 15 to 30 to find more diverse transfer options
+    const transferPoints = db.findTransferStops(fromRouteIds, toRouteIdsArr, 30);
     logger.log(`[Routing] Found ${transferPoints.length} transfer points in 1 query`);
 
     const transferJourneys: JourneyResult[] = [];
@@ -534,6 +843,26 @@ export async function findRoute(
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
 
+      // Skip same-line transfers (e.g., M1→M1 with different route IDs for different trip patterns)
+      // This prevents nonsensical routes like "take M1, transfer, take M1 again"
+      if (fromRoute.shortName && toRoute.shortName && fromRoute.shortName === toRoute.shortName) {
+        logger.log(`[Routing] Skipping same-line transfer: ${fromRoute.shortName} (${fromRoute.id}) → ${toRoute.shortName} (${toRoute.id}) at ${tp.stopName}`);
+        continue;
+      }
+
+      // Validate ferry transfers: ferry routes (type 4) should only transfer at ferry stops
+      // This prevents invalid routes like "M1 → Ferry at Poligon" when Poligon has no ferry terminal
+      if (fromRoute.type === 4 || toRoute.type === 4) {
+        const isFerryStop = (stopId: string) => stopId.startsWith('ferry_');
+        const ferryRouteIsFrom = fromRoute.type === 4;
+        const transferStopId = ferryRouteIsFrom ? tp.stopId : tp.toStopId;
+        // The stop where ferry alights/boards must be a ferry stop
+        if (!isFerryStop(transferStopId)) {
+          logger.log(`[Routing] Skipping invalid ferry transfer: ${fromRoute.shortName}→${toRoute.shortName} at ${tp.stopName} (${transferStopId} is not a ferry stop)`);
+          continue;
+        }
+      }
+
       // Check if both transport modes are operating at the requested time
       const fromOperating = isTransitOperating(fromRoute.type, requestedTimeMinutes, fromRoute.shortName);
       const toOperating = isTransitOperating(toRoute.type, requestedTimeMinutes, toRoute.shortName);
@@ -543,10 +872,13 @@ export async function findRoute(
       }
 
       // Check if first leg has service at requested time (60 min for night buses)
+      // IMPORTANT: Use fromRoute.actualStopId, not fromStopId!
+      // When user selects metro_4 but fromRoute is T2 tram, the tram uses tram_t2_1
+      const fromActualId = (fromRoute as RouteWithStopId).actualStopId || fromStopId;
       const firstLegDep = db.getNextDepartureForRoute(
-        fromRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60
+        fromRoute.id, fromActualId, requestedTimeMinutes, activeServiceIds, 60
       );
-      if (firstLegDep === null) {
+      if (firstLegDep == null) {
         logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${fromRoute.shortName} has no service`);
         continue;
       }
@@ -569,11 +901,13 @@ export async function findRoute(
 
       // Calculate durations using correct stop IDs for each route
       // Try GTFS times first, fall back to distance estimates
-      const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStopFrom.id);
-      const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toStopId);
+      // IMPORTANT: Use actualStopId for each route, not the user-selected stop ID
+      const toActualId = (toRoute as RouteWithStopId).actualStopId || toStopId;
+      const actual1 = db.getActualTravelTime(fromRoute.id, fromActualId, transferStopFrom.id);
+      const actual2 = db.getActualTravelTime(toRoute.id, transferStopTo.id, toActualId);
 
       let duration1: number;
-      if (actual1 !== null) {
+      if (actual1 != null) {
         duration1 = Math.max(3, actual1);
       } else {
         // Fallback: distance-based estimate for first leg
@@ -587,13 +921,13 @@ export async function findRoute(
       const secondLegDep = db.getNextDepartureForRoute(
         toRoute.id, transferStopTo.id, arrivalAtTransferMin, activeServiceIds, 60
       );
-      if (secondLegDep === null) {
+      if (secondLegDep == null) {
         logger.log(`[Routing] Skipping transfer via ${tp.stopName}: ${toRoute.shortName} has no service after transfer`);
         continue;
       }
 
       let duration2: number;
-      if (actual2 !== null) {
+      if (actual2 != null) {
         duration2 = Math.max(3, actual2);
       } else {
         // Fallback: distance-based estimate for second leg
@@ -645,7 +979,7 @@ export async function findRoute(
       }
 
       // Check if transfer stop is essentially the destination (same stop or very close)
-      // This handles cases like: Ferry → Konak İskelesi → [walk] → Konak metro (destination)
+      // This handles cases like: Ferry → Konak Ferry → [walk] → Konak metro (destination)
       // where we shouldn't add a redundant metro segment
       const transferToDestDistance = haversineDistance(
         transferStopTo.lat, transferStopTo.lon,
@@ -676,7 +1010,7 @@ export async function findRoute(
           arrivalTime: new Date(actualDep1.getTime() + finalDuration * 60000),
         };
         transferJourneys.push(journey);
-        if (transferJourneys.length >= 5) break;
+        if (transferJourneys.length >= 8) break;
         continue; // Skip the regular transfer journey building
       }
 
@@ -700,20 +1034,21 @@ export async function findRoute(
       };
 
       transferJourneys.push(journey);
-      if (transferJourneys.length >= 5) break;
+      if (transferJourneys.length >= 8) break;
     }
 
     transferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    journeys.push(...transferJourneys.slice(0, 3));
-    } // End of inner if (journeys.length === 0 || !hasRailDirect)
+    journeys.push(...transferJourneys.slice(0, 5));
   } // End of outer if (fromRoutes.length > 0 && toRoutes.length > 0)
 
-  // 5. Si toujours pas de trajet, cherche avec 2 correspondances (A → B → C → D)
+  // 5. Search for 2-transfer routes (A → B → C → D) to find multimodal alternatives
   //    Strategy: find routes that bridge from-routes to to-routes via an intermediate route
   //    Uses batch queries: fromRoutes → midRoutes (via transfer stops) → toRoutes (via transfer stops)
-  //    Only attempt if route sets are small enough to be tractable (skip for bus-heavy combos)
-  if (journeys.length === 0 && fromRoutes.length > 0 && toRoutes.length > 0 && fromRoutes.length <= 6 && toRoutes.length <= 6) {
-    logger.log('[Routing] No 1-transfer route, looking for 2-transfer connections...');
+  //    Use top rail/metro routes to keep search tractable even when there are many bus routes
+  //    Always search (not just when 0 routes found) to find M1+Ferry+T1 type routes
+  //    that may be better alternatives to bus-only solutions
+  if (journeys.length < 5 && fromRoutes.length > 0 && toRoutes.length > 0) {
+    logger.log(`[Routing] Looking for 2-transfer connections (${journeys.length} routes so far)...`);
 
     const fromRouteIds = fromRoutes.map(r => r.id);
     const toRouteIdsArr = toRoutes.map(r => r.id);
@@ -733,9 +1068,43 @@ export async function findRoute(
       if (stopIds.length === 0) continue;
       const routesByStop = await db.getRoutesByStopIds(stopIds);
 
+      // Also find nearby ferry/rail/tram stops for multimodal hub transfers
+      // This enables M1→Ferry→T1 routes where metro_10 (Konak) is near ferry_xxx (Konak Ferry)
+      const nearbyMultimodalStopIds: string[] = [];
+      const nearbyStopToFromStop = new Map<string, Stop>(); // maps nearby stop ID → the from-route's stop
+      for (const stop of stops) {
+        if (stop.id === fromStopId) continue;
+        const nearbyStops = db.getNearbyMultimodalStops(stop.lat, stop.lon, 1000);
+        for (const nearby of nearbyStops) {
+          if (!stopIds.includes(nearby.id) && !nearbyMultimodalStopIds.includes(nearby.id)) {
+            nearbyMultimodalStopIds.push(nearby.id);
+            nearbyStopToFromStop.set(nearby.id, stop);
+          }
+        }
+      }
+      if (nearbyMultimodalStopIds.length > 0) {
+        const nearbyRoutesByStop = await db.getRoutesByStopIds(nearbyMultimodalStopIds);
+        for (const [nearbyStopId, routes] of nearbyRoutesByStop) {
+          for (const route of routes) {
+            // Only exclude fromRoutes (avoid A→A on first leg).
+            // Allow toRoutes as mid-routes: ferry can serve destination AND be a valid mid-leg
+            if (allFromRouteIds.has(route.id)) continue;
+            const parentStop = nearbyStopToFromStop.get(nearbyStopId);
+            if (parentStop && !midRouteSet.has(`${fromRoute.id}-${route.id}`)) {
+              midRouteSet.set(`${fromRoute.id}-${route.id}`, {
+                route,
+                transferStop1: parentStop,
+                fromRouteId: fromRoute.id,
+              });
+            }
+          }
+        }
+      }
+
       for (const [stopId, routes] of routesByStop) {
         for (const route of routes) {
-          if (allFromRouteIds.has(route.id) || allToRouteIds.has(route.id)) continue;
+          // Only exclude fromRoutes. Allow toRoutes as mid-routes for multimodal discovery
+          if (allFromRouteIds.has(route.id)) continue;
           if (!midRouteSet.has(`${fromRoute.id}-${route.id}`)) {
             const stop = stops.find(s => s.id === stopId);
             if (stop) {
@@ -753,14 +1122,18 @@ export async function findRoute(
     logger.log(`[Routing] Found ${midRouteSet.size} intermediate route candidates`);
 
     // Step 2: For each intermediate route, check if it connects to any toRoute
+    // Prioritize rail/metro/tram/ferry over bus to ensure multimodal routes are found
+    // (e.g., Ferry as mid-route for M1→Ferry→T1) before the slice(0, 15) cuts them off
     const twoTransferJourneys: JourneyResult[] = [];
-    const midRouteIds = Array.from(new Set(Array.from(midRouteSet.values()).map(m => m.route.id)));
+    const midRouteEntries = Array.from(midRouteSet.values());
+    midRouteEntries.sort((a, b) => routeTypePriority(a.route.type) - routeTypePriority(b.route.type));
+    const midRouteIds = Array.from(new Set(midRouteEntries.map(m => m.route.id)));
 
     // Batch query: find transfer points between mid routes and to routes
-    const midToTransfers = db.findTransferStops(midRouteIds.slice(0, 10), toRouteIdsArr, 20);
+    const midToTransfers = db.findTransferStops(midRouteIds.slice(0, 15), toRouteIdsArr, 20);
 
     for (const tp of midToTransfers) {
-      if (twoTransferJourneys.length >= 3) break;
+      if (twoTransferJourneys.length >= 6) break;
 
       // Find which fromRoute→midRoute entry matches
       const midEntry = Array.from(midRouteSet.values()).find(
@@ -772,6 +1145,30 @@ export async function findRoute(
       const midRoute = midEntry.route;
       const toRoute = toRouteMap.get(tp.toRouteId);
       if (!fromRoute || !toRoute) continue;
+
+      // Skip degenerate routes where midRoute IS the toRoute (same route used twice)
+      if (midRoute.id === toRoute.id) {
+        logger.log(`[Routing] Skipping degenerate 2-transfer: mid and to are same route ${midRoute.shortName}`);
+        continue;
+      }
+
+      // Skip same-line transfers in 2-transfer routes
+      if ((fromRoute.shortName && midRoute.shortName && fromRoute.shortName === midRoute.shortName) ||
+          (midRoute.shortName && toRoute.shortName && midRoute.shortName === toRoute.shortName)) {
+        logger.log(`[Routing] Skipping 2-transfer same-line: ${fromRoute.shortName}→${midRoute.shortName}→${toRoute.shortName}`);
+        continue;
+      }
+
+      // Validate ferry transfers in 2-transfer routes
+      // Ferry routes only have stops at actual ferry terminals (ferry_* IDs),
+      // so we only need to validate when a non-ferry route connects AT a ferry terminal.
+      // Note: midEntry.transferStop1 is the FROM route's stop, not the ferry's stop,
+      // so checking it for ferry_ prefix is wrong when midRoute is ferry and fromRoute is not.
+      const isFerryStop = (id: string) => id.startsWith('ferry_');
+      if (fromRoute.type === 4 && !isFerryStop(midEntry.transferStop1.id)) continue;
+      // When midRoute is ferry: tp.stopId is the ferry's OWN stop (always ferry_*) - trust it
+      // Only validate that the second transfer makes sense
+      if (toRoute.type === 4 && !isFerryStop(tp.toStopId || tp.stopId)) continue;
 
       // Check operating hours for all three legs
       const fromOperating = isTransitOperating(fromRoute.type, requestedTimeMinutes, fromRoute.shortName);
@@ -791,14 +1188,26 @@ export async function findRoute(
         locationType: 0,
       };
 
+      // Skip if transfer stops are at the same base station (e.g., "Konak" → "Konak Ferry")
+      // This would create a meaningless middle segment with 0 real stops
+      const ts1Base = getBaseStationName(transferStop1.name);
+      const ts2Base = getBaseStationName(transferStop2.name);
+      if (ts1Base === ts2Base) {
+        logger.log(`[Routing] Skipping 2-transfer with same-station middle: ${transferStop1.name} → ${transferStop2.name}`);
+        continue;
+      }
+
       // Calculate 3-segment durations - try GTFS times, fall back to distance estimates
-      const actual1 = db.getActualTravelTime(fromRoute.id, fromStopId, transferStop1.id);
+      // IMPORTANT: Use actualStopId for routes that may serve different physical stops at multimodal stations
+      const fromActualId2 = (fromRoute as RouteWithStopId).actualStopId || fromStopId;
+      const toActualId2 = (toRoute as RouteWithStopId).actualStopId || toStopId;
+      const actual1 = db.getActualTravelTime(fromRoute.id, fromActualId2, transferStop1.id);
       const actual2 = db.getActualTravelTime(midRoute.id, transferStop1.id, transferStop2.id);
-      const actual3 = db.getActualTravelTime(toRoute.id, transferStop2.id, toStopId);
+      const actual3 = db.getActualTravelTime(toRoute.id, transferStop2.id, toActualId2);
 
       // Calculate durations with distance-based fallback for routes with incomplete GTFS data
       let dur1: number;
-      if (actual1 !== null) {
+      if (actual1 != null) {
         dur1 = Math.max(3, actual1 + getAverageWaitTime(fromRoute.type));
       } else {
         const dist1Km = haversineDistance(fromStop.lat, fromStop.lon, transferStop1.lat, transferStop1.lon) / 1000;
@@ -807,7 +1216,7 @@ export async function findRoute(
       }
 
       let dur2: number;
-      if (actual2 !== null) {
+      if (actual2 != null) {
         dur2 = Math.max(3, actual2);
       } else {
         const dist2Km = haversineDistance(transferStop1.lat, transferStop1.lon, transferStop2.lat, transferStop2.lon) / 1000;
@@ -816,7 +1225,7 @@ export async function findRoute(
       }
 
       let dur3: number;
-      if (actual3 !== null) {
+      if (actual3 != null) {
         dur3 = Math.max(3, actual3);
       } else {
         const dist3Km = haversineDistance(transferStop2.lat, transferStop2.lon, toStop.lat, toStop.lon) / 1000;
@@ -878,6 +1287,27 @@ export async function findRoute(
     }
   }
 
+  // 5b. Hub-based multimodal routing: explicitly build routes through known İzmir hubs
+  //     This is more reliable than proximity-based discovery for M1+Ferry+T1 type routes
+  //     Uses izmirMultimodalHubs config which defines which modes connect at each hub
+  if (journeys.length < 8) {
+    const hubJourneys = await buildHubBasedRoutes(
+      fromStopId, toStopId, fromRoutes, toRoutes, departureTime,
+      requestedTimeMinutes, activeServiceIds ? Array.from(activeServiceIds) : []
+    );
+    if (hubJourneys.length > 0) {
+      // Only add hub routes that are genuinely different from existing journeys
+      for (const hj of hubJourneys) {
+        const sig = getRouteSignature(hj);
+        const isDuplicate = journeys.some(j => getRouteSignature(j) === sig);
+        if (!isDuplicate) {
+          journeys.push(hj);
+          logger.log(`[Routing] Added hub-based route: ${sig} (${hj.totalDuration}min)`);
+        }
+      }
+    }
+  }
+
   // Sanitize journeys to remove absurd segments (e.g., same stop to same stop)
   const sanitizedJourneys = journeys
     .map(sanitizeJourney)
@@ -911,16 +1341,18 @@ export async function findRoute(
           // Direct night bus route found!
           logger.log(`[Routing] 🦉 Night bus ${nightRoute.shortName} serves both origin and destination!`);
 
-          const nextDep = db.getNextDepartureForRoute(nightRoute.id, fromStopId, requestedTimeMinutes, activeServiceIds, 60);
-          if (nextDep !== null) {
+          const nightFromId = (nightRoute as RouteWithStopId).actualStopId || fromStopId;
+          const nightToId = nightBusStopsAtDest[0]?.actualStopId || toStopId;
+          const nextDep = db.getNextDepartureForRoute(nightRoute.id, nightFromId, requestedTimeMinutes, activeServiceIds, 60);
+          if (nextDep != null) {
             // Use izmirMinutesToDate to correctly create Date from İzmir local time
             const adjustedNextDep = nextDep < requestedTimeMinutes
               ? nextDep + 24 * 60  // Add a day if we crossed midnight
               : nextDep;
             const actualDep = izmirMinutesToDate(departureTime, adjustedNextDep);
 
-            const travelTime = db.getActualTravelTime(nightRoute.id, fromStopId, toStopId);
-            const duration = travelTime !== null ? Math.max(5, travelTime) : Math.round(directDistance / 1000 * 3.0);
+            const travelTime = db.getActualTravelTime(nightRoute.id, nightFromId, nightToId);
+            const duration = travelTime != null ? Math.max(5, travelTime) : Math.round(directDistance / 1000 * 3.0);
 
             validJourneys.push({
               segments: [{
@@ -946,10 +1378,12 @@ export async function findRoute(
     }
   }
 
-  // Si toujours pas de trajet, retourne un trajet à pied comme fallback (only if reasonable)
+  // Si toujours pas de trajet, retourne un trajet à pied comme fallback
+  // Allow longer walks (up to 2 hours / ~10km) as last resort when no transit is available
   if (validJourneys.length === 0) {
     const walkTime = walkingTime(directDistance);
-    if (Math.round(walkTime) <= MAX_WALKING_DURATION_MIN) {
+    const MAX_FALLBACK_WALK_MIN = 120; // 2 hours = ~10km
+    if (Math.round(walkTime) <= MAX_FALLBACK_WALK_MIN) {
       validJourneys.push({
         segments: [{
           type: 'walk',
@@ -963,6 +1397,7 @@ export async function findRoute(
         numberOfTransfers: 0,
         departureTime: departureTime,
         arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
+        tags: Math.round(walkTime) > MAX_WALKING_DURATION_MIN ? ['long-walk'] : [],
       });
     } else {
       logger.warn(`[Routing] Walking fallback too long (${Math.round(walkTime)} min), distance=${Math.round(directDistance)}m — likely coordinate error`);
@@ -1040,8 +1475,8 @@ export async function findRouteFromLocations(
     // Otherwise, search for nearby stops by coordinates
     logger.log('[Routing] Finding nearby stops...');
 
-    let fromStops: NearbyStop[];
-    let toStops: NearbyStop[];
+    let fromStops: NearbyStop[] = [];
+    let toStops: NearbyStop[] = [];
 
     if (fromLocation.stopId) {
       // User selected a specific stop - use it directly
@@ -1059,7 +1494,7 @@ export async function findRouteFromLocations(
       }
     } else {
       // Search by coordinates
-      const fromStopsBase = await findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500);
+      const fromStopsBase = await findBestNearbyStops(fromLocation.lat, fromLocation.lon, 3, 2500) || [];
       if (fromStopsBase.length === 0) {
         throw new Error(`NO_STOPS_NEAR:${fromLocation.shortAddress || fromLocation.displayName}`);
       }
@@ -1082,7 +1517,7 @@ export async function findRouteFromLocations(
       }
     } else {
       // Search by coordinates
-      const toStopsBase = await findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500);
+      const toStopsBase = await findBestNearbyStops(toLocation.lat, toLocation.lon, 3, 2500) || [];
       if (toStopsBase.length === 0) {
         throw new Error(`NO_STOPS_NEAR:${toLocation.shortAddress || toLocation.displayName}`);
       }
@@ -1165,15 +1600,20 @@ export async function findRouteFromLocations(
     const routeResults: { fromStop: NearbyStop; toStop: NearbyStop; routes: JourneyResult[] }[] = [];
     let totalRoutesFound = 0;
 
+    // Track unique route signatures seen so far (for smarter early exit)
+    const earlyExitSignatures = new Set<string>();
+
     for (const { fromStop, toStop } of combinations) {
       // Check time budget
       if (Date.now() - startTime > TIME_BUDGET_MS) {
         logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
         break;
       }
-      // Early exit: if we already have enough diverse routes, stop searching
-      if (totalRoutesFound >= 5) {
-        logger.log(`[Routing] Found ${totalRoutesFound} routes, stopping early`);
+      // Early exit: require BOTH enough total routes AND enough unique route patterns
+      // This prevents stopping too early when rail combos generate many routes
+      // that later get deduped, leaving only a few unique patterns
+      if (totalRoutesFound >= 20 && earlyExitSignatures.size >= 6) {
+        logger.log(`[Routing] Found ${totalRoutesFound} routes (${earlyExitSignatures.size} unique), stopping early`);
         break;
       }
 
@@ -1181,6 +1621,14 @@ export async function findRouteFromLocations(
         const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
         routeResults.push({ fromStop, toStop, routes });
         totalRoutesFound += routes.length;
+        // Track unique signatures for early exit decision
+        for (const route of routes) {
+          const sig = route.segments
+            .filter(s => s.type === 'transit')
+            .map(s => s.route?.shortName || s.route?.id || 'walk')
+            .join('→');
+          earlyExitSignatures.add(sig);
+        }
       } catch {
         routeResults.push({ fromStop, toStop, routes: [] });
       }
@@ -1228,17 +1676,23 @@ export async function findRouteFromLocations(
         const walkToStop = getWalkingTime(fromStop.distance);
         const walkFromStop = getWalkingTime(toStop.distance);
 
+        // Adjust departure/arrival times to account for walking
+        // departureTime = when user starts walking FROM their address
+        // arrivalTime = when user arrives AT the destination address
+        const adjustedDepartureTime = new Date(route.departureTime.getTime() - walkToStop * 60000);
+        const adjustedArrivalTime = new Date(route.arrivalTime.getTime() + walkFromStop * 60000);
+
         const newJourney: JourneyResult = {
           segments: [
-            { type: 'walk', from: fromVirtualStop, to: fromStop, duration: walkToStop, distance: Math.round(fromStop.distance) },
+            ...(walkToStop > 0 ? [{ type: 'walk' as const, from: fromVirtualStop, to: fromStop, duration: walkToStop, distance: Math.round(fromStop.distance) }] : []),
             ...route.segments,
-            { type: 'walk', from: toStop, to: toVirtualStop, duration: walkFromStop, distance: Math.round(toStop.distance) },
+            ...(walkFromStop > 0 ? [{ type: 'walk' as const, from: toStop, to: toVirtualStop, duration: walkFromStop, distance: Math.round(toStop.distance) }] : []),
           ],
           totalDuration: route.totalDuration + walkToStop + walkFromStop,
           totalWalkDistance: route.totalWalkDistance + Math.round(fromStop.distance) + Math.round(toStop.distance),
           numberOfTransfers: route.numberOfTransfers,
-          departureTime: route.departureTime,
-          arrivalTime: route.arrivalTime,
+          departureTime: adjustedDepartureTime,
+          arrivalTime: adjustedArrivalTime,
         };
 
         logger.log(`[Routing] Added journey: ${routeKey}, duration=${newJourney.totalDuration}min`);
@@ -1268,12 +1722,35 @@ export async function findRouteFromLocations(
           logger.warn(`[Routing] Journey ${i}: ${routeNames}, duration=${j.totalDuration}min`);
         });
       }
-      throw new Error('NO_ROUTE_FOUND');
+
+      // Last resort: offer walking as fallback (up to 2 hours / ~10km)
+      const directDist = haversineDistance(fromLocation.lat, fromLocation.lon, toLocation.lat, toLocation.lon);
+      const walkTime = walkingTime(directDist);
+      if (Math.round(walkTime) <= 120) {
+        logger.log(`[Routing] No transit routes found, offering walking fallback: ${Math.round(walkTime)}min, ${Math.round(directDist)}m`);
+        validJourneys.push({
+          segments: [{
+            type: 'walk',
+            from: fromVirtualStop,
+            to: toVirtualStop,
+            duration: Math.round(walkTime),
+            distance: Math.round(directDist),
+          }],
+          totalDuration: Math.round(walkTime),
+          totalWalkDistance: Math.round(directDist),
+          numberOfTransfers: 0,
+          departureTime: departureTime,
+          arrivalTime: new Date(departureTime.getTime() + walkTime * 60000),
+          tags: ['long-walk'],
+        });
+      } else {
+        throw new Error('NO_ROUTE_FOUND');
+      }
     }
 
-    // Sort by duration and return top 5
+    // Sort by duration and return top 8 (increased from 5 for more diversity)
     validJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
-    const topJourneys = validJourneys.slice(0, 5);
+    const topJourneys = validJourneys.slice(0, 8);
 
     // Enrich final results with headsigns (deferred from findRoute for speed)
     await enrichWithHeadsigns(topJourneys);
@@ -1439,7 +1916,7 @@ export async function findRouteFromAddresses(
           logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
           break;
         }
-        if (addressRoutesFound >= 5) {
+        if (addressRoutesFound >= 10) {
           logger.log(`[Routing] Found ${addressRoutesFound} routes, stopping early`);
           break;
         }
@@ -1627,7 +2104,7 @@ export async function findRouteFromCoordinates(
         logger.warn(`[Routing] Time budget exceeded after ${routeResults.length}/${combinations.length} combinations`);
         break;
       }
-      if (coordRoutesFound >= 5) break;
+      if (coordRoutesFound >= 10) break;
       try {
         const routes = await findRoute(fromStop.id, toStop.id, departureTime, routingCache);
         routeResults.push({ fromStop, toStop, routes });
@@ -1720,7 +2197,7 @@ export async function findMultipleRoutes(
 
     // 0. Check if transit services are running at this time
     const activeServices = db.getActiveServiceIds(departureTime);
-    const noTransitService = activeServices !== null && activeServices.size === 0;
+    const noTransitService = activeServices != null && activeServices.size === 0;
 
     // Helper to build walking-only journey
     const buildWalkingJourney = (tag: string): JourneyResult => {
@@ -1764,6 +2241,20 @@ export async function findMultipleRoutes(
       return [buildWalkingJourney('no-transit-service')];
     }
 
+    // Helper to filter routes by preferences
+    const filterByPreferences = (routes: JourneyResult[]): JourneyResult[] => {
+      return routes.filter((journey) => {
+        if (!meetsPreferences(journey, preferences)) return false;
+        const hasDisallowedMode = journey.segments.some((segment) => {
+          if (segment.type === 'transit' && segment.route) {
+            return !isRouteTypeAllowed(segment.route.type, preferences);
+          }
+          return false;
+        });
+        return !hasDisallowedMode;
+      });
+    };
+
     // 1. Get base routes using findRouteFromLocations
     let rawRoutes: JourneyResult[];
     try {
@@ -1798,58 +2289,84 @@ export async function findMultipleRoutes(
     const walkingOnlyRoutes = baseRoutes.filter((journey) =>
       journey.segments.every((seg) => seg.type === 'walk')
     );
-    const transitRoutes = baseRoutes.filter((journey) =>
+    let transitRoutes = baseRoutes.filter((journey) =>
       journey.segments.some((seg) => seg.type === 'transit')
     );
 
     // 3. Filter transit routes based on preferences
-    let filteredTransitRoutes = transitRoutes.filter((journey) => {
-      // Check if route meets basic preferences (transfers, walking distance)
-      if (!meetsPreferences(journey, preferences)) {
-        logger.log(`[Routing] Filtered out: walk=${journey.totalWalkDistance}m > max=${preferences.maxWalkingDistance}m, transfers=${journey.numberOfTransfers}`);
-        return false;
-      }
-
-      // Check if all transit segments use allowed modes
-      const hasDisallowedMode = journey.segments.some((segment) => {
-        if (segment.type === 'transit' && segment.route) {
-          const allowed = isRouteTypeAllowed(segment.route.type, preferences);
-          if (!allowed) {
-            logger.log(`[Routing] Filtered out: mode ${segment.route.shortName} (type=${segment.route.type}) not allowed`);
-          }
-          return !allowed;
-        }
-        return false;
-      });
-
-      return !hasDisallowedMode;
-    });
+    let filteredTransitRoutes = filterByPreferences(transitRoutes);
 
     logger.log(`[Routing] After filtering transit: ${filteredTransitRoutes.length} routes`);
 
-    // 4. Combine filtered transit routes with walking routes
-    // Always include walking option as it's a valid alternative
-    let allRoutes = [...filteredTransitRoutes];
+    // 4. If we have fewer unique transit route patterns than requested, do a secondary search
+    //    with a shifted departure time (+15 min) to find additional alternatives
+    //    This helps find "next departure" options on different routes
+    const uniqueSignatures = new Set(filteredTransitRoutes.map(getRouteSignature));
+    if (filteredTransitRoutes.length < maxRoutes) {
+      logger.log(`[Routing] Only ${uniqueSignatures.size} unique route patterns, searching +15min for alternatives...`);
+      try {
+        const laterTime = new Date(departureTime.getTime() + 15 * 60000);
+        const laterRawRoutes = await findRouteFromLocations(from, to, laterTime);
+        const laterSanitized = laterRawRoutes
+          .map(sanitizeJourney)
+          .filter((j): j is JourneyResult => j !== null);
+        const laterTransit = laterSanitized.filter(j => j.segments.some(s => s.type === 'transit'));
+        const laterFiltered = filterByPreferences(laterTransit);
 
-    // Add walking route if walking is allowed
-    if (preferences.allowedModes.walking && walkingOnlyRoutes.length > 0) {
-      allRoutes.push(walkingOnlyRoutes[0]);
+        for (const route of laterFiltered) {
+          const sig = getRouteSignature(route);
+          // Add if it's a new route pattern OR same pattern but different departure time (>5min apart)
+          const isDuplicate = filteredTransitRoutes.some(existing => {
+            const existingSig = getRouteSignature(existing);
+            if (existingSig !== sig) return false;
+            // Same pattern: check if departure times are close
+            return Math.abs(existing.departureTime.getTime() - route.departureTime.getTime()) < 5 * 60000;
+          });
+          if (!isDuplicate) {
+            filteredTransitRoutes.push(route);
+            uniqueSignatures.add(sig);
+            logger.log(`[Routing] Added later alternative: ${sig} at ${route.departureTime.toISOString()}`);
+          }
+          if (filteredTransitRoutes.length >= maxRoutes + 2) break;
+        }
+        logger.log(`[Routing] After secondary search: ${filteredTransitRoutes.length} transit routes (${uniqueSignatures.size} patterns)`);
+      } catch {
+        // Secondary search failed, continue with what we have
+        logger.log('[Routing] Secondary search failed, continuing with existing routes');
+      }
     }
 
-    // 5. If no routes after filtering, return the best base route anyway
+    // 5. Combine filtered transit routes with walking routes
+    let allRoutes = [...filteredTransitRoutes];
+
+    // Always generate a walking option if distance is reasonable (< 5km / ~60 min walk)
+    // even if findRouteFromLocations didn't return one
+    if (preferences.allowedModes.walking) {
+      if (walkingOnlyRoutes.length > 0) {
+        allRoutes.push(walkingOnlyRoutes[0]);
+      } else {
+        // Generate walking option if not already present
+        const walkJourney = buildWalkingJourney('walking');
+        if (walkJourney.totalDuration <= 60) { // Max 1 hour walk
+          allRoutes.push(walkJourney);
+        }
+      }
+    }
+
+    // 6. If no routes after filtering, return the best base route anyway
     if (allRoutes.length === 0) {
       logger.warn('[Routing] No routes meet preferences, returning best available route');
       return baseRoutes.slice(0, 1);
     }
 
-    // 6. Score routes based on optimization preference
+    // 7. Score routes based on optimization preference
     const scoredRoutes = allRoutes.map((journey) => ({
       journey,
       score: scoreJourney(journey, preferences),
       isWalkOnly: journey.segments.every((seg) => seg.type === 'walk'),
     }));
 
-    // 7. Sort by score (higher is better)
+    // 8. Sort by score (higher is better)
     // Walking-only routes go after transit routes unless they're the fastest
     scoredRoutes.sort((a, b) => {
       // If one is walk-only and the other isn't, walk-only goes last
@@ -1867,10 +2384,33 @@ export async function findMultipleRoutes(
       return b.score - a.score;
     });
 
-    // 8. Take top routes
-    const topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
+    // 9. Take top routes
+    let topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
 
-    // 9. Add tags to routes
+    // 9b. Smart alternative limiting based on best route quality
+    if (topRoutes.length > 1) {
+      const best = topRoutes[0];
+      const transitSegments = best.segments.filter(s => s.type === 'transit');
+
+      // Check if best route is a single rail/metro/tram line (direct, no transfers)
+      const isSingleRailLine = transitSegments.length === 1 &&
+        transitSegments[0].route &&
+        [0, 1, 2].includes(transitSegments[0].route.type); // tram=0, metro=1, rail=2
+
+      if (isSingleRailLine) {
+        // Direct metro/tram route: show ONLY this route, no alternatives
+        topRoutes = [best];
+        logger.log(`[Routing] Direct ${transitSegments[0].route?.shortName} route, showing single result`);
+      } else if (best.numberOfTransfers <= 1 && topRoutes.every(r => r.totalDuration >= best.totalDuration)) {
+        // Other direct/1-transfer routes that are fastest: keep 1 alternative
+        const bestSig = getRouteSignature(best);
+        const alternative = topRoutes.slice(1).find(r => getRouteSignature(r) !== bestSig) || topRoutes[1];
+        topRoutes = alternative ? [best, alternative] : [best];
+        logger.log(`[Routing] Simple route is fastest, limiting to 2 results`);
+      }
+    }
+
+    // 10. Add tags to routes
     const routesWithTags = topRoutes.map((journey) => ({
       ...journey,
       tags: getJourneyTags(journey, topRoutes),

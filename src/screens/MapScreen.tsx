@@ -106,13 +106,21 @@ export function MapScreen({ navigation }: Props) {
       const allStops = await db.getAllStops();
       const nonBusStops = allStops.filter(s => !s.id.startsWith('bus_'));
 
+      // Deduplicate by ID to prevent React key warnings (official GTFS + manual data can create overlaps)
+      const seenIds = new Set<string>();
+      const uniqueStops = nonBusStops.filter(s => {
+        if (seenIds.has(s.id)) return false;
+        seenIds.add(s.id);
+        return true;
+      });
+
       // Convert to NearbyStop format (with distance = 0 since we're loading all)
-      const stopsWithDistance: NearbyStop[] = nonBusStops.map(stop => ({
+      const stopsWithDistance: NearbyStop[] = uniqueStops.map(stop => ({
         ...stop,
         distance: 0,
       }));
 
-      logger.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops (excluded ${allStops.length - nonBusStops.length} bus stops)`);
+      logger.log(`[MapScreen] Loaded ${stopsWithDistance.length} stops (excluded ${allStops.length - uniqueStops.length} duplicates/bus stops)`);
       setNearbyStops(stopsWithDistance);
 
       // Load route types for map stops (for transport type icons on markers)
@@ -190,7 +198,7 @@ export function MapScreen({ navigation }: Props) {
           setUnderConstructionStops(constructionStopIds);
 
           // Secondary fallback: detect ferry stops by name keywords (for any stops still missed)
-          const FERRY_STOP_KEYWORDS = ['İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
+          const FERRY_STOP_KEYWORDS = ['FERRY', 'İSKELE', 'ISKELE', 'VAPUR', 'FERİBOT', 'FERIBOT', 'İZDENİZ', 'IZDENIZ'];
           for (const stop of nonBusStops) {
             if (!routeTypesMap.has(stop.id)) {
               const upperName = stop.name.toUpperCase();

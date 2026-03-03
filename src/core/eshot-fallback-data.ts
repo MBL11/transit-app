@@ -65,7 +65,7 @@ const ESHOT_STOPS: StopData[] = [
   { id: 10024, name: 'Dokuz Eylül Hastanesi', lat: 38.3920, lon: 27.0650 },
   { id: 10025, name: 'Narlıdere Belediye', lat: 38.3900, lon: 27.0600 },
   { id: 10026, name: 'Kaymakamlık', lat: 38.3850, lon: 27.0545 },
-  { id: 10027, name: 'Üçkuyular İskele', lat: 38.3990, lon: 27.0800 },
+  { id: 10027, name: 'Üçkuyular Ferry', lat: 38.3990, lon: 27.0800 },
   { id: 10028, name: 'Hava Hastanesi', lat: 38.3965, lon: 27.0750 },
 
   // Üçyol / Buca
@@ -90,10 +90,10 @@ const ESHOT_STOPS: StopData[] = [
   { id: 10054, name: 'Bornova Stadyum', lat: 38.4600, lon: 27.2100 },
 
   // Karşıyaka
-  { id: 10060, name: 'Karşıyaka İskele', lat: 38.4550, lon: 27.1200 },
+  { id: 10060, name: 'Karşıyaka Ferry', lat: 38.4550, lon: 27.1200 },
   { id: 10061, name: 'Karşıyaka Çarşı', lat: 38.4560, lon: 27.1150 },
   { id: 10062, name: 'Alaybey', lat: 38.4600, lon: 27.1050 },
-  { id: 10063, name: 'Bostanlı İskele', lat: 38.4560, lon: 27.0950 },
+  { id: 10063, name: 'Bostanlı Ferry', lat: 38.4560, lon: 27.0950 },
   { id: 10064, name: 'Mavişehir', lat: 38.4620, lon: 27.0780 },
   { id: 10065, name: 'Atakent', lat: 38.4640, lon: 27.0700 },
 
@@ -230,7 +230,7 @@ const ESHOT_ROUTES: RouteData[] = [
   // === MAJOR URBAN CORRIDORS ===
   {
     number: 5,
-    name: 'Narlıdere - Üçkuyular İskele',
+    name: 'Narlıdere - Üçkuyular Ferry',
     stopIds: [10026, 10025, 10024, 10023, 10022, 10020, 10021, 10027],
     frequency: 10,
     offPeakFrequency: 15,
@@ -378,7 +378,7 @@ const ESHOT_ROUTES: RouteData[] = [
   },
   {
     number: 827,
-    name: 'Bostanlı İskele - Çiğli',
+    name: 'Bostanlı Ferry - Çiğli',
     stopIds: [10063, 10064, 10065, 10070, 10071, 10072],
     frequency: 15,
     offPeakFrequency: 25,

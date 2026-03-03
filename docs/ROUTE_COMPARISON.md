@@ -17,7 +17,7 @@
 | 1 | **Fahrettin Altay → Konak** | 10-15 min (M1 direct, 6 arrêts) | 10-15 min | À tester |
 | 2 | **Alaybey → Hatay** | 15-20 min (T1 + Metro transfer) | 15-25 min | À tester |
 | 3 | **Halkapınar → Alsancak** | **6 min** (İZBAN direct) | 5-10 min | À tester |
-| 4 | **Konak İskele → Karşıyaka İskele** | **20 min** (Vapur direct) | 15-25 min | À tester |
+| 4 | **Konak Ferry → Karşıyaka Ferry** | **20 min** (Vapur direct) | 15-25 min | À tester |
 | 5 | **Üçyol → Alsancak** | 12-18 min (M1 → walk) | 15-20 min | À tester |
 | 6 | **Menemen → Halkapınar** | 35-45 min (İZBAN direct) | 35-50 min | À tester |
 | 7 | **Bornova → Karşıyaka** | 45-60 min (Metro + Ferry ou Bus) | 40-60 min | À tester |

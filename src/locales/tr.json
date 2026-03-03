@@ -197,7 +197,9 @@
       "least-walking": "🚶 En az yürüme",
       "eco-friendly": "🌱 Çevre dostu",
       "no-transit-service": "🌙 Hizmet dışı",
-      "night-hours": "🌙 Gece hizmeti sınırlı (00:00-05:00)"
+      "night-hours": "🌙 Gece hizmeti sınırlı (00:00-05:00)",
+      "long-walk": "🚶 Uzun yürüyüş",
+      "night-bus": "🦉 Gece otobüsü"
     },
     "transfers": "aktarma",
     "availableRoutes": "{{count}} rota mevcut",

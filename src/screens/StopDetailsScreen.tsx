@@ -91,7 +91,11 @@ export function StopDetailsScreen({ route, navigation }: Props) {
       }
 
       setStop(stopData);
-      setRoutes(routesData);
+      // Deduplicate routes by ID to prevent React key warnings
+      const uniqueRoutes = routesData.filter((route, index, arr) =>
+        arr.findIndex(r => r.id === route.id) === index
+      );
+      setRoutes(uniqueRoutes);
       trackEvent(AnalyticsEvents.STOP_VIEWED, { stopId: stopData.id, stopName: stopData.name, routeCount: routesData.length });
 
       // Get departures from adapter (real-time or theoretical)

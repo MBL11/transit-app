@@ -16,7 +16,7 @@ import {
   findMultipleRoutes,
 } from '../routing';
 import * as db from '../database';
-import { findBestNearbyStops, getWalkingTime } from '../nearby-stops';
+import { findBestNearbyStops, getWalkingTime, expandToAllSameNameStops } from '../nearby-stops';
 import { Stop, Route } from '../types/models';
 import { DEFAULT_PREFERENCES, RoutingPreferences } from '../../types/routing-preferences';
 
@@ -61,7 +61,7 @@ const IZBAN: Route = { id: 'izban_s1', shortName: 'İZBAN', longName: 'İZBAN S1
 const FERRY_F1: Route = { id: 'ferry_f1', shortName: 'F1', longName: 'Konak-Karşıyaka', type: 4, color: '#0099CC', textColor: '#FFFFFF' };
 const BUS_35: Route = { id: 'bus_35', shortName: '35', longName: 'ESHOT 35', type: 3, color: '#0066CC', textColor: '#FFFFFF' };
 
-const DEPARTURE = new Date('2025-01-31T08:00:00');
+const DEPARTURE = new Date('2025-01-31T08:00:00Z'); // 11:00 İzmir time (UTC+3)
 
 describe('Routing Reliability - İzmir Scenarios', () => {
   beforeEach(() => {
@@ -72,10 +72,25 @@ describe('Routing Reliability - İzmir Scenarios', () => {
     });
     // Return null for schedule-based lookups → fall back to distance estimates
     (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
+    (db.getActualTravelTimeAnyRoute as jest.Mock).mockReturnValue(null);
     (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
+    // getNextDepartureForRoute: return departure 2 min after requested time by default
+    (db.getNextDepartureForRoute as jest.Mock).mockImplementation(
+      (_routeId: string, _stopId: string, timeMinutes: number) => timeMinutes + 2
+    );
     // Batch query mocks — return empty by default
     (db.findTransferStops as jest.Mock).mockReturnValue([]);
     (db.getRoutesByStopIds as jest.Mock).mockResolvedValue(new Map());
+    // getTripInfoForRoute - return null by default
+    (db.getTripInfoForRoute as jest.Mock).mockReturnValue(null);
+    // getIntermediateStopsCount - return null by default
+    (db.getIntermediateStopsCount as jest.Mock).mockReturnValue(null);
+    // getStopsByRouteId - return empty array by default
+    (db.getStopsByRouteId as jest.Mock).mockResolvedValue([]);
+    // getRoutesWithStopIds - return empty array by default (override in specific tests)
+    (db.getRoutesWithStopIds as jest.Mock).mockResolvedValue([]);
+    // expandToAllSameNameStops: pass-through (return same stops)
+    (expandToAllSameNameStops as jest.Mock).mockImplementation((stops: any[]) => stops || []);
   });
 
   // ==========================================================================
@@ -86,9 +101,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(FAHRETTIN_ALTAY)
         .mockResolvedValueOnce(KONAK);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1])
-        .mockResolvedValueOnce([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_fahrettin' }])
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_konak' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Bornova' });
 
@@ -108,9 +123,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(ALIAGA)
         .mockResolvedValueOnce(HALKAPINAR_IZBAN);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([IZBAN])
-        .mockResolvedValueOnce([IZBAN]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...IZBAN, actualStopId: 'rail_aliaga' }])
+        .mockResolvedValueOnce([{ ...IZBAN, actualStopId: 'rail_halkapinar' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Cumaovası' });
 
@@ -128,9 +143,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(KONAK_FERRY)
         .mockResolvedValueOnce(KARSIYAKA_FERRY);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([FERRY_F1])
-        .mockResolvedValueOnce([FERRY_F1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...FERRY_F1, actualStopId: 'ferry_konak' }])
+        .mockResolvedValueOnce([{ ...FERRY_F1, actualStopId: 'ferry_karsiyaka' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Karşıyaka' });
 
@@ -157,11 +172,12 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         .mockResolvedValueOnce(UCYOL)     // from
         .mockResolvedValueOnce(ALAYBEY);  // to
 
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1])   // fromRoutes
-        .mockResolvedValueOnce([TRAM_T2]);   // toRoutes
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_ucyol' }])   // fromRoutes
+        .mockResolvedValueOnce([{ ...TRAM_T2, actualStopId: 'tram_alaybey' }]);   // toRoutes
 
       // Mock findTransferStops to return Konak as a transfer point between M1 and T2
+      // Tram stop near metro Konak (same area, ~300m walk)
       (db.findTransferStops as jest.Mock).mockReturnValue([{
         stopId: 'metro_konak',
         stopName: 'Konak',
@@ -169,6 +185,10 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         lon: KONAK.lon,
         fromRouteId: 'metro_m1',
         toRouteId: 'tram_t2',
+        toStopId: 'tram_karsiyaka',
+        toStopLat: KARSIYAKA_TRAM.lat,
+        toStopLon: KARSIYAKA_TRAM.lon,
+        walkDistance: 300,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock)
@@ -192,20 +212,14 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(ALIAGA)       // Far north İZBAN
         .mockResolvedValueOnce(BUS_STOP_B);  // Balçova bus
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([IZBAN])
-        .mockResolvedValueOnce([BUS_35]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...IZBAN, actualStopId: 'rail_aliaga' }])
+        .mockResolvedValueOnce([{ ...BUS_35, actualStopId: 'bus_stop_b' }]);
       // İZBAN route stops - none near Balçova
       (db.getStopsByRouteId as jest.Mock)
         .mockResolvedValueOnce([ALIAGA, HALKAPINAR_IZBAN, CUMAOVASI]);
-      // Check routes at each İZBAN stop
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([IZBAN])  // Halkapınar
-        .mockResolvedValueOnce([IZBAN]); // Cumaovası
       // Nearby stops search finds nothing useful
       (findBestNearbyStops as jest.Mock)
-        .mockResolvedValue([]);
-      (db.getRoutesByStopId as jest.Mock)
         .mockResolvedValue([]);
 
       const results = await findRoute('rail_aliaga', 'bus_stop_b', DEPARTURE);
@@ -254,9 +268,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(KONAK)
         .mockResolvedValueOnce(farStop);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([BUS_35])
-        .mockResolvedValueOnce([BUS_35]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...BUS_35, actualStopId: 'metro_konak' }])
+        .mockResolvedValueOnce([{ ...BUS_35, actualStopId: 'far_stop' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce(null);
 
@@ -292,9 +306,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(FAHRETTIN_ALTAY)
         .mockResolvedValueOnce(BORNOVA);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1])
-        .mockResolvedValueOnce([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_fahrettin' }])
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_bornova' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Bornova' });
 
@@ -311,9 +325,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(ALIAGA)
         .mockResolvedValueOnce(CUMAOVASI);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([IZBAN])
-        .mockResolvedValueOnce([IZBAN]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...IZBAN, actualStopId: 'rail_aliaga' }])
+        .mockResolvedValueOnce([{ ...IZBAN, actualStopId: 'rail_cumaovasi' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Cumaovası' });
 
@@ -330,9 +344,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(KONAK)
         .mockResolvedValueOnce(HALKAPINAR);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1, BUS_35])
-        .mockResolvedValueOnce([METRO_M1, BUS_35]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_konak' }, { ...BUS_35, actualStopId: 'metro_konak' }])
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_halkapinar' }, { ...BUS_35, actualStopId: 'metro_halkapinar' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue(null);
 
@@ -363,9 +377,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(KONAK)
         .mockResolvedValueOnce(HALKAPINAR);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1])
-        .mockResolvedValueOnce([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_konak' }])
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_halkapinar' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Bornova' });
 
@@ -420,8 +434,8 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         .mockResolvedValueOnce([{ ...HALKAPINAR, distance: 200 }]);
       (db.getStopById as jest.Mock)
         .mockResolvedValue(KONAK);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...METRO_M1, actualStopId: 'metro_konak' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue(null);
 
@@ -451,8 +465,8 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         .mockResolvedValueOnce([{ ...HALKAPINAR, distance: 200 }]);
       (db.getStopById as jest.Mock)
         .mockResolvedValue(KONAK);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...METRO_M1, actualStopId: 'metro_konak' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue(null);
 
@@ -477,8 +491,8 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         .mockResolvedValueOnce([{ ...HALKAPINAR, distance: 200 }]);
       (db.getStopById as jest.Mock)
         .mockResolvedValue(KONAK);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...METRO_M1, actualStopId: 'metro_konak' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue(null);
 
@@ -503,9 +517,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(KONAK)
         .mockResolvedValueOnce(BORNOVA);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1])
-        .mockResolvedValueOnce([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_konak' }])
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_bornova' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Bornova' });
 
@@ -521,9 +535,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(KONAK)
         .mockResolvedValueOnce(HALKAPINAR);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1])
-        .mockResolvedValueOnce([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_konak' }])
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_halkapinar' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce(null);
 
@@ -556,8 +570,8 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         .mockResolvedValueOnce([{ ...HALKAPINAR, distance: 200 }]);
       (db.getStopById as jest.Mock)
         .mockResolvedValue(KONAK);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...METRO_M1, actualStopId: 'metro_konak' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue(null);
 
@@ -574,9 +588,9 @@ describe('Routing Reliability - İzmir Scenarios', () => {
       (db.getStopById as jest.Mock)
         .mockResolvedValueOnce(KONAK)
         .mockResolvedValueOnce(HALKAPINAR);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([METRO_M1])
-        .mockResolvedValueOnce([METRO_M1]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_konak' }])
+        .mockResolvedValueOnce([{ ...METRO_M1, actualStopId: 'metro_halkapinar' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue(null);
 
@@ -604,8 +618,8 @@ describe('Routing Reliability - İzmir Scenarios', () => {
         .mockResolvedValueOnce([{ ...HALKAPINAR, distance: 200 }]);
       (db.getStopById as jest.Mock)
         .mockResolvedValue(KONAK);
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValue([METRO_M1, BUS_35]);
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValue([{ ...METRO_M1, actualStopId: 'metro_konak' }, { ...BUS_35, actualStopId: 'metro_konak' }]);
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValue(null);
 

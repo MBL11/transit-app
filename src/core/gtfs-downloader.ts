@@ -5,6 +5,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import JSZip from 'jszip';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
 import { downloadAndImportEshot } from './eshot-data-fetcher';
@@ -14,6 +15,11 @@ import { generateT1T2TramData } from './tram-t1t2-data';
 import { generateEshotFallbackData } from './eshot-fallback-data';
 import { logger } from '../utils/logger';
 import { captureException } from '../services/crash-reporting';
+
+// Data version for manually-generated transit data (M1, T1/T2, T3).
+// Increment this when the data format changes (e.g., M1 timing, station names)
+// to force a reimport on next app start via ensureManualTransitData().
+const MANUAL_TRANSIT_DATA_VERSION = 2; // v2: M1 per-station cumulative timing + ferry İskelesi→Ferry rename
 
 // Available GTFS sources - İzmir official open data
 // Source: https://acikveri.bizizmir.com/en/dataset/toplu-ulasim-gtfs-verileri
@@ -364,6 +370,29 @@ export async function downloadAndImportAllIzmir(
         parsedData.calendarDates.forEach(cd => { cd.serviceId = prefix + cd.serviceId; });
       }
 
+      // Rename "İskele" / "İskelesi" stops to "Ferry" for better user comprehension
+      // Applied to ALL sources (not just ferry) because ferry terminal names may appear
+      // in bus/tram GTFS as transfer points.
+      // NOTE: JavaScript \b word boundary does NOT work with Turkish characters (İ, ş, etc.)
+      // because \w only includes [a-zA-Z0-9_]. Use explicit patterns instead.
+      {
+        let renamedCount = 0;
+        parsedData.stops.forEach(s => {
+          const original = s.name;
+          s.name = s.name
+            .replace(/İskelesi/g, 'Ferry')
+            .replace(/iskelesi/g, 'Ferry')
+            .replace(/İSKELESİ/g, 'Ferry')
+            .replace(/İskele(?=\s|$)/g, 'Ferry')
+            .replace(/iskele(?=\s|$)/g, 'Ferry')
+            .replace(/İSKELE(?=\s|$)/g, 'Ferry');
+          if (s.name !== original) renamedCount++;
+        });
+        if (renamedCount > 0) {
+          logger.log(`[GTFSDownloader] Renamed ${renamedCount} İskele→Ferry stops in ${sourceInfo.name}`);
+        }
+      }
+
       // Validate data
       const validation = validateGTFSData(parsedData);
       if (!validation.isValid) {
@@ -436,6 +465,30 @@ export async function downloadAndImportAllIzmir(
       logger.log('[GTFSDownloader] Importing M1 Metro manual data...');
       onProgress?.('importing', 0.83, 'M1 Metro');
 
+      // Clean up ALL metro data before importing manual M1.
+      // The official GTFS metro may create a route that becomes 'metro_m1' after prefixing
+      // (if original route ID is 'm1'), causing conflicting trips/stop_times with wrong station names.
+      // Delete everything metro-related and let manual M1 be the single source of truth.
+      const database = db.openDatabase();
+      try {
+        // Delete ALL metro stop_times, trips, and routes (including metro_m1 if it exists from official data)
+        database.runSync(
+          `DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id LIKE 'metro_%')`
+        );
+        database.runSync(`DELETE FROM trips WHERE route_id LIKE 'metro_%'`);
+        database.runSync(`DELETE FROM routes WHERE id LIKE 'metro_%'`);
+        // Delete official metro stops that aren't used by manual M1 data
+        const m1StopIds = Array.from({ length: 20 }, (_, i) => `metro_${i + 1}`);
+        const m1Placeholders = m1StopIds.map(() => '?').join(', ');
+        const deleted = database.runSync(
+          `DELETE FROM stops WHERE id LIKE 'metro_%' AND id NOT IN (${m1Placeholders})`,
+          m1StopIds
+        );
+        logger.log(`[GTFSDownloader] Cleaned up ALL metro data before M1 import (${deleted.changes} orphaned stops removed)`);
+      } catch (cleanupError) {
+        logger.warn('[GTFSDownloader] Metro cleanup failed (non-fatal):', cleanupError);
+      }
+
       const m1Data = generateM1MetroData();
       await db.insertRoutes(m1Data.routes);
       await db.insertStops(m1Data.stops);
@@ -461,6 +514,24 @@ export async function downloadAndImportAllIzmir(
     try {
       logger.log('[GTFSDownloader] Importing T1/T2 Tram manual data...');
       onProgress?.('importing', 0.84, 'T1/T2 Tramvay');
+
+      // Clean up official GTFS tram data that conflicts with manual T1/T2 data
+      try {
+        const database = db.openDatabase();
+        const officialTramRoutes = database.getAllSync<{ id: string }>(
+          `SELECT id FROM routes WHERE id LIKE 'tram_%' AND id NOT LIKE 'tram_t1%' AND id NOT LIKE 'tram_t2%' AND id NOT LIKE 'tram_t3%'`
+        );
+        if (officialTramRoutes.length > 0) {
+          const routeIds = officialTramRoutes.map(r => r.id);
+          const placeholders = routeIds.map(() => '?').join(', ');
+          database.runSync(`DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id IN (${placeholders}))`, routeIds);
+          database.runSync(`DELETE FROM trips WHERE route_id IN (${placeholders})`, routeIds);
+          database.runSync(`DELETE FROM routes WHERE id IN (${placeholders})`, routeIds);
+          logger.log(`[GTFSDownloader] Cleaned up ${routeIds.length} official tram routes`);
+        }
+      } catch (cleanupError) {
+        logger.warn('[GTFSDownloader] Tram cleanup failed (non-fatal):', cleanupError);
+      }
 
       const tramData = generateT1T2TramData();
       await db.insertRoutes(tramData.routes);
@@ -534,6 +605,55 @@ export async function downloadAndImportAllIzmir(
       }
     }
 
+    // Add calendar entries for manually generated services
+    // Without these, trips with _DAILY service IDs get filtered out when calendar data exists
+    try {
+      logger.log('[GTFSDownloader] Adding calendar entries for manual data services...');
+      const manualServiceIds = [
+        'tram_t1_DAILY',
+        'tram_t2_DAILY',
+        'T3_DAILY',
+        'M1_DAILY',
+        'ESHOT_DAILY',
+      ];
+
+      const calendarEntries = manualServiceIds.map(serviceId => ({
+        serviceId,
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: true,
+        sunday: true,
+        startDate: '20240101',
+        endDate: '20301231',
+      }));
+
+      await db.insertCalendar(calendarEntries);
+      logger.log(`[GTFSDownloader] ✅ Added calendar entries for ${manualServiceIds.length} manual services`);
+    } catch (calendarError) {
+      logger.warn('[GTFSDownloader] ⚠️ Failed to add manual calendar entries (non-fatal):', calendarError);
+    }
+
+    // Final pass: rename any remaining İskelesi/İskele stops to Ferry in the database
+    // This catches stops from non-ferry sources (bus transfers, etc.) that weren't renamed above
+    try {
+      const database = db.openDatabase();
+      const r1 = database.runSync(`UPDATE stops SET name = REPLACE(name, 'İskelesi', 'Ferry') WHERE name LIKE '%İskelesi%'`);
+      const r2 = database.runSync(`UPDATE stops SET name = REPLACE(name, 'iskelesi', 'Ferry') WHERE name LIKE '%iskelesi%'`);
+      const r3 = database.runSync(`UPDATE stops SET name = REPLACE(name, 'İSKELESİ', 'Ferry') WHERE name LIKE '%İSKELESİ%'`);
+      // Only rename standalone İskele (not İskelesi which was already handled)
+      const r4 = database.runSync(`UPDATE stops SET name = REPLACE(name, ' İskele', ' Ferry') WHERE name LIKE '% İskele'`);
+      const r5 = database.runSync(`UPDATE stops SET name = REPLACE(name, ' iskele', ' Ferry') WHERE name LIKE '% iskele'`);
+      const totalRenamed = (r1.changes || 0) + (r2.changes || 0) + (r3.changes || 0) + (r4.changes || 0) + (r5.changes || 0);
+      if (totalRenamed > 0) {
+        logger.log(`[GTFSDownloader] Final İskele→Ferry rename: ${totalRenamed} stops updated in database`);
+      }
+    } catch (renameError) {
+      logger.warn('[GTFSDownloader] ⚠️ Final İskele→Ferry rename failed (non-fatal):', renameError);
+    }
+
     const result = {
       stops: totalStops,
       routes: totalRoutes,
@@ -601,6 +721,122 @@ export async function importEshotOnly(
       throw fallbackError;
     }
   }
+}
+
+/**
+ * Ensure all manually-generated transit data (M1 metro, T1/T2/T3 trams) is present in the database.
+ * This runs silently on app start to auto-repair missing data without requiring user intervention.
+ * Critical for multimodal routing: without M1 stop_times, metro won't appear in route results.
+ */
+export async function ensureManualTransitData(): Promise<{ imported: string[] }> {
+  const imported: string[] = [];
+
+  try {
+    // Check data version: if the stored version is outdated, force reimport of ALL manual data
+    const storedVersion = await AsyncStorage.getItem('@manual_transit_data_version');
+    const currentVersion = String(MANUAL_TRANSIT_DATA_VERSION);
+    const needsFullReimport = storedVersion !== currentVersion;
+    if (needsFullReimport) {
+      logger.log(`[GTFSDownloader] Manual transit data version changed: ${storedVersion} → ${currentVersion}, forcing reimport`);
+    }
+
+    // Check M1 Metro
+    if (needsFullReimport || !db.hasStopTimesForRoute('metro_m1')) {
+      logger.log('[GTFSDownloader] ⚠️ M1 Metro data missing, importing...');
+
+      // Clean up ALL metro data before importing manual M1
+      try {
+        const database = db.openDatabase();
+        database.runSync(`DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id LIKE 'metro_%')`);
+        database.runSync(`DELETE FROM trips WHERE route_id LIKE 'metro_%'`);
+        database.runSync(`DELETE FROM routes WHERE id LIKE 'metro_%'`);
+        const m1StopIds = Array.from({ length: 20 }, (_, i) => `metro_${i + 1}`);
+        const m1Placeholders = m1StopIds.map(() => '?').join(', ');
+        database.runSync(`DELETE FROM stops WHERE id LIKE 'metro_%' AND id NOT IN (${m1Placeholders})`, m1StopIds);
+        logger.log(`[GTFSDownloader] Cleaned up ALL metro data before M1 import`);
+      } catch (cleanupError) {
+        logger.warn('[GTFSDownloader] Metro cleanup failed (non-fatal):', cleanupError);
+      }
+
+      const m1Data = generateM1MetroData();
+      await db.insertRoutes(m1Data.routes);
+      await db.insertStops(m1Data.stops);
+      await db.insertTrips(m1Data.trips);
+      const batchSize = 10000;
+      for (let j = 0; j < m1Data.stopTimes.length; j += batchSize) {
+        const batch = m1Data.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+      imported.push('M1 Metro');
+      logger.log(`[GTFSDownloader] ✅ M1 Metro imported: ${m1Data.stops.length} stops, ${m1Data.trips.length} trips, ${m1Data.stopTimes.length} stop_times`);
+    }
+
+    // Check T1 Tram (Karşıyaka)
+    if (needsFullReimport || !db.hasStopTimesForRoute('tram_t1')) {
+      logger.log('[GTFSDownloader] ⚠️ T1/T2 Tram data missing or outdated, importing...');
+      // Clean up old tram data before reimporting
+      if (needsFullReimport) {
+        try {
+          const database = db.openDatabase();
+          database.runSync(`DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id IN ('tram_t1', 'tram_t2'))`);
+          database.runSync(`DELETE FROM trips WHERE route_id IN ('tram_t1', 'tram_t2')`);
+          database.runSync(`DELETE FROM stops WHERE id LIKE 'tram_t1_%' OR id LIKE 'tram_t2_%'`);
+        } catch (e) { logger.warn('[GTFSDownloader] T1/T2 cleanup failed:', e); }
+      }
+      const tramData = generateT1T2TramData();
+      await db.insertRoutes(tramData.routes);
+      await db.insertStops(tramData.stops);
+      await db.insertTrips(tramData.trips);
+      const batchSize = 10000;
+      for (let j = 0; j < tramData.stopTimes.length; j += batchSize) {
+        const batch = tramData.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+      imported.push('T1/T2 Tram');
+      logger.log(`[GTFSDownloader] ✅ T1/T2 Tram imported: ${tramData.stops.length} stops, ${tramData.trips.length} trips, ${tramData.stopTimes.length} stop_times`);
+    }
+
+    // Check T3 Tram (Çiğli)
+    if (needsFullReimport || (!db.hasStopTimesForRoute('tram_t3_red') && !db.hasStopTimesForRoute('tram_t3_blue'))) {
+      logger.log('[GTFSDownloader] ⚠️ T3 Tram data missing, importing...');
+      const t3Data = generateT3CigliData();
+      await db.insertRoutes(t3Data.routes);
+      await db.insertStops(t3Data.stops);
+      await db.insertTrips(t3Data.trips);
+      const batchSize = 10000;
+      for (let j = 0; j < t3Data.stopTimes.length; j += batchSize) {
+        const batch = t3Data.stopTimes.slice(j, j + batchSize);
+        await db.insertStopTimes(batch);
+      }
+      imported.push('T3 Tram');
+      logger.log(`[GTFSDownloader] ✅ T3 Tram imported: ${t3Data.stops.length} stops, ${t3Data.trips.length} trips, ${t3Data.stopTimes.length} stop_times`);
+    }
+
+    if (imported.length > 0 || needsFullReimport) {
+      // Also ensure calendar entries exist for the imported services
+      await db.ensureManualServiceCalendars();
+      // Save the current version so we don't reimport again next time
+      await AsyncStorage.setItem('@manual_transit_data_version', currentVersion);
+      logger.log(`[GTFSDownloader] ✅ Auto-repaired missing transit data: ${imported.join(', ')} (version=${currentVersion})`);
+    }
+
+    // Ensure all İskelesi/İskele stops are renamed to Ferry in the database
+    try {
+      const database = db.openDatabase();
+      database.runSync(`UPDATE stops SET name = REPLACE(name, 'İskelesi', 'Ferry') WHERE name LIKE '%İskelesi%'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, 'iskelesi', 'Ferry') WHERE name LIKE '%iskelesi%'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, 'İSKELESİ', 'Ferry') WHERE name LIKE '%İSKELESİ%'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, ' İskele', ' Ferry') WHERE name LIKE '% İskele'`);
+      database.runSync(`UPDATE stops SET name = REPLACE(name, ' iskele', ' Ferry') WHERE name LIKE '% iskele'`);
+    } catch (renameError) {
+      logger.warn('[GTFSDownloader] ⚠️ İskele→Ferry rename in ensureManualTransitData failed:', renameError);
+    }
+  } catch (error) {
+    logger.warn('[GTFSDownloader] Failed to ensure manual transit data:', error);
+    captureException(error as Error, { tags: { function: 'ensureManualTransitData' } });
+  }
+
+  return { imported };
 }
 
 /**

@@ -48,10 +48,17 @@ export function RouteScreenContent({
 
   // Extract base station name (removes suffixes like İskelesi, İskeli, Metro, etc.)
   const getBaseName = (name: string): string => {
-    const MODE_SUFFIXES = [
-      'iskele', 'iskelesi', 'iskeli',
+    // Suffixes that indicate a distinct physical location (ferry terminal, train station)
+    // These should NOT be stripped - "Konak İskele" is a different place from "Konak" metro
+    const DISTINCT_LOCATION_SUFFIXES = [
+      'iskele', 'iskelesi', 'iskeli', // Ferry terminals (Turkish)
+      'ferry',                         // Ferry terminals (English)
+      'gar', 'gari',                   // Train stations
+    ];
+    // Generic mode suffixes that can be safely stripped for deduplication
+    const GENERIC_SUFFIXES = [
       'metro', 'istasyon', 'istasyonu',
-      'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+      'durak', 'duragi', 'tren', 'izban',
       'tramvay', 'otobus', 'vapur', 'feribot'
     ];
     const normalized = name.toLowerCase()
@@ -59,7 +66,12 @@ export function RouteScreenContent({
       .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
       .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c');
     const words = normalized.trim().split(/\s+/);
-    while (words.length > 1 && MODE_SUFFIXES.includes(words[words.length - 1])) {
+    // Check if name ends with a distinct location suffix - if so, keep it
+    if (words.length > 1 && DISTINCT_LOCATION_SUFFIXES.includes(words[words.length - 1])) {
+      return words.join(' ');
+    }
+    // Strip generic mode suffixes
+    while (words.length > 1 && GENERIC_SUFFIXES.includes(words[words.length - 1])) {
       words.pop();
     }
     return words.join(' ');
@@ -74,27 +86,81 @@ export function RouteScreenContent({
     return 4;                                    // Bus
   };
 
+  // Get transport mode prefix from stop ID
+  const getStopModePrefix = (stopId: string): string => {
+    if (stopId.startsWith('rail_')) return 'rail';
+    if (stopId.startsWith('ferry_')) return 'ferry';
+    if (stopId.startsWith('metro_')) return 'metro';
+    if (stopId.startsWith('tram_')) return 'tram';
+    return 'bus';
+  };
+
+  // Icon for each mode prefix
+  const modeToIcon: Record<string, string> = {
+    rail: '🚆',
+    ferry: '⛴️',
+    metro: 'Ⓜ️',
+    tram: '🚊',
+    bus: '🚌',
+  };
+
   // Get transport mode icon from stop ID prefix
   const getTransportIcon = (stopId: string): string => {
-    if (stopId.startsWith('rail_')) return '🚆';   // İZBAN
-    if (stopId.startsWith('ferry_')) return '⛴️';  // Ferry
-    if (stopId.startsWith('metro_')) return 'Ⓜ️';  // Metro
-    if (stopId.startsWith('tram_')) return '🚊';   // Tram
-    return '🚌';                                    // Bus
+    return modeToIcon[getStopModePrefix(stopId)] || '🚌';
+  };
+
+  // Pre-compute: for each base station name, collect all available transport modes
+  // This lets us show "Ⓜ️⛴️" for Karşıyaka (metro + ferry at same station)
+  const baseNameModes = React.useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const stop of state.stops) {
+      const base = getBaseName(stop.name);
+      if (!map.has(base)) map.set(base, new Set());
+      map.get(base)!.add(getStopModePrefix(stop.id));
+    }
+    return map;
+  }, [state.stops]);
+
+  // Get all transport mode icons for a station (multimodal display)
+  const getStationIcons = (stop: Stop): string => {
+    const base = getBaseName(stop.name);
+    const modes = baseNameModes.get(base);
+    if (!modes || modes.size <= 1) return getTransportIcon(stop.id);
+    // Sort by priority: rail, ferry, metro, tram, bus
+    const priority = ['rail', 'ferry', 'metro', 'tram', 'bus'];
+    const sorted = priority.filter(m => modes.has(m));
+    // Show max 3 icons to avoid clutter
+    return sorted.slice(0, 3).map(m => modeToIcon[m]).join('');
   };
 
   // Normalize text for search (Turkish char normalization + lowercase + Unicode decomposition)
+  // Also normalizes hyphens/dashes to spaces so "ucyol bah" matches "Üçyol-Bahçelievler"
   const normalizeForSearch = (text: string): string => {
     return text.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
       .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
-      .replace(/İ/g, 'i').replace(/I/g, 'i'); // Turkish uppercase I handling
+      .replace(/İ/g, 'i').replace(/I/g, 'i') // Turkish uppercase I handling
+      .replace(/[-–—]/g, ' ')  // Normalize hyphens/dashes to spaces
+      .replace(/\s+/g, ' ')    // Collapse multiple spaces
+      .trim();
   };
+
+  // Mode suffixes used for deduplication decisions
+  const MODE_SUFFIX_WORDS = [
+    'iskele', 'iskelesi', 'iskeli', 'ferry', 'metro', 'istasyon', 'istasyonu',
+    'gar', 'gari', 'durak', 'duragi', 'tren', 'izban',
+    'tramvay', 'otobus', 'vapur', 'feribot'
+  ];
 
   // Helper functions
   const filterStops = (query: string): Stop[] => {
     const lowerQuery = normalizeForSearch(query.trim());
+
+    // Check if user's query specifically contains a mode suffix word
+    // e.g., "karsiyaka iskele" or "alsancak gar" → user wants the specific stop
+    const queryWords = lowerQuery.split(/\s+/);
+    const queryHasModeSuffix = queryWords.some(w => MODE_SUFFIX_WORDS.includes(w));
 
     // If no query, show recent stops first
     if (!lowerQuery && recentStops.length > 0) {
@@ -124,24 +190,43 @@ export function RouteScreenContent({
       normalizeForSearch(stop.name).includes(lowerQuery)
     );
 
-    // Deduplicate by BASE name - "Karşıyaka İskeli" and "Karşıyaka İskelesi" become one
-    // Keep the stop with highest priority (rail > ferry > metro > tram > bus)
+    // Deduplication strategy depends on whether user is searching for a specific mode
     const seen = new Map<string, Stop>();
-    for (const stop of filtered) {
-      const key = getBaseName(stop.name);
-      const existing = seen.get(key);
-      if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
-        seen.set(key, stop);
+
+    if (queryHasModeSuffix) {
+      // User typed a mode suffix (e.g., "karsiyaka iskele", "alsancak gar")
+      // → Deduplicate by FULL normalized name to keep distinct stops visible
+      // This ensures "Karşıyaka İskelesi" (ferry) stays separate from "Karşıyaka" (metro)
+      for (const stop of filtered) {
+        const key = normalizeForSearch(stop.name);
+        const existing = seen.get(key);
+        if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
+          seen.set(key, stop);
+        }
+      }
+    } else {
+      // Standard search: deduplicate by BASE name
+      // "Karşıyaka İskeli" and "Karşıyaka İskelesi" become one entry
+      for (const stop of filtered) {
+        const key = getBaseName(stop.name);
+        const existing = seen.get(key);
+        if (!existing || getStopPriority(stop.id) < getStopPriority(existing.id)) {
+          seen.set(key, stop);
+        }
       }
     }
 
-    // Sort by name for better UX, but put recent stops first if they match
+    // Sort: recent stops first, then by transport priority (rail > ferry > metro > tram > bus), then alphabetical
     const recentIds = new Set(recentStops.map(s => s.id));
     const unique = Array.from(seen.values()).sort((a, b) => {
       const aRecent = recentIds.has(a.id);
       const bRecent = recentIds.has(b.id);
       if (aRecent && !bRecent) return -1;
       if (!aRecent && bRecent) return 1;
+      // Sort by transport priority: rail/metro/tram/ferry before bus
+      const aPriority = getStopPriority(a.id);
+      const bPriority = getStopPriority(b.id);
+      if (aPriority !== bPriority) return aPriority - bPriority;
       return a.name.localeCompare(b.name);
     });
 
@@ -538,7 +623,7 @@ export function RouteScreenContent({
                   }}
                 >
                   <View style={styles.stopItemContent}>
-                    <Text style={styles.transportIcon}>{getTransportIcon(item.id)}</Text>
+                    <Text style={styles.transportIcon}>{getStationIcons(item)}</Text>
                     {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
                     <Text style={[styles.stopItemText, state.fromStop?.id === item.id && styles.stopItemTextSelected]}>
                       {item.name}
@@ -605,7 +690,7 @@ export function RouteScreenContent({
                   }}
                 >
                   <View style={styles.stopItemContent}>
-                    <Text style={styles.transportIcon}>{getTransportIcon(item.id)}</Text>
+                    <Text style={styles.transportIcon}>{getStationIcons(item)}</Text>
                     {isRecent && <Text style={styles.recentIcon}>🕐</Text>}
                     <Text style={[styles.stopItemText, state.toStop?.id === item.id && styles.stopItemTextSelected]}>
                       {item.name}

@@ -9,7 +9,7 @@
  *
  * T2 Line (Konak Tramvayı): Fahrettin Altay ↔ Halkapınar
  * - Orange color (#F7941D)
- * - 19 stations (via Konak İskele)
+ * - 19 stations (via Konak Ferry)
  *
  * Schedule:
  * - Daily: 05:00 - 00:00, every 6-8 min
@@ -26,10 +26,10 @@ import type { Stop, Route, Trip, StopTime } from './types/models';
 // Note: GTFS shows route ending at Ataşehir, tramizmir.com says Flamingo (Mavişehir area)
 const T1_STATIONS = [
   { id: 1, name: 'Alaybey', lat: 38.460163, lon: 27.127175 },
-  { id: 2, name: 'Karşıyaka İskele', lat: 38.454877, lon: 27.119475 },
+  { id: 2, name: 'Karşıyaka Ferry', lat: 38.454877, lon: 27.119475 },
   { id: 3, name: 'Nikah Sarayı', lat: 38.44973, lon: 27.11043 },
   { id: 4, name: 'Yunuslar', lat: 38.451636, lon: 27.103497 },
-  { id: 5, name: 'Bostanlı İskele', lat: 38.454486, lon: 27.097641 },
+  { id: 5, name: 'Bostanlı Ferry', lat: 38.454486, lon: 27.097641 },
   { id: 6, name: 'Çarşı', lat: 38.458163, lon: 27.094494 },
   { id: 7, name: 'Vilayet Evi', lat: 38.460544, lon: 27.090166 },
   { id: 8, name: 'Selçuk Yaşar', lat: 38.463569, lon: 27.085941 },
@@ -53,7 +53,7 @@ const T2_STATIONS = [
   { id: 7, name: 'Köprü', lat: 38.405995, lon: 27.098494 },
   { id: 8, name: 'Karantina', lat: 38.407877, lon: 27.10663 },
   { id: 9, name: 'Karataş', lat: 38.410526, lon: 27.118776 },
-  { id: 10, name: 'Konak İskele', lat: 38.418751, lon: 27.12726 },
+  { id: 10, name: 'Konak Ferry', lat: 38.418751, lon: 27.12726 },
   { id: 11, name: 'Gazi Bulvarı', lat: 38.424135, lon: 27.137266 },
   { id: 12, name: 'Kültürpark', lat: 38.429332, lon: 27.1416 },
   { id: 13, name: 'Hocazade Camii', lat: 38.433438, lon: 27.144387 },
@@ -211,7 +211,7 @@ export function generateT2TramData(): {
       shortName: 'T2',
       longName: 'Konak Tramvayı (Halkapınar - Fahrettin Altay)',
       type: 0, // Tram
-      color: '#F7941D', // Orange
+      color: '#00A651', // Green (same as T1 - İzmir trams use green)
       textColor: '#FFFFFF',
     },
   ];

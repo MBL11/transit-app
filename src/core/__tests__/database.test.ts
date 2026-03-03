@@ -474,10 +474,10 @@ describe('database.ts', () => {
       });
 
       // Then getAllSync is called twice:
-      // 1. Find same-station stops (returns stop IDs)
+      // 1. Find candidate stops with matching name (returns {id, name})
       // 2. Find routes via JOIN
       mockDb.getAllSync
-        .mockReturnValueOnce([{ id: 'stop1' }])   // same-station stops
+        .mockReturnValueOnce([{ id: 'stop1', name: 'Châtelet' }])   // candidate stops
         .mockReturnValueOnce(mockRouteRows);        // route rows
 
       const result = await getRoutesByStopId('stop1');

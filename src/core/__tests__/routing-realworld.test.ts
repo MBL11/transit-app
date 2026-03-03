@@ -20,7 +20,7 @@ import {
   findMultipleRoutes,
 } from '../routing';
 import * as db from '../database';
-import { findBestNearbyStops, getWalkingTime } from '../nearby-stops';
+import { findBestNearbyStops, getWalkingTime, expandToAllSameNameStops } from '../nearby-stops';
 import { Stop, Route } from '../types/models';
 import { DEFAULT_PREFERENCES } from '../../types/routing-preferences';
 
@@ -59,7 +59,7 @@ const UCKUYULAR_FERRY: Stop = { id: 'ferry_uckuyular', name: 'Üçkuyular', lat:
 const BOSTANLI_FERRY: Stop = { id: 'ferry_bostanli', name: 'Bostanlı', lat: 38.4610, lon: 27.0950, locationType: 0 };
 
 // Tram T1 (Karşıyaka side)
-const BOSTANLI_TRAM: Stop = { id: 'tram_bostanli', name: 'Bostanlı İskele', lat: 38.4615, lon: 27.0960, locationType: 0 };
+const BOSTANLI_TRAM: Stop = { id: 'tram_bostanli', name: 'Bostanlı Ferry', lat: 38.4615, lon: 27.0960, locationType: 0 };
 const MAVISEHIR_TRAM: Stop = { id: 'tram_mavisehir', name: 'Mavişehir', lat: 38.4710, lon: 27.0800, locationType: 0 };
 
 // Bus stops (Buca area — key for Route 1)
@@ -76,7 +76,7 @@ const TRAM_T1: Route = { id: 'tram_t1', shortName: 'T1', longName: 'Karşıyaka 
 const BUS_303: Route = { id: 'bus_303', shortName: '303', longName: 'Buca SGK - Konak', type: 3, color: '#0066CC', textColor: '#FFFFFF' };
 const BUS_417: Route = { id: 'bus_417', shortName: '417', longName: 'Konak - Buca Koop', type: 3, color: '#0066CC', textColor: '#FFFFFF' };
 
-const DEPARTURE = new Date('2025-02-01T08:00:00');
+const DEPARTURE = new Date('2025-02-01T08:00:00Z'); // 11:00 İzmir time (UTC+3)
 
 // ============================================================================
 // Real-world reference data (from Google Maps, Rome2Rio, ESHOT)
@@ -125,10 +125,25 @@ describe('Real-World İzmir Route Comparisons', () => {
     });
     // Return null for schedule-based lookups → fall back to distance estimates
     (db.getActualTravelTime as jest.Mock).mockReturnValue(null);
+    (db.getActualTravelTimeAnyRoute as jest.Mock).mockReturnValue(null);
     (db.getActiveServiceIds as jest.Mock).mockReturnValue(null);
+    // getNextDepartureForRoute: return departure 2 min after requested time by default
+    (db.getNextDepartureForRoute as jest.Mock).mockImplementation(
+      (_routeId: string, _stopId: string, timeMinutes: number) => timeMinutes + 2
+    );
     // Batch query mocks — return empty by default
     (db.findTransferStops as jest.Mock).mockReturnValue([]);
     (db.getRoutesByStopIds as jest.Mock).mockResolvedValue(new Map());
+    // getTripInfoForRoute - return null by default
+    (db.getTripInfoForRoute as jest.Mock).mockReturnValue(null);
+    // getIntermediateStopsCount - return null by default
+    (db.getIntermediateStopsCount as jest.Mock).mockReturnValue(null);
+    // getStopsByRouteId - return empty array by default
+    (db.getStopsByRouteId as jest.Mock).mockResolvedValue([]);
+    // getRoutesWithStopIds - return empty array by default (override in specific tests)
+    (db.getRoutesWithStopIds as jest.Mock).mockResolvedValue([]);
+    // expandToAllSameNameStops: pass-through (return same stops)
+    (expandToAllSameNameStops as jest.Mock).mockImplementation((stops: any[]) => stops || []);
   });
 
   // ==========================================================================
@@ -142,9 +157,16 @@ describe('Real-World İzmir Route Comparisons', () => {
         .mockResolvedValueOnce(BUCA_MERKEZ);
 
       // Both stops served by bus 303 → direct route
-      (db.getRoutesByStopId as jest.Mock)
-        .mockResolvedValueOnce([BUS_303, BUS_417, METRO_M1])  // Konak: bus + metro
-        .mockResolvedValueOnce([BUS_303, BUS_417]);             // Buca: bus only
+      (db.getRoutesWithStopIds as jest.Mock)
+        .mockResolvedValueOnce([
+          { ...BUS_303, actualStopId: 'bus_konak' },
+          { ...BUS_417, actualStopId: 'bus_konak' },
+          { ...METRO_M1, actualStopId: 'bus_konak' },
+        ])  // Konak: bus + metro
+        .mockResolvedValueOnce([
+          { ...BUS_303, actualStopId: 'bus_buca_merkez' },
+          { ...BUS_417, actualStopId: 'bus_buca_merkez' },
+        ]);  // Buca: bus only
 
       (db.getTripInfoForRoute as jest.Mock)
         .mockResolvedValueOnce({ headsign: 'Buca SGK' });
@@ -174,18 +196,21 @@ describe('Real-World İzmir Route Comparisons', () => {
         .mockResolvedValueOnce(BUCA_MERKEZ);   // bus stop
 
       // Konak metro has M1, Buca has bus only → no direct route
-      (db.getRoutesByStopId as jest.Mock).mockImplementation(async (stopId: string, _includeBus?: boolean) => {
-        const map: Record<string, Route[]> = {
-          'metro_konak': [METRO_M1, BUS_303],    // with includeBus, bus appears
-          'bus_buca_merkez': [BUS_303, BUS_417],
-          'metro_ucyol': [METRO_M1, BUS_303],     // Üçyol: metro + bus (transfer point)
-          'metro_fahrettin': [METRO_M1],
-          'metro_halkapinar': [METRO_M1],
-          'metro_hatay': [METRO_M1],
-          'metro_bornova': [METRO_M1],
-          'bus_ucyol': [BUS_303],
-        };
-        return map[stopId] || [];
+      const routeMap: Record<string, Route[]> = {
+        'metro_konak': [METRO_M1, BUS_303],
+        'bus_buca_merkez': [BUS_303, BUS_417],
+        'metro_ucyol': [METRO_M1, BUS_303],
+        'metro_fahrettin': [METRO_M1],
+        'metro_halkapinar': [METRO_M1],
+        'metro_hatay': [METRO_M1],
+        'metro_bornova': [METRO_M1],
+        'bus_ucyol': [BUS_303],
+      };
+      (db.getRoutesByStopId as jest.Mock).mockImplementation(async (stopId: string) => {
+        return routeMap[stopId] || [];
+      });
+      (db.getRoutesWithStopIds as jest.Mock).mockImplementation(async (stopId: string) => {
+        return (routeMap[stopId] || []).map(r => ({ ...r, actualStopId: stopId }));
       });
 
       (db.getStopsByRouteId as jest.Mock).mockImplementation(async (routeId: string) => {
@@ -225,20 +250,23 @@ describe('Real-World İzmir Route Comparisons', () => {
         .mockResolvedValueOnce(KARSIYAKA_FERRY);
 
       // No direct route between metro and ferry systems
+      const routeMap2: Record<string, Route[]> = {
+        'metro_fahrettin': [METRO_M1],
+        'ferry_karsiyaka': [FERRY_KONAK_KARSIYAKA],
+        'metro_konak': [METRO_M1],
+        'metro_ucyol': [METRO_M1],
+        'metro_hatay': [METRO_M1],
+        'metro_halkapinar': [METRO_M1],
+        'metro_bornova': [METRO_M1],
+        'metro_cankaya': [METRO_M1],
+        'metro_basmane': [METRO_M1],
+        'ferry_konak': [FERRY_KONAK_KARSIYAKA],
+      };
       (db.getRoutesByStopId as jest.Mock).mockImplementation(async (stopId: string) => {
-        const map: Record<string, Route[]> = {
-          'metro_fahrettin': [METRO_M1],
-          'ferry_karsiyaka': [FERRY_KONAK_KARSIYAKA],
-          'metro_konak': [METRO_M1],
-          'metro_ucyol': [METRO_M1],
-          'metro_hatay': [METRO_M1],
-          'metro_halkapinar': [METRO_M1],
-          'metro_bornova': [METRO_M1],
-          'metro_cankaya': [METRO_M1],
-          'metro_basmane': [METRO_M1],
-          'ferry_konak': [FERRY_KONAK_KARSIYAKA],  // Transfer point
-        };
-        return map[stopId] || [];
+        return routeMap2[stopId] || [];
+      });
+      (db.getRoutesWithStopIds as jest.Mock).mockImplementation(async (stopId: string) => {
+        return (routeMap2[stopId] || []).map(r => ({ ...r, actualStopId: stopId }));
       });
 
       // M1 metro stops
@@ -253,6 +281,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: KONAK.lon,
         fromRouteId: 'metro_m1',
         toRouteId: 'ferry_kk',
+        toStopId: 'ferry_konak',
+        toStopLat: KONAK_FERRY.lat,
+        toStopLon: KONAK_FERRY.lon,
+        walkDistance: 400,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Karşıyaka' });
@@ -295,19 +327,22 @@ describe('Real-World İzmir Route Comparisons', () => {
         .mockResolvedValueOnce(BORNOVA)
         .mockResolvedValueOnce(ALSANCAK_IZBAN);
 
+      const routeMap3: Record<string, Route[]> = {
+        'metro_bornova': [METRO_M1],
+        'rail_alsancak': [IZBAN_LINE],
+        'metro_halkapinar': [METRO_M1],
+        'rail_halkapinar': [IZBAN_LINE],
+        'metro_stadyum': [METRO_M1],
+        'metro_konak': [METRO_M1],
+        'metro_fahrettin': [METRO_M1],
+        'rail_salhane': [IZBAN_LINE],
+        'rail_bayrakli': [IZBAN_LINE],
+      };
       (db.getRoutesByStopId as jest.Mock).mockImplementation(async (stopId: string) => {
-        const map: Record<string, Route[]> = {
-          'metro_bornova': [METRO_M1],
-          'rail_alsancak': [IZBAN_LINE],
-          'metro_halkapinar': [METRO_M1],       // Transfer point (metro side)
-          'rail_halkapinar': [IZBAN_LINE],        // Transfer point (İZBAN side)
-          'metro_stadyum': [METRO_M1],
-          'metro_konak': [METRO_M1],
-          'metro_fahrettin': [METRO_M1],
-          'rail_salhane': [IZBAN_LINE],
-          'rail_bayrakli': [IZBAN_LINE],
-        };
-        return map[stopId] || [];
+        return routeMap3[stopId] || [];
+      });
+      (db.getRoutesWithStopIds as jest.Mock).mockImplementation(async (stopId: string) => {
+        return (routeMap3[stopId] || []).map(r => ({ ...r, actualStopId: stopId }));
       });
 
       (db.getStopsByRouteId as jest.Mock).mockImplementation(async (routeId: string) => {
@@ -325,6 +360,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: HALKAPINAR.lon,
         fromRouteId: 'metro_m1',
         toRouteId: 'izban_s1',
+        toStopId: 'rail_halkapinar',
+        toStopLat: HALKAPINAR_IZBAN.lat,
+        toStopLon: HALKAPINAR_IZBAN.lon,
+        walkDistance: 50,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Alsancak' });
@@ -362,14 +401,17 @@ describe('Real-World İzmir Route Comparisons', () => {
         .mockResolvedValueOnce(UCKUYULAR_FERRY)
         .mockResolvedValueOnce(MAVISEHIR_TRAM);
 
+      const routeMap4: Record<string, Route[]> = {
+        'ferry_uckuyular': [FERRY_UCKUYULAR_BOSTANLI],
+        'tram_mavisehir': [TRAM_T1],
+        'ferry_bostanli': [FERRY_UCKUYULAR_BOSTANLI],
+        'tram_bostanli': [TRAM_T1],
+      };
       (db.getRoutesByStopId as jest.Mock).mockImplementation(async (stopId: string) => {
-        const map: Record<string, Route[]> = {
-          'ferry_uckuyular': [FERRY_UCKUYULAR_BOSTANLI],
-          'tram_mavisehir': [TRAM_T1],
-          'ferry_bostanli': [FERRY_UCKUYULAR_BOSTANLI],   // Transfer point
-          'tram_bostanli': [TRAM_T1],                       // Transfer point (tram side)
-        };
-        return map[stopId] || [];
+        return routeMap4[stopId] || [];
+      });
+      (db.getRoutesWithStopIds as jest.Mock).mockImplementation(async (stopId: string) => {
+        return (routeMap4[stopId] || []).map(r => ({ ...r, actualStopId: stopId }));
       });
 
       (db.getStopsByRouteId as jest.Mock).mockImplementation(async (routeId: string) => {
@@ -387,6 +429,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: BOSTANLI_FERRY.lon,
         fromRouteId: 'ferry_ub',
         toRouteId: 'tram_t1',
+        toStopId: 'tram_bostanli',
+        toStopLat: BOSTANLI_TRAM.lat,
+        toStopLon: BOSTANLI_TRAM.lon,
+        walkDistance: 200,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Mavişehir' });
@@ -424,25 +470,28 @@ describe('Real-World İzmir Route Comparisons', () => {
         .mockResolvedValueOnce(HATAY)
         .mockResolvedValueOnce(CIGLI);
 
+      const routeMap5: Record<string, Route[]> = {
+        'metro_hatay': [METRO_M1],
+        'rail_cigli': [IZBAN_LINE],
+        'metro_halkapinar': [METRO_M1],
+        'rail_halkapinar': [IZBAN_LINE],
+        'metro_fahrettin': [METRO_M1],
+        'metro_ucyol': [METRO_M1],
+        'metro_konak': [METRO_M1],
+        'metro_basmane': [METRO_M1],
+        'metro_stadyum': [METRO_M1],
+        'metro_bornova': [METRO_M1],
+        'metro_cankaya': [METRO_M1],
+        'rail_salhane': [IZBAN_LINE],
+        'rail_bayrakli': [IZBAN_LINE],
+        'rail_karsiyaka': [IZBAN_LINE],
+        'rail_mavisehir': [IZBAN_LINE],
+      };
       (db.getRoutesByStopId as jest.Mock).mockImplementation(async (stopId: string) => {
-        const map: Record<string, Route[]> = {
-          'metro_hatay': [METRO_M1],
-          'rail_cigli': [IZBAN_LINE],
-          'metro_halkapinar': [METRO_M1],
-          'rail_halkapinar': [IZBAN_LINE],
-          'metro_fahrettin': [METRO_M1],
-          'metro_ucyol': [METRO_M1],
-          'metro_konak': [METRO_M1],
-          'metro_basmane': [METRO_M1],
-          'metro_stadyum': [METRO_M1],
-          'metro_bornova': [METRO_M1],
-          'metro_cankaya': [METRO_M1],
-          'rail_salhane': [IZBAN_LINE],
-          'rail_bayrakli': [IZBAN_LINE],
-          'rail_karsiyaka': [IZBAN_LINE],
-          'rail_mavisehir': [IZBAN_LINE],
-        };
-        return map[stopId] || [];
+        return routeMap5[stopId] || [];
+      });
+      (db.getRoutesWithStopIds as jest.Mock).mockImplementation(async (stopId: string) => {
+        return (routeMap5[stopId] || []).map(r => ({ ...r, actualStopId: stopId }));
       });
 
       (db.getStopsByRouteId as jest.Mock).mockImplementation(async (routeId: string) => {
@@ -460,6 +509,10 @@ describe('Real-World İzmir Route Comparisons', () => {
         lon: HALKAPINAR.lon,
         fromRouteId: 'metro_m1',
         toRouteId: 'izban_s1',
+        toStopId: 'rail_halkapinar',
+        toStopLat: HALKAPINAR_IZBAN.lat,
+        toStopLon: HALKAPINAR_IZBAN.lon,
+        walkDistance: 50,
       }]);
 
       (db.getTripInfoForRoute as jest.Mock).mockResolvedValue({ headsign: 'Aliağa' });
