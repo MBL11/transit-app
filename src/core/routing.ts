@@ -888,7 +888,10 @@ export async function findRoute(
         const nearbyRoutesByStop = await db.getRoutesByStopIds(nearbyMultimodalStopIds);
         for (const [nearbyStopId, routes] of nearbyRoutesByStop) {
           for (const route of routes) {
-            if (allFromRouteIds.has(route.id) || allToRouteIds.has(route.id)) continue;
+            // Only exclude fromRoutes (to avoid A→A transfers on first leg).
+            // Do NOT exclude toRoutes: a route can serve the destination AND be a valid mid-route
+            // (e.g., ferry serves Bostanlı AND is needed as M1→Ferry→T1 mid-leg via Konak)
+            if (allFromRouteIds.has(route.id)) continue;
             const parentStop = nearbyStopToFromStop.get(nearbyStopId);
             if (parentStop && !midRouteSet.has(`${fromRoute.id}-${route.id}`)) {
               midRouteSet.set(`${fromRoute.id}-${route.id}`, {
@@ -903,7 +906,9 @@ export async function findRoute(
 
       for (const [stopId, routes] of routesByStop) {
         for (const route of routes) {
-          if (allFromRouteIds.has(route.id) || allToRouteIds.has(route.id)) continue;
+          // Only exclude fromRoutes (to avoid A→A transfers on first leg).
+          // Do NOT exclude toRoutes: a route can serve the destination AND be a valid mid-route
+          if (allFromRouteIds.has(route.id)) continue;
           if (!midRouteSet.has(`${fromRoute.id}-${route.id}`)) {
             const stop = stops.find(s => s.id === stopId);
             if (stop) {
@@ -921,11 +926,19 @@ export async function findRoute(
     logger.log(`[Routing] Found ${midRouteSet.size} intermediate route candidates`);
 
     // Step 2: For each intermediate route, check if it connects to any toRoute
+    // Prioritize rail/metro/tram/ferry over bus to ensure multimodal routes are found
+    // (e.g., Ferry as mid-route for M1→Ferry→T1) before the slice(0, 15) cuts them off
     const twoTransferJourneys: JourneyResult[] = [];
-    const midRouteIds = Array.from(new Set(Array.from(midRouteSet.values()).map(m => m.route.id)));
+    const midRouteEntries = Array.from(midRouteSet.values());
+    midRouteEntries.sort((a, b) => routeTypePriority(a.route.type) - routeTypePriority(b.route.type));
+    const midRouteIds = Array.from(new Set(midRouteEntries.map(m => m.route.id)));
+    logger.log(`[Routing] Mid-route candidates (top 15): ${midRouteIds.slice(0, 15).map(id => {
+      const entry = midRouteEntries.find(e => e.route.id === id);
+      return entry ? `${entry.route.shortName || id}(type=${entry.route.type})` : id;
+    }).join(', ')}`);
 
     // Batch query: find transfer points between mid routes and to routes
-    const midToTransfers = db.findTransferStops(midRouteIds.slice(0, 10), toRouteIdsArr, 20);
+    const midToTransfers = db.findTransferStops(midRouteIds.slice(0, 15), toRouteIdsArr, 20);
 
     for (const tp of midToTransfers) {
       if (twoTransferJourneys.length >= 3) break;
