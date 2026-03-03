@@ -1686,6 +1686,190 @@ export function getNearbyMultimodalStops(lat: number, lon: number, radiusMeters:
 }
 
 /**
+ * Find stops matching a hub name pattern for a specific route type.
+ * Used by hub-based routing to find stops like "Konak" for metro (type=1).
+ * Returns stops that serve routes of the given type.
+ */
+export function findStopsByNamePattern(hubName: string, routeType: number): Stop[] {
+  const database = openDatabase();
+
+  try {
+    // Map route type to stop ID prefix
+    const prefixMap: Record<number, string> = {
+      0: 'tram_',    // Tram
+      1: 'metro_',   // Metro
+      2: 'rail_',    // İZBAN
+      4: 'ferry_',   // Ferry
+    };
+    const prefix = prefixMap[routeType];
+
+    // Normalize hub name for Turkish character matching
+    const normalized = hubName.toLowerCase()
+      .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
+
+    // Strategy 1: search by ID prefix if we know it
+    if (prefix) {
+      const rows = database.getAllSync<any>(
+        `SELECT s.id, s.name, s.lat, s.lon, s.location_type, s.parent_station FROM stops s
+         WHERE s.id LIKE ?
+         AND s.location_type = 0
+         AND EXISTS (SELECT 1 FROM stop_times st
+                     JOIN trips t ON st.trip_id = t.trip_id
+                     JOIN routes r ON t.route_id = r.id
+                     WHERE st.stop_id = s.id AND r.type = ?)
+         LIMIT 10`,
+        [`${prefix}%`, routeType]
+      );
+
+      // Filter by name matching
+      const matching = rows.filter((row: any) => {
+        const stopNorm = row.name.toLowerCase()
+          .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+          .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+          .replace(/\s+(metro|iskele|ferry|istasyonu|tram|vapur|feribot)$/g, '')
+          .trim();
+        return stopNorm === normalized || stopNorm.startsWith(normalized + ' ') || stopNorm.includes(normalized);
+      });
+
+      if (matching.length > 0) {
+        return matching.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          lat: row.lat,
+          lon: row.lon,
+          locationType: row.location_type,
+          parentStation: row.parent_station,
+        }));
+      }
+    }
+
+    // Strategy 2: search by name pattern with route type join
+    const patterns = [`%${hubName}%`];
+    const rows = database.getAllSync<any>(
+      `SELECT DISTINCT s.id, s.name, s.lat, s.lon, s.location_type, s.parent_station FROM stops s
+       JOIN stop_times st ON st.stop_id = s.id
+       JOIN trips t ON st.trip_id = t.trip_id
+       JOIN routes r ON t.route_id = r.id
+       WHERE r.type = ?
+       AND s.location_type = 0
+       AND (LOWER(s.name) LIKE ?)
+       LIMIT 5`,
+      [routeType, ...patterns]
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      lat: row.lat,
+      lon: row.lon,
+      locationType: row.location_type,
+      parentStation: row.parent_station,
+    }));
+  } catch (error) {
+    logger.warn(`[Database] Failed to find stops for hub "${hubName}" type ${routeType}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Estimate travel time between two stops on a given route (or route type).
+ * Uses GTFS stop_times when available, falls back to distance-based estimate.
+ * Returns minutes, or null if estimation impossible.
+ */
+export function estimateTravelTime(
+  routeId: string | null,
+  fromStopId: string,
+  toStopId: string,
+  activeServiceIds: string[],
+  routeType?: number,
+): number | null {
+  const database = openDatabase();
+
+  try {
+    // Try GTFS-based estimate first
+    if (routeId && activeServiceIds.length > 0) {
+      const placeholders = activeServiceIds.map(() => '?').join(',');
+      const row = database.getFirstSync<any>(
+        `SELECT
+           MIN(ABS(st2.departure_time - st1.departure_time)) / 60 as travel_min
+         FROM stop_times st1
+         JOIN stop_times st2 ON st1.trip_id = st2.trip_id
+         JOIN trips t ON st1.trip_id = t.trip_id
+         WHERE t.route_id = ?
+         AND t.service_id IN (${placeholders})
+         AND st1.stop_id = ?
+         AND st2.stop_id = ?
+         AND st2.stop_sequence > st1.stop_sequence`,
+        [routeId, ...activeServiceIds, fromStopId, toStopId]
+      );
+
+      if (row?.travel_min && row.travel_min > 0 && row.travel_min < 180) {
+        return Math.round(row.travel_min);
+      }
+    }
+
+    // Try by route type (for mid-routes where we don't know exact route ID)
+    if (routeType !== undefined && activeServiceIds.length > 0) {
+      const placeholders = activeServiceIds.map(() => '?').join(',');
+      const row = database.getFirstSync<any>(
+        `SELECT
+           MIN(ABS(st2.departure_time - st1.departure_time)) / 60 as travel_min
+         FROM stop_times st1
+         JOIN stop_times st2 ON st1.trip_id = st2.trip_id
+         JOIN trips t ON st1.trip_id = t.trip_id
+         JOIN routes r ON t.route_id = r.id
+         WHERE r.type = ?
+         AND t.service_id IN (${placeholders})
+         AND st1.stop_id = ?
+         AND st2.stop_id = ?
+         AND st2.stop_sequence > st1.stop_sequence`,
+        [routeType, ...activeServiceIds, fromStopId, toStopId]
+      );
+
+      if (row?.travel_min && row.travel_min > 0 && row.travel_min < 180) {
+        return Math.round(row.travel_min);
+      }
+    }
+
+    // Fall back to distance-based estimate
+    const fromStop = database.getFirstSync<any>(
+      'SELECT lat, lon FROM stops WHERE id = ?', [fromStopId]
+    );
+    const toStop = database.getFirstSync<any>(
+      'SELECT lat, lon FROM stops WHERE id = ?', [toStopId]
+    );
+
+    if (fromStop && toStop) {
+      const R = 6371000;
+      const dLat = (toStop.lat - fromStop.lat) * Math.PI / 180;
+      const dLon = (toStop.lon - fromStop.lon) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(fromStop.lat * Math.PI / 180) * Math.cos(toStop.lat * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      // Speed by mode (m/min)
+      const speeds: Record<number, number> = {
+        1: 600,   // Metro: 36 km/h
+        2: 700,   // İZBAN: 42 km/h
+        0: 350,   // Tram: 21 km/h
+        4: 400,   // Ferry: 24 km/h (incl. docking)
+        3: 300,   // Bus: 18 km/h
+      };
+      const speed = speeds[routeType ?? 3] || 300;
+      const estimate = dist / speed;
+      return estimate > 0 ? Math.round(Math.max(estimate, 2)) : null;
+    }
+
+    return null;
+  } catch (error) {
+    logger.warn('[Database] Failed to estimate travel time:', error);
+    return null;
+  }
+}
+
+/**
  * Get trip info (headsign) for a route going FROM origin TO destination
  * This ensures we get the correct direction by checking stop sequence
  */

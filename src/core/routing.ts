@@ -20,6 +20,7 @@ import {
   isTransitOperating,
   izmirOperatingHours,
   IZMIR_NIGHT_BUS_LINES,
+  izmirMultimodalHubs,
 } from '../adapters/izmir/config';
 
 // Calcule la distance entre 2 points GPS (en mètres)
@@ -408,6 +409,191 @@ async function enrichWithHeadsigns(journeys: JourneyResult[]): Promise<void> {
         }
       }
     }
+  }
+}
+
+/** Get a signature string for a journey based on transit route names (e.g., "M1→Ferry→T1") */
+function getRouteSignature(journey: JourneyResult): string {
+  return journey.segments
+    .filter(s => s.type === 'transit')
+    .map(s => s.route?.shortName || s.route?.id || 'walk')
+    .join('→');
+}
+
+/**
+ * Build routes through known İzmir multimodal hubs.
+ * Uses the izmirMultimodalHubs config to find 2-transfer routes like M1→Ferry→T1
+ * where geographic proximity discovery may fail due to coordinate gaps.
+ */
+async function buildHubBasedRoutes(
+  fromStopId: string,
+  toStopId: string,
+  fromRoutes: Route[],
+  toRoutes: Route[],
+  departureTime: Date,
+  requestedTimeMinutes: number,
+  activeServiceIds: string[],
+): Promise<JourneyResult[]> {
+  const results: JourneyResult[] = [];
+
+  // Get mode types available at from and to
+  const fromModes = new Set(fromRoutes.map(r => r.type));
+  const toModes = new Set(toRoutes.map(r => r.type));
+
+  // Normalize hub name for matching
+  const normalizeForHub = (name: string): string =>
+    name.toLowerCase()
+      .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+      .replace(/\s+(metro|iskele|ferry|istasyonu|tram|vapur|feribot)$/g, '')
+      .trim();
+
+  // Find hub pairs: hub1 reachable from origin, hub2 reachable from destination,
+  // with an intermediate mode connecting hub1→hub2
+  for (const [hub1Name, hub1Info] of Object.entries(izmirMultimodalHubs)) {
+    for (const [hub2Name, hub2Info] of Object.entries(izmirMultimodalHubs)) {
+      if (hub1Name === hub2Name) continue;
+
+      // Find a mode shared between hub1 and hub2 that can serve as mid-route
+      // This mode should NOT be the same as origin or destination modes
+      const sharedMidModes = hub1Info.modes.filter(m => hub2Info.modes.includes(m));
+      if (sharedMidModes.length === 0) continue;
+
+      for (const midMode of sharedMidModes) {
+        // Check: origin has a route type that hub1 supports (for first leg)
+        const firstLegModes = hub1Info.modes.filter(m => m !== midMode && fromModes.has(m));
+        // Check: destination has a route type that hub2 supports (for last leg)
+        const lastLegModes = hub2Info.modes.filter(m => m !== midMode && toModes.has(m));
+
+        if (firstLegModes.length === 0 || lastLegModes.length === 0) continue;
+
+        // Prioritize rail/metro for first/last legs (lower type = higher priority: tram=0, metro=1, rail=2, bus=3, ferry=4)
+        const modePriority = (t: number) => t === 1 ? 0 : t === 2 ? 1 : t === 0 ? 2 : t === 4 ? 3 : 4;
+        const firstLegMode = firstLegModes.sort((a, b) => modePriority(a) - modePriority(b))[0];
+        const lastLegMode = lastLegModes.sort((a, b) => modePriority(a) - modePriority(b))[0];
+
+        // Skip all-bus combinations (not interesting as hub-based routes)
+        if (firstLegMode === 3 && midMode === 3 && lastLegMode === 3) continue;
+        // Skip if mid-mode is bus (we want rail/ferry/tram as connectors)
+        if (midMode === 3) continue;
+
+        // Find actual routes for each leg
+        const firstRoute = fromRoutes.find(r => r.type === firstLegMode);
+        const lastRoute = toRoutes.find(r => r.type === lastLegMode);
+        if (!firstRoute || !lastRoute) continue;
+
+        // Check operating hours
+        const firstOp = isTransitOperating(firstLegMode, requestedTimeMinutes, firstRoute.shortName);
+        const midOp = isTransitOperating(midMode, requestedTimeMinutes);
+        const lastOp = isTransitOperating(lastLegMode, requestedTimeMinutes, lastRoute.shortName);
+        if (!firstOp || !midOp || !lastOp) continue;
+
+        // Find stops at hub1 and hub2 matching the modes
+        const hub1Stops = await db.findStopsByNamePattern(hub1Name, firstLegMode);
+        const hub2Stops = await db.findStopsByNamePattern(hub2Name, lastLegMode);
+        const hub1MidStops = await db.findStopsByNamePattern(hub1Name, midMode);
+        const hub2MidStops = await db.findStopsByNamePattern(hub2Name, midMode);
+
+        if (hub1Stops.length === 0 || hub2Stops.length === 0 ||
+            hub1MidStops.length === 0 || hub2MidStops.length === 0) continue;
+
+        // Estimate durations for each leg using GTFS data or distance
+        const fromActualId = (firstRoute as RouteWithStopId).actualStopId || fromStopId;
+        const dur1 = db.estimateTravelTime(firstRoute.id, fromActualId, hub1Stops[0].id, activeServiceIds);
+        const dur2Mid = db.estimateTravelTime(null, hub1MidStops[0].id, hub2MidStops[0].id, activeServiceIds, midMode);
+        const toActualId = (lastRoute as RouteWithStopId).actualStopId || toStopId;
+        const dur3 = db.estimateTravelTime(lastRoute.id, hub2Stops[0].id, toActualId, activeServiceIds);
+
+        if (dur1 === null || dur2Mid === null || dur3 === null) continue;
+        if (dur1 <= 0 || dur2Mid <= 0 || dur3 <= 0) continue;
+
+        const transfer1Time = hub1Info.transferTime;
+        const transfer2Time = hub2Info.transferTime;
+        const waitMid = getAverageWaitTime(midMode);
+        const waitLast = getAverageWaitTime(lastLegMode);
+        const totalDuration = dur1 + transfer1Time + waitMid + dur2Mid + transfer2Time + waitLast + dur3;
+
+        if (totalDuration > MAX_JOURNEY_DURATION_MIN || totalDuration <= 0) continue;
+
+        // Build the journey
+        const hub1Stop = hub1Stops[0];
+        const hub2Stop = hub2Stops[0];
+
+        const journey: JourneyResult = {
+          segments: [
+            {
+              type: 'transit',
+              from: { id: fromStopId, name: '', lat: 0, lon: 0, locationType: 0 },
+              to: hub1Stop,
+              route: firstRoute,
+              departureTime: departureTime,
+              arrivalTime: new Date(departureTime.getTime() + dur1 * 60000),
+              duration: dur1,
+            },
+            {
+              type: 'walk',
+              from: hub1Stop,
+              to: hub1MidStops[0],
+              duration: transfer1Time,
+              distance: transfer1Time * 60, // rough: 1m/s walking
+            },
+            {
+              type: 'transit',
+              from: hub1MidStops[0],
+              to: hub2MidStops[0],
+              route: { id: `hub_mid_${midMode}`, shortName: getModeLabel(midMode), type: midMode, longName: '', color: '', textColor: '' },
+              departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid) * 60000),
+              arrivalTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid + dur2Mid) * 60000),
+              duration: dur2Mid,
+            },
+            {
+              type: 'walk',
+              from: hub2MidStops[0],
+              to: hub2Stop,
+              duration: transfer2Time,
+              distance: transfer2Time * 60,
+            },
+            {
+              type: 'transit',
+              from: hub2Stop,
+              to: { id: toStopId, name: '', lat: 0, lon: 0, locationType: 0 },
+              route: lastRoute,
+              departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid + dur2Mid + transfer2Time + waitLast) * 60000),
+              arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+              duration: dur3,
+            },
+          ],
+          totalDuration: Math.round(totalDuration),
+          totalWalkDistance: (transfer1Time + transfer2Time) * 60,
+          numberOfTransfers: 2,
+          departureTime: departureTime,
+          arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),
+          tags: [],
+        };
+
+        results.push(journey);
+        logger.log(`[Routing] Hub route: ${firstRoute.shortName}(${hub1Name})→${getModeLabel(midMode)}(${hub2Name})→${lastRoute.shortName} = ${Math.round(totalDuration)}min`);
+
+        if (results.length >= 3) break;
+      }
+      if (results.length >= 3) break;
+    }
+    if (results.length >= 3) break;
+  }
+
+  // Sort by duration
+  results.sort((a, b) => a.totalDuration - b.totalDuration);
+  return results.slice(0, 2);
+}
+
+/** Get a human label for a route type */
+function getModeLabel(type: number): string {
+  switch (type) {
+    case 0: return 'Tram';
+    case 1: return 'Metro';
+    case 2: return 'İZBAN';
+    case 4: return 'Ferry';
+    default: return 'Bus';
   }
 }
 
@@ -1090,6 +1276,27 @@ export async function findRoute(
       twoTransferJourneys.sort((a, b) => a.totalDuration - b.totalDuration);
       journeys.push(...twoTransferJourneys.slice(0, 2));
       logger.log(`[Routing] Found ${twoTransferJourneys.length} 2-transfer routes`);
+    }
+  }
+
+  // 5b. Hub-based multimodal routing: explicitly build routes through known İzmir hubs
+  //     This is more reliable than proximity-based discovery for M1+Ferry+T1 type routes
+  //     Uses izmirMultimodalHubs config which defines which modes connect at each hub
+  if (journeys.length < 8) {
+    const hubJourneys = await buildHubBasedRoutes(
+      fromStopId, toStopId, fromRoutes, toRoutes, departureTime,
+      requestedTimeMinutes, activeServiceIds ? Array.from(activeServiceIds) : []
+    );
+    if (hubJourneys.length > 0) {
+      // Only add hub routes that are genuinely different from existing journeys
+      for (const hj of hubJourneys) {
+        const sig = getRouteSignature(hj);
+        const isDuplicate = journeys.some(j => getRouteSignature(j) === sig);
+        if (!isDuplicate) {
+          journeys.push(hj);
+          logger.log(`[Routing] Added hub-based route: ${sig} (${hj.totalDuration}min)`);
+        }
+      }
     }
   }
 
@@ -2026,14 +2233,6 @@ export async function findMultipleRoutes(
       return [buildWalkingJourney('no-transit-service')];
     }
 
-    // Helper to get route signature (unique key by transit lines used)
-    const getRouteSignature = (journey: JourneyResult): string => {
-      return journey.segments
-        .filter(s => s.type === 'transit')
-        .map(s => s.route?.shortName || s.route?.id || 'walk')
-        .join('→');
-    };
-
     // Helper to filter routes by preferences
     const filterByPreferences = (routes: JourneyResult[]): JourneyResult[] => {
       return routes.filter((journey) => {
@@ -2180,18 +2379,26 @@ export async function findMultipleRoutes(
     // 9. Take top routes
     let topRoutes = scoredRoutes.slice(0, maxRoutes).map((r) => r.journey);
 
-    // 9b. If the best route is direct (0 transfers) and shortest, limit to 1 alternative
-    // This avoids cluttering results with inferior multi-transfer options when a direct route exists
-    if (topRoutes.length > 2) {
+    // 9b. Smart alternative limiting based on best route quality
+    if (topRoutes.length > 1) {
       const best = topRoutes[0];
-      const bestIsDirectOrLowTransfer = best.numberOfTransfers <= 1;
-      const bestIsShortest = topRoutes.every(r => r.totalDuration >= best.totalDuration);
-      if (bestIsDirectOrLowTransfer && bestIsShortest) {
-        // Keep best + 1 alternative (preferably a different route pattern)
+      const transitSegments = best.segments.filter(s => s.type === 'transit');
+
+      // Check if best route is a single rail/metro/tram line (direct, no transfers)
+      const isSingleRailLine = transitSegments.length === 1 &&
+        transitSegments[0].route &&
+        [0, 1, 2].includes(transitSegments[0].route.type); // tram=0, metro=1, rail=2
+
+      if (isSingleRailLine) {
+        // Direct metro/tram route: show ONLY this route, no alternatives
+        topRoutes = [best];
+        logger.log(`[Routing] Direct ${transitSegments[0].route?.shortName} route, showing single result`);
+      } else if (best.numberOfTransfers <= 1 && topRoutes.every(r => r.totalDuration >= best.totalDuration)) {
+        // Other direct/1-transfer routes that are fastest: keep 1 alternative
         const bestSig = getRouteSignature(best);
         const alternative = topRoutes.slice(1).find(r => getRouteSignature(r) !== bestSig) || topRoutes[1];
         topRoutes = alternative ? [best, alternative] : [best];
-        logger.log(`[Routing] Direct/simple route is fastest, limiting to 2 results`);
+        logger.log(`[Routing] Simple route is fastest, limiting to 2 results`);
       }
     }
 
