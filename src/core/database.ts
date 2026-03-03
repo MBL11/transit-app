@@ -1708,32 +1708,27 @@ export function findStopsByNamePattern(hubName: string, routeType: number): Stop
       .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
       .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
 
-    // Strategy 1: search by ID prefix if we know it
+    // Strategy 1: search by ID prefix + name pattern in SQL
+    // Must filter by name in SQL (not just JS) because LIMIT 10 without name filter
+    // would miss stops like "Konak Ferry" if there are >10 ferry stops
     if (prefix) {
+      // Build multiple LIKE patterns to match Turkish variations
+      const namePatterns = [
+        `%${hubName}%`,           // Original (e.g., %karşıyaka%)
+        `%${normalized}%`,        // Normalized (e.g., %karsiyaka%)
+      ];
       const rows = database.getAllSync<any>(
         `SELECT s.id, s.name, s.lat, s.lon, s.location_type, s.parent_station FROM stops s
          WHERE s.id LIKE ?
-         AND s.location_type = 0
-         AND EXISTS (SELECT 1 FROM stop_times st
-                     JOIN trips t ON st.trip_id = t.trip_id
-                     JOIN routes r ON t.route_id = r.id
-                     WHERE st.stop_id = s.id AND r.type = ?)
+         AND s.location_type IN (0, 1)
+         AND (LOWER(s.name) LIKE ? OR LOWER(s.name) LIKE ?)
          LIMIT 10`,
-        [`${prefix}%`, routeType]
+        [`${prefix}%`, namePatterns[0].toLowerCase(), namePatterns[1]]
       );
 
-      // Filter by name matching
-      const matching = rows.filter((row: any) => {
-        const stopNorm = row.name.toLowerCase()
-          .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
-          .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
-          .replace(/\s+(metro|iskele|ferry|istasyonu|tram|vapur|feribot)$/g, '')
-          .trim();
-        return stopNorm === normalized || stopNorm.startsWith(normalized + ' ') || stopNorm.includes(normalized);
-      });
-
-      if (matching.length > 0) {
-        return matching.map((row: any) => ({
+      if (rows.length > 0) {
+        logger.log(`[Database] findStopsByNamePattern("${hubName}", type=${routeType}): found ${rows.length} stops: ${rows.map((r: any) => r.name).join(', ')}`);
+        return rows.map((row: any) => ({
           id: row.id,
           name: row.name,
           lat: row.lat,
@@ -1744,19 +1739,19 @@ export function findStopsByNamePattern(hubName: string, routeType: number): Stop
       }
     }
 
-    // Strategy 2: search by name pattern with route type join
-    const patterns = [`%${hubName}%`];
+    // Strategy 2: search by name pattern with route type join (no prefix filter)
     const rows = database.getAllSync<any>(
       `SELECT DISTINCT s.id, s.name, s.lat, s.lon, s.location_type, s.parent_station FROM stops s
        JOIN stop_times st ON st.stop_id = s.id
        JOIN trips t ON st.trip_id = t.trip_id
        JOIN routes r ON t.route_id = r.id
        WHERE r.type = ?
-       AND s.location_type = 0
-       AND (LOWER(s.name) LIKE ?)
+       AND s.location_type IN (0, 1)
+       AND (LOWER(s.name) LIKE ? OR LOWER(s.name) LIKE ?)
        LIMIT 5`,
-      [routeType, ...patterns]
+      [routeType, `%${hubName.toLowerCase()}%`, `%${normalized}%`]
     );
+    logger.log(`[Database] findStopsByNamePattern("${hubName}", type=${routeType}) strategy2: ${rows.length} stops`);
 
     return rows.map((row: any) => ({
       id: row.id,

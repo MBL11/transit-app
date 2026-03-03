@@ -495,7 +495,12 @@ async function buildHubBasedRoutes(
         const hub2MidStops = await db.findStopsByNamePattern(hub2Name, midMode);
 
         if (hub1Stops.length === 0 || hub2Stops.length === 0 ||
-            hub1MidStops.length === 0 || hub2MidStops.length === 0) continue;
+            hub1MidStops.length === 0 || hub2MidStops.length === 0) {
+          logger.log(`[Routing] Hub ${hub1Name}→${hub2Name} (mid=${getModeLabel(midMode)}): missing stops - hub1=${hub1Stops.length}, hub2=${hub2Stops.length}, mid1=${hub1MidStops.length}, mid2=${hub2MidStops.length}`);
+          continue;
+        }
+
+        logger.log(`[Routing] Hub candidate: ${firstRoute.shortName}@${hub1Name}(${hub1Stops[0].name}) → ${getModeLabel(midMode)}(${hub1MidStops[0].name}→${hub2MidStops[0].name}) → ${lastRoute.shortName}@${hub2Name}(${hub2Stops[0].name})`);
 
         // Estimate durations for each leg using GTFS data or distance
         const fromActualId = (firstRoute as RouteWithStopId).actualStopId || fromStopId;
@@ -504,8 +509,14 @@ async function buildHubBasedRoutes(
         const toActualId = (lastRoute as RouteWithStopId).actualStopId || toStopId;
         const dur3 = db.estimateTravelTime(lastRoute.id, hub2Stops[0].id, toActualId, activeServiceIds);
 
-        if (dur1 === null || dur2Mid === null || dur3 === null) continue;
-        if (dur1 <= 0 || dur2Mid <= 0 || dur3 <= 0) continue;
+        if (dur1 === null || dur2Mid === null || dur3 === null) {
+          logger.log(`[Routing] Hub ${hub1Name}→${hub2Name}: duration estimation failed - dur1=${dur1}, dur2=${dur2Mid}, dur3=${dur3}`);
+          continue;
+        }
+        if (dur1 <= 0 || dur2Mid <= 0 || dur3 <= 0) {
+          logger.log(`[Routing] Hub ${hub1Name}→${hub2Name}: zero/negative duration - dur1=${dur1}, dur2=${dur2Mid}, dur3=${dur3}`);
+          continue;
+        }
 
         const transfer1Time = hub1Info.transferTime;
         const transfer2Time = hub2Info.transferTime;
