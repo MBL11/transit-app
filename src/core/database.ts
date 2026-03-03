@@ -1743,7 +1743,7 @@ export function findStopsByNamePattern(hubName: string, routeType: number): Stop
     const rows = database.getAllSync<any>(
       `SELECT DISTINCT s.id, s.name, s.lat, s.lon, s.location_type, s.parent_station FROM stops s
        JOIN stop_times st ON st.stop_id = s.id
-       JOIN trips t ON st.trip_id = t.trip_id
+       JOIN trips t ON st.trip_id = t.id
        JOIN routes r ON t.route_id = r.id
        WHERE r.type = ?
        AND s.location_type IN (0, 1)
@@ -1790,7 +1790,7 @@ export function estimateTravelTime(
            MIN(ABS(st2.departure_time - st1.departure_time)) / 60 as travel_min
          FROM stop_times st1
          JOIN stop_times st2 ON st1.trip_id = st2.trip_id
-         JOIN trips t ON st1.trip_id = t.trip_id
+         JOIN trips t ON st1.trip_id = t.id
          WHERE t.route_id = ?
          AND t.service_id IN (${placeholders})
          AND st1.stop_id = ?
@@ -1812,7 +1812,7 @@ export function estimateTravelTime(
            MIN(ABS(st2.departure_time - st1.departure_time)) / 60 as travel_min
          FROM stop_times st1
          JOIN stop_times st2 ON st1.trip_id = st2.trip_id
-         JOIN trips t ON st1.trip_id = t.trip_id
+         JOIN trips t ON st1.trip_id = t.id
          JOIN routes r ON t.route_id = r.id
          WHERE r.type = ?
          AND t.service_id IN (${placeholders})
