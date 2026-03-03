@@ -5,6 +5,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import JSZip from 'jszip';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseGTFSFeed, validateGTFSData } from './gtfs-parser';
 import * as db from './database';
 import { downloadAndImportEshot } from './eshot-data-fetcher';
@@ -14,6 +15,11 @@ import { generateT1T2TramData } from './tram-t1t2-data';
 import { generateEshotFallbackData } from './eshot-fallback-data';
 import { logger } from '../utils/logger';
 import { captureException } from '../services/crash-reporting';
+
+// Data version for manually-generated transit data (M1, T1/T2, T3).
+// Increment this when the data format changes (e.g., M1 timing, station names)
+// to force a reimport on next app start via ensureManualTransitData().
+const MANUAL_TRANSIT_DATA_VERSION = 2; // v2: M1 per-station cumulative timing + ferry İskelesi→Ferry rename
 
 // Available GTFS sources - İzmir official open data
 // Source: https://acikveri.bizizmir.com/en/dataset/toplu-ulasim-gtfs-verileri
@@ -726,8 +732,16 @@ export async function ensureManualTransitData(): Promise<{ imported: string[] }>
   const imported: string[] = [];
 
   try {
+    // Check data version: if the stored version is outdated, force reimport of ALL manual data
+    const storedVersion = await AsyncStorage.getItem('@manual_transit_data_version');
+    const currentVersion = String(MANUAL_TRANSIT_DATA_VERSION);
+    const needsFullReimport = storedVersion !== currentVersion;
+    if (needsFullReimport) {
+      logger.log(`[GTFSDownloader] Manual transit data version changed: ${storedVersion} → ${currentVersion}, forcing reimport`);
+    }
+
     // Check M1 Metro
-    if (!db.hasStopTimesForRoute('metro_m1')) {
+    if (needsFullReimport || !db.hasStopTimesForRoute('metro_m1')) {
       logger.log('[GTFSDownloader] ⚠️ M1 Metro data missing, importing...');
 
       // Clean up ALL metro data before importing manual M1
@@ -758,8 +772,17 @@ export async function ensureManualTransitData(): Promise<{ imported: string[] }>
     }
 
     // Check T1 Tram (Karşıyaka)
-    if (!db.hasStopTimesForRoute('tram_t1')) {
-      logger.log('[GTFSDownloader] ⚠️ T1/T2 Tram data missing, importing...');
+    if (needsFullReimport || !db.hasStopTimesForRoute('tram_t1')) {
+      logger.log('[GTFSDownloader] ⚠️ T1/T2 Tram data missing or outdated, importing...');
+      // Clean up old tram data before reimporting
+      if (needsFullReimport) {
+        try {
+          const database = db.openDatabase();
+          database.runSync(`DELETE FROM stop_times WHERE trip_id IN (SELECT id FROM trips WHERE route_id IN ('tram_t1', 'tram_t2'))`);
+          database.runSync(`DELETE FROM trips WHERE route_id IN ('tram_t1', 'tram_t2')`);
+          database.runSync(`DELETE FROM stops WHERE id LIKE 'tram_t1_%' OR id LIKE 'tram_t2_%'`);
+        } catch (e) { logger.warn('[GTFSDownloader] T1/T2 cleanup failed:', e); }
+      }
       const tramData = generateT1T2TramData();
       await db.insertRoutes(tramData.routes);
       await db.insertStops(tramData.stops);
@@ -774,7 +797,7 @@ export async function ensureManualTransitData(): Promise<{ imported: string[] }>
     }
 
     // Check T3 Tram (Çiğli)
-    if (!db.hasStopTimesForRoute('tram_t3_red') && !db.hasStopTimesForRoute('tram_t3_blue')) {
+    if (needsFullReimport || (!db.hasStopTimesForRoute('tram_t3_red') && !db.hasStopTimesForRoute('tram_t3_blue'))) {
       logger.log('[GTFSDownloader] ⚠️ T3 Tram data missing, importing...');
       const t3Data = generateT3CigliData();
       await db.insertRoutes(t3Data.routes);
@@ -789,10 +812,12 @@ export async function ensureManualTransitData(): Promise<{ imported: string[] }>
       logger.log(`[GTFSDownloader] ✅ T3 Tram imported: ${t3Data.stops.length} stops, ${t3Data.trips.length} trips, ${t3Data.stopTimes.length} stop_times`);
     }
 
-    if (imported.length > 0) {
+    if (imported.length > 0 || needsFullReimport) {
       // Also ensure calendar entries exist for the imported services
       await db.ensureManualServiceCalendars();
-      logger.log(`[GTFSDownloader] ✅ Auto-repaired missing transit data: ${imported.join(', ')}`);
+      // Save the current version so we don't reimport again next time
+      await AsyncStorage.setItem('@manual_transit_data_version', currentVersion);
+      logger.log(`[GTFSDownloader] ✅ Auto-repaired missing transit data: ${imported.join(', ')} (version=${currentVersion})`);
     }
 
     // Ensure all İskelesi/İskele stops are renamed to Ferry in the database
