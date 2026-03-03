@@ -526,15 +526,22 @@ async function buildHubBasedRoutes(
 
         if (totalDuration > MAX_JOURNEY_DURATION_MIN || totalDuration <= 0) continue;
 
-        // Build the journey
+        // Build the journey - fetch actual stop data for origin and destination
         const hub1Stop = hub1Stops[0];
         const hub2Stop = hub2Stops[0];
+        const fromStop = await db.getStopById(fromStopId);
+        const toStop = await db.getStopById(toStopId);
+        const fromStopData: Stop = fromStop || { id: fromStopId, name: fromStopId, lat: 0, lon: 0, locationType: 0 };
+        const toStopData: Stop = toStop || { id: toStopId, name: toStopId, lat: 0, lon: 0, locationType: 0 };
+
+        // Find the actual mid-route for better display (instead of generic "Ferry"/"İZBAN")
+        const midRouteActual = db.findRouteByTypeAtStop(hub1MidStops[0].id, midMode);
 
         const journey: JourneyResult = {
           segments: [
             {
               type: 'transit',
-              from: { id: fromStopId, name: '', lat: 0, lon: 0, locationType: 0 },
+              from: fromStopData,
               to: hub1Stop,
               route: firstRoute,
               departureTime: departureTime,
@@ -552,7 +559,7 @@ async function buildHubBasedRoutes(
               type: 'transit',
               from: hub1MidStops[0],
               to: hub2MidStops[0],
-              route: { id: `hub_mid_${midMode}`, shortName: getModeLabel(midMode), type: midMode, longName: '', color: '', textColor: '' },
+              route: midRouteActual || { id: `hub_mid_${midMode}`, shortName: getModeLabel(midMode), type: midMode, longName: '', color: '', textColor: '' },
               departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid) * 60000),
               arrivalTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid + dur2Mid) * 60000),
               duration: dur2Mid,
@@ -567,7 +574,7 @@ async function buildHubBasedRoutes(
             {
               type: 'transit',
               from: hub2Stop,
-              to: { id: toStopId, name: '', lat: 0, lon: 0, locationType: 0 },
+              to: toStopData,
               route: lastRoute,
               departureTime: new Date(departureTime.getTime() + (dur1 + transfer1Time + waitMid + dur2Mid + transfer2Time + waitLast) * 60000),
               arrivalTime: new Date(departureTime.getTime() + totalDuration * 60000),

@@ -1865,6 +1865,41 @@ export function estimateTravelTime(
 }
 
 /**
+ * Find the first route of a given type that serves a specific stop.
+ * Used to get the actual route object (with name, color) for hub-based mid-routes.
+ */
+export function findRouteByTypeAtStop(stopId: string, routeType: number): Route | null {
+  const database = openDatabase();
+
+  try {
+    const row = database.getFirstSync<any>(
+      `SELECT DISTINCT r.id, r.short_name, r.long_name, r.type, r.color, r.text_color
+       FROM routes r
+       JOIN trips t ON t.route_id = r.id
+       JOIN stop_times st ON st.trip_id = t.id
+       WHERE st.stop_id = ?
+       AND r.type = ?
+       LIMIT 1`,
+      [stopId, routeType]
+    );
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      shortName: row.short_name || '',
+      longName: row.long_name || '',
+      type: row.type,
+      color: row.color || '',
+      textColor: row.text_color || '',
+    };
+  } catch (error) {
+    logger.warn(`[Database] Failed to find route type ${routeType} at stop ${stopId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Get trip info (headsign) for a route going FROM origin TO destination
  * This ensures we get the correct direction by checking stop sequence
  */
