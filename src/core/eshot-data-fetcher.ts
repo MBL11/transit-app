@@ -29,11 +29,12 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000; // 2 seconds, doubles each retry
 
 // Maximum departures per route to keep database size manageable
-// With ~73 stops/route avg, 5 departures * 2 directions * 73 stops * 428 routes ≈ 312K stop_times
-const MAX_DEPARTURES_PER_ROUTE = 5;
+// With ~73 stops/route avg, 8 departures * 2 directions * 73 stops * 428 routes ≈ 500K stop_times
+const MAX_DEPARTURES_PER_ROUTE = 8;
 
-// Maximum stops to link per route (some routes have 100+ stops, cap for performance)
-const MAX_STOPS_PER_ROUTE = 40;
+// Maximum stops to link per route - must include ALL stops for routing to work
+// Some routes have 100+ stops, but we need them all for complete coverage
+const MAX_STOPS_PER_ROUTE = 200;
 
 // ============================================================================
 // CKAN API Types
