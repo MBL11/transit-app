@@ -6,6 +6,7 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { logger } from '../../utils/logger';
+import { captureException } from '../../services/crash-reporting';
 
 interface Props {
   children: ReactNode;
@@ -52,8 +53,11 @@ export class ErrorBoundary extends Component<Props, State> {
       this.props.onError(error, errorInfo);
     }
 
-    // TODO: Send to error tracking service (Sentry, etc.)
-    // logErrorToService(error, errorInfo);
+    // Send to Sentry
+    captureException(error, {
+      tags: { location: 'error_boundary' },
+      extra: { componentStack: errorInfo.componentStack },
+    });
   }
 
   resetError = () => {
