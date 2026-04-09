@@ -320,15 +320,19 @@ export async function downloadAndImportAllIzmir(
 
       logger.log(`[GTFSDownloader] Importing ${sourceInfo.name} (${i + 1}/${totalSources})...`);
 
+      let zipUri: string;
+      let gtfsFiles: Awaited<ReturnType<typeof extractGTFSZip>>;
+
+      try {
       // Download ZIP
       onProgress?.('downloading', baseProgress, sourceInfo.name);
-      const zipUri = await downloadGTFSZip(sourceInfo.url, (progress) => {
+      zipUri = await downloadGTFSZip(sourceInfo.url, (progress) => {
         onProgress?.('downloading', baseProgress + progress * progressPerSource * 0.3, sourceInfo.name);
       });
 
       // Extract ZIP
       onProgress?.('extracting', baseProgress + progressPerSource * 0.3, sourceInfo.name);
-      const gtfsFiles = await extractGTFSZip(zipUri);
+      gtfsFiles = await extractGTFSZip(zipUri);
 
       // Parse GTFS data
       onProgress?.('parsing', baseProgress + progressPerSource * 0.5, sourceInfo.name);
@@ -432,6 +436,16 @@ export async function downloadAndImportAllIzmir(
       totalStopTimes += parsedData.stopTimes.length;
 
       onProgress?.('importing', baseProgress + progressPerSource, sourceInfo.name);
+
+      } catch (sourceError) {
+        // Individual source download/import failed (SSL, network, etc.)
+        // Continue with remaining sources instead of failing the entire import
+        logger.warn(`[GTFSDownloader] ⚠️ ${sourceInfo.name} download failed (non-fatal), skipping:`, sourceError);
+        captureException(sourceError as Error, {
+          tags: { module: 'gtfs', action: 'download_source', source: sourceInfo.name },
+        });
+        onProgress?.('importing', baseProgress + progressPerSource, sourceInfo.name);
+      }
     }
 
     // Import T3 Cigli tram data (not in official GTFS, generated from OSM + timetables)
@@ -660,6 +674,11 @@ export async function downloadAndImportAllIzmir(
       trips: totalTrips,
       stopTimes: totalStopTimes,
     };
+
+    // If we have at least some data (manual data always works), consider it a success
+    if (result.stops === 0 && result.routes === 0) {
+      throw new Error('No transit data could be loaded from any source');
+    }
 
     logger.log('[GTFSDownloader] ✅ İzmir combined import complete:', result);
     return result;

@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { downloadAndImportAllIzmir, GTFS_SOURCES } from '../core/gtfs-downloader';
+import { downloadAndImportAllIzmir, ensureManualTransitData, GTFS_SOURCES } from '../core/gtfs-downloader';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { logger } from '../utils/logger';
 
@@ -176,6 +176,29 @@ export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
     return STAGE_LABELS[stageName]?.[lang] || stageName;
   };
 
+  const loadOfflineData = async () => {
+    try {
+      setError(null);
+      setStage('importing');
+      setProgress(0.5);
+      setCurrentSource(i18n.language === 'tr' ? 'Çevrimdışı veri' : 'Offline data');
+
+      // Use manual/fallback data generators which don't need network
+      await ensureManualTransitData();
+
+      setStats({ stops: 0, routes: 0, trips: 0, stopTimes: 0 }); // Approximate
+      setStage('complete');
+      setProgress(1);
+
+      setTimeout(() => {
+        onComplete('İzmir (offline)');
+      }, 1500);
+    } catch (offlineErr) {
+      logger.error('[DataLoadingScreen] Offline fallback also failed:', offlineErr);
+      setError(offlineErr instanceof Error ? offlineErr.message : 'Offline fallback failed');
+    }
+  };
+
   if (error) {
     return (
       <View style={styles.container}>
@@ -183,10 +206,18 @@ export function DataLoadingScreen({ onComplete }: DataLoadingScreenProps) {
         <Text style={styles.subtitle}>Metro • Tram • İZBAN • Ferry</Text>
 
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>❌</Text>
+          <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadData}>
             <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: '#666', marginTop: 12 }]}
+            onPress={loadOfflineData}
+          >
+            <Text style={styles.retryButtonText}>
+              {i18n.language === 'tr' ? 'Çevrimdışı Devam Et' : i18n.language === 'fr' ? 'Continuer hors ligne' : 'Continue Offline'}
+            </Text>
           </TouchableOpacity>
         </View>
 

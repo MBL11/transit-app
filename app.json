@@ -40,7 +40,8 @@
       "expo-sqlite",
       "expo-localization",
       "expo-location",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "./plugins/withNetworkSecurityConfig"
     ],
     "extra": {
       "eas": {

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </base-config>
+    <!-- Trust specific İzmir transit GTFS servers -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">izmirmetro.com.tr</domain>
+        <domain includeSubdomains="true">tramizmir.com</domain>
+        <domain includeSubdomains="true">izban.com.tr</domain>
+        <domain includeSubdomains="true">izdeniz.com.tr</domain>
+        <domain includeSubdomains="true">eshot.gov.tr</domain>
+        <domain includeSubdomains="true">acikveri.bizizmir.com</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
