@@ -6,7 +6,6 @@
             <certificates src="user"/>
         </trust-anchors>
     </base-config>
-    <!-- Trust specific İzmir transit GTFS servers -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">izmirmetro.com.tr</domain>
         <domain includeSubdomains="true">tramizmir.com</domain>

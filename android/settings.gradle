@@ -31,7 +31,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
-rootProject.name = 'İzmir Metro & Otobüs'
+rootProject.name = 'Izmir Metro Otobus'
 
 expoAutolinking.useExpoVersionCatalog()
 
