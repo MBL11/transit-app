@@ -10,11 +10,30 @@ import { getIzmirTime } from '../utils/time';
 
 const DATABASE_NAME = 'transit.db';
 
+// Cache the database instance to avoid repeated native calls
+// and race conditions on startup before the native module is ready
+let cachedDatabase: SQLite.SQLiteDatabase | null = null;
+
 /**
- * Open database connection
+ * Open database connection.
+ * Uses a cached singleton to avoid race conditions on startup where
+ * the native expo-sqlite module may not be fully initialized, which
+ * previously caused NullPointerException on execSync calls.
  */
 export function openDatabase(): SQLite.SQLiteDatabase {
-  return SQLite.openDatabaseSync(DATABASE_NAME);
+  if (cachedDatabase) {
+    return cachedDatabase;
+  }
+
+  try {
+    cachedDatabase = SQLite.openDatabaseSync(DATABASE_NAME);
+    return cachedDatabase;
+  } catch (error) {
+    logger.error('[Database] Failed to open database:', error);
+    // Retry once - the native module may have just finished loading
+    cachedDatabase = SQLite.openDatabaseSync(DATABASE_NAME);
+    return cachedDatabase;
+  }
 }
 
 /**
