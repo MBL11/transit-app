@@ -13,12 +13,67 @@ const DATABASE_NAME = 'transit.db';
 // Cache the database instance to avoid repeated native calls
 // and race conditions on startup before the native module is ready
 let cachedDatabase: SQLite.SQLiteDatabase | null = null;
+let tablesCreated = false;
+
+/**
+ * Create all tables if they don't exist.
+ * Called automatically on first openDatabase() to prevent race conditions
+ * where queries run before initializeDatabase() is called.
+ * Uses CREATE TABLE IF NOT EXISTS so it's safe to call multiple times.
+ */
+function ensureTablesExist(db: SQLite.SQLiteDatabase): void {
+  if (tablesCreated) return;
+
+  try {
+    db.execSync('PRAGMA journal_mode=WAL;');
+
+    db.execSync(`CREATE TABLE IF NOT EXISTS stops (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL,
+      location_type INTEGER DEFAULT 0, parent_station TEXT);`);
+
+    db.execSync(`CREATE TABLE IF NOT EXISTS routes (
+      id TEXT PRIMARY KEY, short_name TEXT NOT NULL, long_name TEXT NOT NULL,
+      type INTEGER NOT NULL, color TEXT NOT NULL, text_color TEXT NOT NULL);`);
+
+    db.execSync(`CREATE TABLE IF NOT EXISTS trips (
+      id TEXT PRIMARY KEY, route_id TEXT NOT NULL, service_id TEXT NOT NULL,
+      headsign TEXT, direction_id INTEGER DEFAULT 0, shape_id TEXT,
+      FOREIGN KEY (route_id) REFERENCES routes(id));`);
+
+    db.execSync(`CREATE TABLE IF NOT EXISTS stop_times (
+      trip_id TEXT NOT NULL, arrival_time TEXT NOT NULL, departure_time TEXT NOT NULL,
+      stop_id TEXT NOT NULL, stop_sequence INTEGER NOT NULL,
+      PRIMARY KEY (trip_id, stop_sequence),
+      FOREIGN KEY (trip_id) REFERENCES trips(id), FOREIGN KEY (stop_id) REFERENCES stops(id));`);
+
+    db.execSync(`CREATE TABLE IF NOT EXISTS shapes (
+      shape_id TEXT NOT NULL, shape_pt_lat REAL NOT NULL, shape_pt_lon REAL NOT NULL,
+      shape_pt_sequence INTEGER NOT NULL, PRIMARY KEY (shape_id, shape_pt_sequence));`);
+
+    db.execSync(`CREATE TABLE IF NOT EXISTS calendar (
+      service_id TEXT PRIMARY KEY, monday INTEGER NOT NULL DEFAULT 0,
+      tuesday INTEGER NOT NULL DEFAULT 0, wednesday INTEGER NOT NULL DEFAULT 0,
+      thursday INTEGER NOT NULL DEFAULT 0, friday INTEGER NOT NULL DEFAULT 0,
+      saturday INTEGER NOT NULL DEFAULT 0, sunday INTEGER NOT NULL DEFAULT 0,
+      start_date TEXT NOT NULL, end_date TEXT NOT NULL);`);
+
+    db.execSync(`CREATE TABLE IF NOT EXISTS calendar_dates (
+      service_id TEXT NOT NULL, date TEXT NOT NULL, exception_type INTEGER NOT NULL,
+      PRIMARY KEY (service_id, date));`);
+
+    tablesCreated = true;
+  } catch (error) {
+    logger.error('[Database] Failed to ensure tables exist:', error);
+    // Don't set tablesCreated - will retry next call
+  }
+}
 
 /**
  * Open database connection.
  * Uses a cached singleton to avoid race conditions on startup where
  * the native expo-sqlite module may not be fully initialized, which
- * previously caused NullPointerException on execSync calls.
+ * previously caused NullPointerException on execSync/prepareSync calls.
+ * Also creates tables on first open to prevent queries before init.
  */
 export function openDatabase(): SQLite.SQLiteDatabase {
   if (cachedDatabase) {
@@ -27,12 +82,47 @@ export function openDatabase(): SQLite.SQLiteDatabase {
 
   try {
     cachedDatabase = SQLite.openDatabaseSync(DATABASE_NAME);
+    ensureTablesExist(cachedDatabase);
     return cachedDatabase;
   } catch (error) {
     logger.error('[Database] Failed to open database:', error);
     // Retry once - the native module may have just finished loading
     cachedDatabase = SQLite.openDatabaseSync(DATABASE_NAME);
+    ensureTablesExist(cachedDatabase);
     return cachedDatabase;
+  }
+}
+
+/**
+ * Reset cached database instance.
+ * Call this when a native operation fails (NPE) to force a fresh connection.
+ */
+export function resetDatabaseCache(): void {
+  cachedDatabase = null;
+  tablesCreated = false;
+}
+
+/**
+ * Safely execute a database operation with NPE recovery.
+ * If the operation fails due to a null native handle, resets the cache,
+ * reopens the database, and retries once.
+ */
+export function safeDbOperation<T>(operation: () => T, fallback: T): T {
+  try {
+    return operation();
+  } catch (error) {
+    const errorStr = String(error);
+    if (errorStr.includes('NullPointerException') || errorStr.includes('has been rejected')) {
+      logger.warn('[Database] Native handle lost, resetting and retrying...');
+      resetDatabaseCache();
+      try {
+        return operation();
+      } catch (retryError) {
+        logger.error('[Database] Retry also failed:', retryError);
+        return fallback;
+      }
+    }
+    throw error;
   }
 }
 
@@ -239,27 +329,29 @@ export function getDatabaseStats(): {
   trips: number;
   stopTimes: number;
 } {
-  const db = openDatabase();
+  return safeDbOperation(() => {
+    const db = openDatabase();
 
-  const stopsCount = db.getFirstSync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM stops'
-  );
-  const routesCount = db.getFirstSync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM routes'
-  );
-  const tripsCount = db.getFirstSync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM trips'
-  );
-  const stopTimesCount = db.getFirstSync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM stop_times'
-  );
+    const stopsCount = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM stops'
+    );
+    const routesCount = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM routes'
+    );
+    const tripsCount = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM trips'
+    );
+    const stopTimesCount = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM stop_times'
+    );
 
-  return {
-    stops: stopsCount?.count || 0,
-    routes: routesCount?.count || 0,
-    trips: tripsCount?.count || 0,
-    stopTimes: stopTimesCount?.count || 0,
-  };
+    return {
+      stops: stopsCount?.count || 0,
+      routes: routesCount?.count || 0,
+      trips: tripsCount?.count || 0,
+      stopTimes: stopTimesCount?.count || 0,
+    };
+  }, { stops: 0, routes: 0, trips: 0, stopTimes: 0 });
 }
 
 /**
@@ -726,9 +818,8 @@ function formatDateYYYYMMDD(date: Date): string {
  * Get all stops
  */
 export async function getAllStops(): Promise<Stop[]> {
-  const db = openDatabase();
-
-  try {
+  return safeDbOperation(() => {
+    const db = openDatabase();
     const rows = db.getAllSync<any>('SELECT * FROM stops');
 
     return rows.map((row) => ({
@@ -739,19 +830,15 @@ export async function getAllStops(): Promise<Stop[]> {
       locationType: row.location_type,
       parentStation: row.parent_station,
     }));
-  } catch (error) {
-    logger.error('[Database] ❌ Failed to get all stops:', error);
-    throw error;
-  }
+  }, []);
 }
 
 /**
  * Get all routes
  */
 export async function getAllRoutes(): Promise<Route[]> {
-  const db = openDatabase();
-
-  try {
+  return safeDbOperation(() => {
+    const db = openDatabase();
     const rows = db.getAllSync<any>('SELECT * FROM routes');
 
     return rows.map((row) => ({
@@ -762,19 +849,15 @@ export async function getAllRoutes(): Promise<Route[]> {
       color: row.color,
       textColor: row.text_color,
     }));
-  } catch (error) {
-    logger.error('[Database] ❌ Failed to get all routes:', error);
-    throw error;
-  }
+  }, []);
 }
 
 /**
  * Get stop by ID
  */
 export async function getStopById(id: string): Promise<Stop | null> {
-  const db = openDatabase();
-
-  try {
+  return safeDbOperation(() => {
+    const db = openDatabase();
     const row = db.getFirstSync<any>('SELECT * FROM stops WHERE id = ?', [id]);
 
     if (!row) return null;
@@ -787,10 +870,7 @@ export async function getStopById(id: string): Promise<Stop | null> {
       locationType: row.location_type,
       parentStation: row.parent_station,
     };
-  } catch (error) {
-    logger.error('[Database] ❌ Failed to get stop by ID:', error);
-    throw error;
-  }
+  }, null);
 }
 
 /**
@@ -927,8 +1007,13 @@ export async function getRoutesByStopId(stopId: string, includeBus: boolean = fa
 
     return routes;
   } catch (error) {
+    const errorStr = String(error);
+    if (errorStr.includes('NullPointerException') || errorStr.includes('has been rejected')) {
+      logger.warn('[Database] NPE in getRoutesByStopId, resetting DB cache');
+      resetDatabaseCache();
+    }
     logger.error('[Database] ❌ Failed to get routes by stop ID:', error);
-    throw error;
+    return [];
   }
 }
 
@@ -1083,7 +1168,7 @@ export async function getRoutesWithStopIds(stopId: string, includeBus: boolean =
     return deduped;
   } catch (error) {
     logger.error('[Database] ❌ Failed to get routes with stop IDs:', error);
-    throw error;
+    return [];
   }
 }
 
@@ -1145,7 +1230,7 @@ export async function getRoutesByStopIds(stopIds: string[]): Promise<Map<string,
     return result;
   } catch (error) {
     logger.error('[Database] ❌ Failed to batch get routes:', error);
-    throw error;
+    return new Map();
   }
 }
 
@@ -1198,7 +1283,7 @@ export async function getStopsInBounds(
     }));
   } catch (error) {
     logger.error('[Database] ❌ Failed to get stops in bounds:', error);
-    throw error;
+    return [];
   }
 }
 
@@ -1479,7 +1564,7 @@ export async function searchStops(query: string): Promise<Stop[]> {
     }));
   } catch (error) {
     logger.error('[Database] ❌ Failed to search stops:', error);
-    throw error;
+    return [];
   }
 }
 
@@ -1541,7 +1626,7 @@ export async function searchRoutes(query: string): Promise<Route[]> {
     }));
   } catch (error) {
     logger.error('[Database] ❌ Failed to search routes:', error);
-    throw error;
+    return [];
   }
 }
 
@@ -1566,7 +1651,7 @@ export async function getRouteById(id: string): Promise<Route | null> {
     };
   } catch (error) {
     logger.error('[Database] ❌ Failed to get route by ID:', error);
-    throw error;
+    return null;
   }
 }
 
@@ -1627,7 +1712,7 @@ export async function getStopsByRouteId(routeId: string): Promise<Stop[]> {
     return stops;
   } catch (error) {
     logger.error('[Database] ❌ Failed to get stops by route ID:', error);
-    throw error;
+    return [];
   }
 }
 
@@ -2670,6 +2755,6 @@ export async function getNextDepartures(stopId: string, limit: number = 20): Pro
     });
   } catch (error) {
     logger.error('[Database] ❌ Failed to get next departures:', error);
-    throw error;
+    return [];
   }
 }

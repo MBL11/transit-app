@@ -1,5 +1,6 @@
 import {
   openDatabase,
+  resetDatabaseCache,
   initializeDatabase,
   getDatabaseStats,
   isDatabaseEmpty,
@@ -27,6 +28,9 @@ describe('database.ts', () => {
   let mockDb: any;
 
   beforeEach(() => {
+    // Reset singleton cache between tests
+    resetDatabaseCache();
+
     // Create a mock database instance
     mockDb = {
       execSync: jest.fn(),
