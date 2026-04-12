@@ -65,13 +65,8 @@ function NavigationContent() {
   logger.log('[NavigationContent] isExpoGo:', isExpoGo);
 
   // Setup notification handlers (must be inside NavigationContainer)
-  // Hook will handle Expo Go detection internally
-  if (!isExpoGo) {
-    useNotifications();
-    logger.log('[NavigationContent] useNotifications enabled');
-  } else {
-    logger.log('[NavigationContent] useNotifications skipped (Expo Go)');
-  }
+  // Always call the hook (React rules of hooks) - it handles Expo Go internally
+  useNotifications();
 
   // Start alert monitoring for favorite lines
   useEffect(() => {
@@ -171,16 +166,8 @@ function NavigationContent() {
 export function RootNavigator() {
   logger.log('[RootNavigator] Component called');
 
-  let isDark = false;
-  try {
-    const theme = useTheme();
-    isDark = theme.isDark;
-    logger.log('[RootNavigator] isDark:', isDark);
-    logger.log('[RootNavigator] useTheme succeeded');
-  } catch (error) {
-    logger.error('[RootNavigator] useTheme failed:', error);
-    throw error;
-  }
+  const theme = useTheme();
+  const isDark = theme.isDark;
 
   logger.log('[RootNavigator] Rendering NavigationContainer...');
 

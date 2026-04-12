@@ -24,6 +24,8 @@ const IZMIR_BBOX = [26.6, 38.7, 27.4, 38.2];
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 1500; // 1.5 seconds
 
+const FETCH_TIMEOUT_MS = 10000; // 10 second timeout for geocoding requests
+
 async function throttledFetch(url: string, options: RequestInit): Promise<Response> {
   const now = Date.now();
   const timeSinceLastRequest = now - lastRequestTime;
@@ -37,9 +39,17 @@ async function throttledFetch(url: string, options: RequestInit): Promise<Respon
 
   lastRequestTime = Date.now();
   logger.log(`[Geocoding] Making request to: ${url}`);
-  const response = await fetch(url, options);
-  logger.log(`[Geocoding] Response status: ${response.status}`);
-  return response;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    logger.log(`[Geocoding] Response status: ${response.status}`);
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export interface GeocodingResult {

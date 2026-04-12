@@ -27,7 +27,7 @@ type AppState = 'loading' | 'onboarding' | 'check_data' | 'data_loading' | 'read
 function AppContent() {
   const [appState, setAppState] = useState<AppState>('loading');
   const { isLoaded: hasGTFSData, checking: checkingGTFS, markAsLoaded, triggerBackgroundRefresh, needsUpdate } = useGTFSData();
-  const { adapter, loading: adapterLoading } = useAdapter();
+  const { adapter, loading: adapterLoading, error: adapterError } = useAdapter();
   const hasTriggeredAutoRefresh = useRef(false);
 
   useEffect(() => {
@@ -36,8 +36,11 @@ function AppContent() {
         // Initialize analytics
         await initAnalytics();
 
-        // Wait for i18n to be ready
-        await i18nInitPromise;
+        // Wait for i18n to be ready (with 5s timeout to avoid hanging)
+        await Promise.race([
+          i18nInitPromise,
+          new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+        ]);
 
         // Check if onboarding is completed
         const onboardingCompleted = await isOnboardingCompleted();
@@ -71,6 +74,11 @@ function AppContent() {
         if (!adapterLoading && adapter) {
           logger.log('[App] GTFS data loaded and adapter ready, showing app');
           setAppState('ready');
+        } else if (!adapterLoading && adapterError) {
+          // Adapter failed (e.g. timeout) but data exists - show app anyway
+          // Better to show the app with potential issues than a stuck splash screen
+          logger.warn('[App] Adapter failed but data exists, showing app anyway:', adapterError.message);
+          setAppState('ready');
         } else {
           logger.log('[App] Waiting for adapter to initialize...');
         }
@@ -78,7 +86,7 @@ function AppContent() {
         setAppState('data_loading');
       }
     }
-  }, [appState, checkingGTFS, hasGTFSData, adapterLoading, adapter]);
+  }, [appState, checkingGTFS, hasGTFSData, adapterLoading, adapter, adapterError]);
 
   // Auto-refresh GTFS data in background when app is ready AND data is stale
   // Only refresh if data is > 7 days old to avoid clearing stops during normal use

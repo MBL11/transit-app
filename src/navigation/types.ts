@@ -14,6 +14,7 @@ export type MapStackParamList = {
   StopDetails: { stopId: string };
   LineDetails: { routeId: string };
   Alerts: undefined;
+  Settings: undefined;
 };
 
 export type SearchStackParamList = {

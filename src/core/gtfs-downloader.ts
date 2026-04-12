@@ -89,7 +89,14 @@ export async function downloadGTFSZip(
       }
     );
 
-    const result = await downloadResumable.downloadAsync();
+    // Race download against 30-second timeout to prevent infinite hang on slow/dead networks
+    const DOWNLOAD_TIMEOUT_MS = 30000;
+    const result = await Promise.race([
+      downloadResumable.downloadAsync(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Download timed out after 30s')), DOWNLOAD_TIMEOUT_MS)
+      ),
+    ]);
 
     if (!result) {
       throw new Error('Download failed: no result');

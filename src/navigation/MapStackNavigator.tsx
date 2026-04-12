@@ -7,16 +7,10 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MapScreen } from '../screens/MapScreen';
 import { StopDetailsScreen } from '../screens/StopDetailsScreen';
+import { LineDetailsScreen } from '../screens/LineDetailsScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import type { LinesStackParamList } from './types';
-
-// Reuse LinesStackParamList since StopDetails is the same
-export type MapStackParamList = {
-  MapView: undefined;
-  Alerts: undefined;
-  Settings: undefined;
-} & Pick<LinesStackParamList, 'StopDetails'>;
+import type { MapStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<MapStackParamList>();
 
@@ -35,6 +29,10 @@ export function MapStackNavigator() {
       <Stack.Screen
         name="StopDetails"
         component={StopDetailsScreen}
+      />
+      <Stack.Screen
+        name="LineDetails"
+        component={LineDetailsScreen}
       />
       <Stack.Screen
         name="Alerts"

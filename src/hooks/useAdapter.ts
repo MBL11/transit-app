@@ -32,6 +32,8 @@ export function useAdapter() {
       return;
     }
 
+    let cancelled = false;
+
     async function init() {
       try {
         // Use shared promise to avoid duplicate initialization
@@ -45,19 +47,38 @@ export function useAdapter() {
           })();
         }
 
-        await initPromise;
+        // Race init against a 15-second timeout to avoid infinite splash
+        const INIT_TIMEOUT_MS = 15000;
+        await Promise.race([
+          initPromise,
+          new Promise<void>((_, reject) =>
+            setTimeout(() => reject(new Error('Adapter initialization timed out')), INIT_TIMEOUT_MS)
+          ),
+        ]);
+
+        if (cancelled) return;
         logger.log('[useAdapter] Init complete, setting adapter');
         setAdapter(adapterInstance);
         setLoading(false);
       } catch (err) {
+        if (cancelled) return;
         logger.error('[useAdapter] ❌ Failed to initialize:', err);
         initPromise = null; // Reset so it can be retried
+
+        // On timeout, still try to use the adapter if it partially loaded
+        if (adapterInstance) {
+          logger.warn('[useAdapter] Using partially initialized adapter');
+          setAdapter(adapterInstance);
+        }
+
         setError(err instanceof Error ? err : new Error('Unknown error'));
         setLoading(false);
       }
     }
 
     init();
+
+    return () => { cancelled = true; };
   }, []);
 
   // Memoize return value to prevent unnecessary re-renders in consumers

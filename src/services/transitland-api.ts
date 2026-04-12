@@ -107,11 +107,20 @@ async function transitlandFetch<T>(endpoint: string, params: Record<string, stri
 
   logger.log(`[Transitland] Fetching: ${endpoint}`);
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept': 'application/json',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');

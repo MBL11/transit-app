@@ -25,7 +25,7 @@ import { useNetwork } from '../contexts/NetworkContext';
 import { findNearbyStops, NearbyStop } from '../core/nearby-stops';
 import type { Stop, Route } from '../core/types/models';
 import type { NextDeparture } from '../core/types/adapter';
-import type { MapStackParamList } from '../navigation/MapStackNavigator';
+import type { MapStackParamList } from '../navigation/types';
 import * as db from '../core/database';
 import { detectTransitType, transitTypeToRouteType } from '../utils/transport-detection';
 import { logger } from '../utils/logger';

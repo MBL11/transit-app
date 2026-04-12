@@ -34,9 +34,18 @@ const fallbackLocale = supportedLanguages.includes(deviceLocale) ? deviceLocale 
 
 // Initialize i18n with async storage
 const initI18n = async () => {
-  // Load saved language from AsyncStorage
-  const savedLanguage = await AsyncStorage.getItem('app_language');
-  const initialLanguage = savedLanguage || fallbackLocale;
+  let initialLanguage = fallbackLocale;
+
+  try {
+    // Load saved language from AsyncStorage (with timeout to avoid hanging)
+    const savedLanguage = await Promise.race([
+      AsyncStorage.getItem('app_language'),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ]);
+    if (savedLanguage) initialLanguage = savedLanguage;
+  } catch {
+    // AsyncStorage failed - use fallback locale
+  }
 
   await i18n
     .use(initReactI18next)

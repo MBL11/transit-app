@@ -29,10 +29,25 @@ const getTransportType = (routeType?: number): TransportType => {
 
 type Props = NativeStackScreenProps<RouteStackParamList, 'RouteDetails'>;
 
-export function RouteDetailsScreen({ route }: Props) {
+export function RouteDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Safety check: if params are missing, show error instead of crashing
+  if (!route.params?.journey) {
+    return (
+      <ScreenContainer>
+        <ScreenHeader title={t('route.title')} showBack />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+            {t('common.error')}
+          </Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
+
   const journey = deserializeJourney(route.params.journey);
 
   // Filter out useless segments (walking 0 min or duplicate stops)
